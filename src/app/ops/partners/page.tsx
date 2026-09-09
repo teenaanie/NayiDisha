@@ -1,3 +1,4 @@
+import {InvitationButton} from '../invitation-button';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import {NavigationLink} from '../../navigation-link';
@@ -59,7 +60,7 @@ export default async function PartnersPage() {
                     ? <><span className="pill p-ok">accepted</span><div className="small muted">{fmtDateTime(p.conduct_accepted_at)}</div></>
                     : <span className="pill p-warn">not accepted</span>}</td>
                   <td><StatusPill status={p.status} /></td>
-                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit`} aria-label={`Edit ${p.name} and manage sites`}>Edit / sites</Link><OpsActions kind="partner" id={p.id} status={p.status} /></div></td>
+                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit`} aria-label={`Edit ${p.name} and manage sites`}>Edit / sites</Link>{p.status==='VERIFIED'&&<InvitationButton role="PARTNER" id={p.id}/>}<OpsActions kind="partner" id={p.id} status={p.status} /></div></td>
                 </tr>
               ))}
             </tbody>

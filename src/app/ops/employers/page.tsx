@@ -1,3 +1,4 @@
+import {InvitationButton} from '../invitation-button';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import {NavigationLink} from '../../navigation-link';
@@ -57,7 +58,7 @@ export default async function EmployersPage() {
                     {e.status_reason && <div className="small muted">{e.status_reason}</div>}
                     <div className="small muted">{fmtDateTime(e.status_at)}</div>
                   </td>
-                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/employers/${e.id}/edit`} aria-label={`Edit ${e.brand_name}`}>Edit</Link><OpsActions kind="employer" id={e.id} status={e.status} /></div></td>
+                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/employers/${e.id}/edit`} aria-label={`Edit ${e.brand_name}`}>Edit</Link>{e.status==='VERIFIED'&&<InvitationButton role="EMPLOYER" id={e.id}/>}<OpsActions kind="employer" id={e.id} status={e.status} /></div></td>
                 </tr>
               ))}
             </tbody>

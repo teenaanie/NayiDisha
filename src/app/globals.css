@@ -244,3 +244,30 @@ a.tile .go{font-size:.76rem; color:var(--accent); font-weight:600; margin-top:8p
 .attn .v{color:var(--warn);}
 
 .record-actions{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;flex-wrap:wrap}.record-actions .btn{white-space:nowrap}
+
+/* Founder demo: keep the conversation frame visible while records load. */
+.wa-demo .wa-shell {max-width:490px;}
+.wa-demo .wa-phone {border:7px solid #18312e;border-radius:32px;box-shadow:0 18px 48px #12332d26;}
+.wa-statusbar {display:flex;justify-content:space-between;background:#075e54;color:#fff;padding:8px 22px 0;font-size:12px;}
+.wa-demo .wa-top {padding:15px;gap:12px;}
+.wa-demo .avatar {width:40px;height:40px;}
+.wa-presence {font-size:11px;font-weight:400;opacity:.85;margin-top:3px;}
+.wa-menu {margin-left:auto;font-size:25px;}
+.wa-demo .wa-body {min-height:480px;max-height:68vh;background-color:#eae3d8;background-image:radial-gradient(#c8beb04d 1px,transparent 1px);background-size:18px 18px;padding:16px;gap:12px;}
+.wa-demo .wa-msg.wa-in {background:#fff;color:#213b35;box-shadow:0 1px 2px #00000012;}
+.wa-demo .wa-msg.wa-out {background:#d9fdd3;color:#213b35;}
+.wa-day {align-self:center;border-radius:6px;background:#fff9;padding:5px 10px;color:#52685f;font-size:10px;letter-spacing:.06em;}
+.wa-demo .wa-reply-panel {max-width:96%;width:100%;padding:15px;}
+.wa-reply-panel form {display:flex;flex-direction:column;gap:12px;}
+.wa-reply-panel label {display:block;font-size:12px;}
+.wa-reply-panel input:not([type=checkbox]),.wa-reply-panel select {width:100%;max-width:100%;background:#f7faf8;color:#213b35;border:1px solid #cad8d1;border-radius:7px;padding:9px;margin-top:5px;}
+.wa-reply-panel button {border:1px solid #bdd7c7;background:#edf8f0;color:#075e54;border-radius:7px;padding:10px;cursor:pointer;margin:4px 3px 4px 0;}
+.wa-reply-panel button:disabled {opacity:.55;cursor:wait;}
+.wa-reply-panel fieldset {border:1px solid #cad8d1;border-radius:7px;min-width:0;}
+.wa-reply-panel a {color:#086e59;}
+.wa-reply-panel .note {background:#f0f7f1;color:#213b35;border-color:#c6dfcd;}
+.wa-reply-panel p:empty {display:none;}
+.wa-composer {display:flex;align-items:center;gap:12px;padding:14px;background:#f4f6f4;color:#6a7974;font-size:12px;}
+.wa-composer span:nth-child(2){flex:1;background:white;border-radius:22px;padding:10px;}
+.wa-disclaimer {text-align:center;font-size:12px;color:var(--ink-2);margin-top:14px;}
+@media(max-width:540px){.wa-demo .wa-phone{border-width:3px;border-radius:22px;}.wa-demo .wa-body{padding:10px;min-height:400px;}.wa-demo .wa-reply-panel{max-width:100%;}}

@@ -2,7 +2,7 @@ import {readQuery} from './read-query';
 import {cookies} from 'next/headers';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {sql} from './db';
-export type Identity={id:string;role:'ADMIN'|'OPERATIONS'|'FINANCE'|'EMPLOYER'|'PARTNER'|'CANDIDATE'|'REGISTRATION';expires:number};
+export type Identity={id:string;role:'ADMIN'|'OPERATIONS'|'FINANCE'|'EMPLOYER'|'PARTNER'|'CANDIDATE'|'REGISTRATION';authVersion?:number;expires:number};
 const secret=()=>process.env.DEMO_SESSION_SECRET||process.env.DEMO_PASSWORD||(process.env.NODE_ENV!=='production'?'local-demo-only-secret': '');
 function sign(body:string){const key=secret();if(!key)throw new Error('Set DEMO_SESSION_SECRET and DEMO_PASSWORD before sharing this demo.');return createHmac('sha256',key).update(body).digest('base64url');}
 export async function identity(name='nd_identity'):Promise<Identity|null>{
@@ -10,11 +10,11 @@ export async function identity(name='nd_identity'):Promise<Identity|null>{
  try{const [body,sig]=token.split('.');const expected=sign(body);if(!sig||sig.length!==expected.length||!timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;
  const value=JSON.parse(Buffer.from(body,'base64url').toString());return value.expires>Date.now()?value:null;}catch{return null;}
 }
-export async function setIdentity(id:string,role:Identity['role'],name='nd_identity'){
- const body=Buffer.from(JSON.stringify({id,role,expires:Date.now()+8*3600000})).toString('base64url');
+export async function setIdentity(id:string,role:Identity['role'],name='nd_identity',authVersion?:number){
+ const body=Buffer.from(JSON.stringify({id,role,authVersion,expires:Date.now()+8*3600000})).toString('base64url');
  (await cookies()).set(name,body+'.'+sign(body),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:8*3600});
 }
-export async function requireRole(roles:Identity['role'][]){const actor=await identity();if(!actor||!roles.includes(actor.role))throw new Error('This action is not available for the selected demo identity. Open Demo identities to sign in or switch.');if(actor.role==='CANDIDATE'){const [c]=await readQuery(sql`SELECT status FROM app.candidate WHERE id=${actor.id}`);if(!c||c.status==='DELETED_BLOCKED')throw new Error('This profile is no longer active.');}return actor;}
+export async function requireRole(roles:Identity['role'][]){const actor=await identity();if(!actor||!roles.includes(actor.role))throw new Error('This action is not available for the selected demo identity. Open Demo identities to sign in or switch.');if(actor.role==='EMPLOYER'||actor.role==='PARTNER'){const rows=actor.role==='EMPLOYER'?await readQuery(sql`SELECT status FROM app.employer_organisation WHERE id=${actor.id}`):await readQuery(sql`SELECT status FROM app.partner WHERE id=${actor.id}`);if(rows[0]?.status!=='VERIFIED')throw new Error('This organisation is not approved for access.');if(actor.authVersion!==undefined){const [account]=await readQuery(sql`SELECT version FROM app.demo_account WHERE entity_id=${actor.id}`);if(account?.version!==actor.authVersion)throw new Error('Your access was reset. Please sign in again.');}}if(actor.role==='CANDIDATE'){const [c]=await readQuery(sql`SELECT status FROM app.candidate WHERE id=${actor.id}`);if(!c||c.status==='DELETED_BLOCKED')throw new Error('This profile is no longer active.');}return actor;}
 export async function scopePage(section:string,id?:string){
  const roles:Record<string,Identity['role'][]>= {ops:['ADMIN','OPERATIONS'],finance:['ADMIN','FINANCE'],employer:['ADMIN','EMPLOYER'],partner:['ADMIN','PARTNER'],wa:['ADMIN','CANDIDATE']};
  const actor=await requireRole(roles[section]||['ADMIN']);
@@ -22,7 +22,7 @@ export async function scopePage(section:string,id?:string){
 }
 export async function authorizeAction(name:string,args:unknown[]){
  if(['actWaStart','actWaVerify','actWaAssessment','actWaProfile'].includes(name))throw new Error('Use the verified candidate journey at /wa.');
- const actor=await identity();if(!actor)throw new Error('Choose a demo identity first.');if(actor.role==='CANDIDATE')await requireRole(['CANDIDATE']);
+ const actor=await identity();if(!actor)throw new Error('Choose a demo identity first.');if(['CANDIDATE','EMPLOYER','PARTNER'].includes(actor.role))await requireRole([actor.role]);
  if(actor.role==='ADMIN')return;
  const allowed:Record<string,string[]>={
  OPERATIONS:['ApproveEmployer','SuspendEmployer','ApproveJob','RotateQr','SetPartnerStatus','ResolveAttribution','DecideReplacement','CreateEmployer','CreatePartner','ResolveDataRequest','DispatchAlerts','RecomputeMatches'],
