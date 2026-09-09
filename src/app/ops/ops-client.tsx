@@ -4,6 +4,7 @@ import {
   actApproveEmployer, actSuspendEmployer, actApproveJob, actSetPartnerStatus,
   actRotateQr, actResolveAttribution, actDecideReplacement,
   actPublishConfig, actValidateConfig, actUpdateSandboxWeights, actUpdateSandboxThreshold,
+  actResolveDataRequest,
 } from '../actions';
 import { StatusPill } from '../ui';
 
@@ -202,6 +203,22 @@ export function SandboxEditor({ configs }: { configs: Cfg[] }) {
         </div>
         {msg && <div className="note mt small">{msg}</div>}
       </div>
+    </div>
+  );
+}
+
+export function DataRequestActions({ id }: { id: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
+      <button className="btn btn-sm btn-primary" disabled={pending}
+              onClick={() => start(async () => { await actResolveDataRequest(id, 'ACTIONED'); })}>
+        Mark actioned
+      </button>
+      <button className="btn btn-sm" disabled={pending}
+              onClick={() => start(async () => { await actResolveDataRequest(id, 'REFUSED'); })}>
+        Refuse
+      </button>
     </div>
   );
 }

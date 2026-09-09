@@ -8,7 +8,18 @@
 import { sql } from './db';
 
 const TABLE_FOR_PREFIX: Record<string, string> = {
+  EMP: 'app.employer_organisation',
+  LOC: 'app.employer_location',
+  EU: 'app.employer_user',
+  PAR: 'app.partner',
+  SITE: 'app.partner_site',
+  JOB: 'app.job',
   CAN: 'app.candidate',
+  ALR: 'app.job_alert',
+  PJA: 'app.partner_job_alert',
+  JC: 'app.job_change',
+  DR: 'app.data_request',
+  DOC: 'app.candidate_document',
   APP: 'app.application',
   MATCH: 'app.match_result',
   UNL: 'app.qualified_lead_unlock',

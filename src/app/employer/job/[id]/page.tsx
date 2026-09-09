@@ -7,6 +7,7 @@ import { activeCommercialPolicy } from '@/modules/configuration';
 import { creditBalance } from '@/modules/commercial';
 import { Clause, Money, StatusPill, ScoreBars, Tags } from '../../../ui';
 import { UnlockPanel } from './unlock-panel';
+import { JobTools } from './job-tools';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,9 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
             <Money paise={policy.additionalCreditPaise} />
           </div>
           <Clause>JOB-06 / JOB-07</Clause>
+        </div>
+        <div className="card-body" style={{ borderTop: '1px solid var(--line)' }}>
+          <JobTools jobId={jobId} creditPricePaise={policy.additionalCreditPaise} />
         </div>
       </div>
 

@@ -15,6 +15,17 @@ import {
 } from '../src/modules/commercial';
 import { validateRoleConfig, activeCommercialPolicy } from '../src/modules/configuration';
 import { startRegistration, verifyAndBind, grantConsent, completeProfile } from '../src/modules/candidate';
+import { dispatchJobAlerts, respondToAlert, sendNudge, NUDGE_LIMIT_PER_WEEK } from '../src/modules/alerts';
+import {
+  proposeInterview, respondToInterview, rescheduleInterview, recordInterviewOutcome,
+  sendDueInterviewReminders, makeOffer, respondToOffer, uploadDocument, reviewDocument,
+  markJoined, documentsForCase,
+} from '../src/modules/hiring';
+import {
+  editJob, setJobState, duplicateJob, createEndorsementInvite, submitEndorsement,
+  withdrawEndorsement, setEndorsementHidden, updatePreferences, resumePoint,
+  raiseDataRequest, acceptConduct,
+} from '../src/modules/lifecycle';
 
 let pass = 0, fail = 0;
 const results: { clause: string; name: string; ok: boolean; detail: string }[] = [];
@@ -32,8 +43,15 @@ async function main() {
   await setClock(SEED_INSTANT);
 
   // ---- §25: persisted state -----------------------------------------------
-  const [{ n: candN }] = await sql<{ n: string }[]>`SELECT COUNT(*)::text n FROM app.candidate`;
-  check('§25', 'Success path runs from persisted data', Number(candN) === 8, `${candN} candidates seeded`);
+  // Assert the canonical eight are present by ID rather than counting rows —
+  // this suite creates its own fixtures (the under-18 case below), so a row
+  // count makes the check fail on a second run against the same database.
+  const [{ n: candN }] = await sql<{ n: string }[]>`
+    SELECT COUNT(*)::text n FROM app.candidate
+     WHERE id IN ('CAN-001','CAN-002','CAN-003','CAN-004','CAN-005','CAN-006','CAN-007','CAN-008')
+  `;
+  check('§25', 'Success path runs from persisted data', Number(candN) === 8,
+    `${candN}/8 canonical candidates present`);
 
   // ---- §25 / LEAD-07: unlock idempotency ----------------------------------
   const before = await creditBalance('ENT-001');
@@ -229,7 +247,314 @@ async function main() {
     SELECT COUNT(*)::text n FROM app.employer_organisation WHERE brand_name NOT LIKE 'DEMO %'`;
   check('§21.2', 'All fictional organisations are labelled DEMO', undemo.n === '0', `${undemo.n} unlabelled`);
 
+
+  // =========================================================================
+  // §8.6 alerts, §8.9 interviews, §8.10 onboarding, job & endorsement lifecycle
+  // =========================================================================
   await setClock(SEED_INSTANT);
+
+  // The checks below deliberately mutate seeded rows — they pause a job, change
+  // its pay, withdraw a consent. A suite that leaves that behind passes once and
+  // fails on the second run, which is worse than no suite at all. So: snapshot
+  // the seeded state here, and put it back at the end of the block.
+  const FIXTURE_JOBS = ['JOB-001', 'JOB-002', 'JOB-003'];
+  const jobSnapshot = await sql<{
+    id: string; title: string; status: string; fixed_pay_paise: string;
+  }[]>`SELECT id, title, status, fixed_pay_paise::text FROM app.job WHERE id = ANY(${FIXTURE_JOBS})`;
+
+  const [prefSnapshot] = await sql<{ max_commute_min: number; alert_max_per_week: number }[]>`
+    SELECT max_commute_min, alert_max_per_week FROM app.candidate WHERE id='CAN-005'`;
+
+  const clearAlertFixtures = async () => {
+    await sql`DELETE FROM app.job_alert WHERE job_id = ANY(${FIXTURE_JOBS})`;
+    await sql`DELETE FROM app.partner_job_alert WHERE job_id = ANY(${FIXTURE_JOBS})`;
+    await sql`UPDATE app.consent_record SET withdrawn_at = NULL
+               WHERE purpose = 'JOB_ALERTS' AND candidate_id IN ('CAN-002','CAN-004')`;
+  };
+  await clearAlertFixtures();
+
+  // ---- ALT-01/02: dispatch and suppression -------------------------------
+  const notLive = await dispatchJobAlerts('JOB-005');   // expired
+  check('JOB-05', 'An expired job dispatches no alerts',
+    notLive.candidatesAlerted === 0 && notLive.partnersAlerted === 0,
+    `${notLive.candidatesAlerted} candidates`);
+
+  const dispatch = await dispatchJobAlerts('JOB-001');
+  check('ALT-01', 'A live job alerts eligible candidates and relevant partners',
+    dispatch.candidatesAlerted > 0 && dispatch.partnersAlerted > 0,
+    `${dispatch.candidatesAlerted} candidates, ${dispatch.partnersAlerted} partners`);
+
+  const againSameJob = await dispatchJobAlerts('JOB-001');
+  check('ALT-02', 'The same job never alerts the same candidate twice',
+    againSameJob.candidatesAlerted === 0,
+    `${againSameJob.suppressed.filter((s) => s.reason === 'ALREADY_ALERTED').length} already alerted`);
+
+  await sql`UPDATE app.consent_record SET withdrawn_at = ${SEED_INSTANT}
+             WHERE candidate_id = 'CAN-002' AND purpose = 'JOB_ALERTS'`;
+  const noConsent = await dispatchJobAlerts('JOB-003');
+  check('ALT-02', 'A candidate without alert consent is suppressed, with a reason',
+    noConsent.suppressed.some((s) => s.candidateId === 'CAN-002' && s.reason === 'NO_ALERT_CONSENT'),
+    noConsent.suppressed.find((s) => s.candidateId === 'CAN-002')?.reason ?? 'not suppressed');
+
+  // Quiet hours: 02:00 IST falls inside the default 21:00–08:00 window.
+  await setClock(new Date('2026-10-06T02:00:00+05:30'));
+  const quiet = await dispatchJobAlerts('JOB-002');
+  check('ALT-02', 'No alert is sent during a candidate\'s quiet hours',
+    quiet.candidatesAlerted === 0 && quiet.suppressed.some((s) => s.reason === 'QUIET_HOURS'),
+    `${quiet.suppressed.filter((s) => s.reason === 'QUIET_HOURS').length} suppressed for quiet hours`);
+  await setClock(SEED_INSTANT);
+
+  // ---- ALT-03: partner alerts carry no candidate data --------------------
+  const [pa] = await sql<{ cols: string }[]>`
+    SELECT string_agg(column_name, ',') AS cols FROM information_schema.columns
+     WHERE table_schema='app' AND table_name='partner_job_alert'`;
+  check('ALT-03', 'Partner alerts carry role and bounty only, never candidate data',
+    !/candidate/.test(pa.cols), pa.cols);
+
+  // ---- ALT-04: acting from the alert -------------------------------------
+  const [anAlert] = await sql<{ id: string; candidate_id: string }[]>`
+    SELECT id, candidate_id FROM app.job_alert WHERE candidate_id='CAN-004' LIMIT 1`;
+  if (anAlert) {
+    await respondToAlert(anAlert.id, 'STOP_ALERTS');
+    const [c4] = await sql<{ withdrawn_at: Date | null }[]>`
+      SELECT withdrawn_at FROM app.consent_record
+       WHERE candidate_id='CAN-004' AND purpose='JOB_ALERTS'`;
+    check('ALT-04', '"Stop alerts" withdraws alert consent but not job access',
+      !!c4?.withdrawn_at, 'consent withdrawn');
+  }
+
+  // ---- ALT-05/06: nudges --------------------------------------------------
+  const wrongPartner = await sendNudge('PAR-002', 'CAN-001', 'JOB-001');
+  check('ALT-05', 'A partner cannot nudge a candidate they did not source',
+    'error' in wrongPartner && wrongPartner.error === 'NOT_YOUR_CANDIDATE', JSON.stringify(wrongPartner));
+
+  for (let i = 0; i < NUDGE_LIMIT_PER_WEEK; i++) await sendNudge('PAR-001', 'CAN-001', 'JOB-001');
+  const overLimit = await sendNudge('PAR-001', 'CAN-001', 'JOB-001');
+  check('ALT-06', 'Nudges are rate-limited per candidate per week',
+    'error' in overLimit && overLimit.error === 'NUDGE_RATE_LIMIT', JSON.stringify(overLimit));
+
+  // ---- §8.9 interviews ----------------------------------------------------
+  const [notUnlocked] = await sql<{ id: string }[]>`
+    SELECT a.id FROM app.application a
+     WHERE a.candidate_id='CAN-005' AND a.job_id='JOB-001'`;
+  const badItv = await proposeInterview(notUnlocked.id, new Date('2026-10-09T11:00:00+05:30'),
+    'IN_PERSON', 'FC Road', 'Never pay for an interview.');
+  check('INT-01', 'An interview cannot be scheduled before the profile is unlocked',
+    'error' in badItv && badItv.error === 'PROFILE_NOT_UNLOCKED', JSON.stringify(badItv));
+
+  const [unlockedApp] = await sql<{ id: string }[]>`
+    SELECT application_id AS id FROM app.qualified_lead_unlock
+     WHERE status='CONFIRMED' ORDER BY unlocked_at LIMIT 1`;
+  const itv = await proposeInterview(unlockedApp.id, new Date('2026-10-09T11:00:00+05:30'),
+    'IN_PERSON', 'FC Road Branch', 'Come to reception. Never pay anyone for an interview.');
+  check('INT-01', 'A proposed interview starts unconfirmed', 'interviewId' in itv, JSON.stringify(itv));
+
+  const itvId = (itv as { interviewId: string }).interviewId;
+  const early = await sendDueInterviewReminders();
+  check('INT-04', 'No reminder before the candidate confirms', early === 0, `${early} sent`);
+
+  await respondToInterview(itvId, true);
+  const stillEarly = await sendDueInterviewReminders();
+  check('INT-04', 'No reminder until inside the 24 hours before the slot',
+    stillEarly === 0, `${stillEarly} sent at T0`);
+
+  await setClock(new Date('2026-10-09T09:00:00+05:30'));
+  const dueNow = await sendDueInterviewReminders();
+  check('INT-04', 'Reminder goes out inside the 24-hour window, exactly once',
+    dueNow === 1 && (await sendDueInterviewReminders()) === 0, `${dueNow} sent`);
+  await setClock(SEED_INSTANT);
+
+  await rescheduleInterview(itvId, new Date('2026-10-11T15:00:00+05:30'));
+  const [resched] = await sql<{ rescheduled_from: Date | null; candidate_confirmed: boolean; status: string }[]>`
+    SELECT rescheduled_from, candidate_confirmed, status FROM app.interview WHERE id=${itvId}`;
+  check('INT-03', 'Rescheduling keeps the original time and re-opens confirmation',
+    !!resched.rescheduled_from && resched.candidate_confirmed === false,
+    `was ${resched.rescheduled_from?.toISOString().slice(0, 16)}, status ${resched.status}`);
+
+  await recordInterviewOutcome(itvId, 'NO_SHOW_EMPLOYER');
+  const [ns] = await sql<{ no_show_by: string | null }[]>`
+    SELECT no_show_by FROM app.interview WHERE id=${itvId}`;
+  check('INT-05', 'A no-show is attributed to whichever side missed it',
+    ns.no_show_by === 'EMPLOYER', String(ns.no_show_by));
+
+  // ---- §8.10 onboarding ---------------------------------------------------
+  const badOffer = await makeOffer({
+    applicationId: notUnlocked.id, roleTitle: 'RE', locationId: 'LOC-001',
+    fixedPaise: rupees(19000), variablePaise: rupees(6000),
+    joiningDate: '2026-10-20', offerValidHours: 72,
+  });
+  check('ONB-01', 'An offer cannot be made before the profile is unlocked',
+    'error' in badOffer && badOffer.error === 'PROFILE_NOT_UNLOCKED', JSON.stringify(badOffer));
+
+  const offer = await makeOffer({
+    applicationId: unlockedApp.id, roleTitle: 'Relationship Executive', locationId: 'LOC-001',
+    fixedPaise: rupees(19000), variablePaise: rupees(6000),
+    joiningDate: '2026-10-20', offerValidHours: 72,
+  });
+  const caseId = (offer as { caseId: string }).caseId;
+  check('ONB-01', 'Offer records fixed and variable pay separately',
+    !!caseId, caseId ?? JSON.stringify(offer));
+
+  await setClock(addHours(SEED_INSTANT, 73));
+  const expiredOffer = await respondToOffer(caseId, true);
+  check('ONB-02', 'An offer past its expiry cannot be accepted',
+    'error' in expiredOffer && expiredOffer.error === 'OFFER_EXPIRED', JSON.stringify(expiredOffer));
+  await setClock(SEED_INSTANT);
+  await sql`UPDATE app.onboarding_case SET status='OFFER_SENT' WHERE id=${caseId}`;
+
+  const accepted = await respondToOffer(caseId, true);
+  check('ONB-02', 'Accepting opens the document checklist',
+    'status' in accepted && accepted.status === 'DOCUMENTS_PENDING', JSON.stringify(accepted));
+
+  const docs = await documentsForCase(caseId);
+  const cfgChecklist = (await sql<{ document_checklist: string[] }[]>`
+    SELECT document_checklist FROM app.role_configuration WHERE id='CFG-BFSI-RE-1'`)[0].document_checklist;
+  check('ONB-03', 'The checklist comes from the role configuration, not from code',
+    docs.length === cfgChecklist.length &&
+    docs.every((d) => cfgChecklist.includes(d.document_key)),
+    `${docs.length} documents: ${docs.map((d) => d.document_key).join(', ')}`);
+
+  await uploadDocument(docs[0].id);
+  const noReason = await reviewDocument(docs[0].id, 'REJECTED');
+  check('ONB-07', 'A document cannot be rejected without a reason',
+    'error' in noReason && noReason.error === 'REASON_REQUIRED', JSON.stringify(noReason));
+
+  await reviewDocument(docs[0].id, 'REJECTED', 'Photo unreadable — please retake in daylight.');
+  const [rejected] = await sql<{ status: string; reject_reason: string | null }[]>`
+    SELECT status, reject_reason FROM app.candidate_document WHERE id=${docs[0].id}`;
+  check('ONB-07', 'A rejected document can be uploaded again',
+    rejected.status === 'REJECTED' && !!rejected.reject_reason, rejected.reject_reason ?? '');
+
+  for (const d of docs) { await uploadDocument(d.id); await reviewDocument(d.id, 'APPROVED'); }
+  const [caseAfter] = await sql<{ status: string }[]>`
+    SELECT status FROM app.onboarding_case WHERE id=${caseId}`;
+  check('ONB-03', 'The case completes only when every document is approved',
+    caseAfter.status === 'DOCUMENTS_COMPLETE', caseAfter.status);
+
+  // ONB-06 — none of this may move money.
+  const ledgerBefore = (await sql<{ n: string }[]>`
+    SELECT COALESCE(SUM(amount_paise),0)::text n FROM app.reward_ledger`)[0].n;
+  await markJoined(caseId);
+  const ledgerAfter = (await sql<{ n: string }[]>`
+    SELECT COALESCE(SUM(amount_paise),0)::text n FROM app.reward_ledger`)[0].n;
+  check('ONB-06', 'Recording a joining changes no money at all',
+    ledgerBefore === ledgerAfter, `ledger ₹${Number(ledgerBefore) / 100} unchanged`);
+
+  // ---- JOB-04/05 lifecycle -----------------------------------------------
+  const minorEdit = await editJob('JOB-002', { title: 'Customer Service Associate (Kothrud)' }, 'EU-001');
+  check('JOB-04', 'A title change is minor and notifies nobody',
+    'material' in minorEdit && minorEdit.material === false && minorEdit.notified === 0,
+    `notified ${('notified' in minorEdit ? minorEdit.notified : '?')}`);
+
+  const material = await editJob('JOB-001', { fixedPayPaise: rupees(19500) }, 'EU-001');
+  check('JOB-04', 'A pay change is material and notifies interested candidates',
+    'material' in material && material.material === true && (material.notified ?? 0) > 0,
+    `notified ${('notified' in material ? material.notified : '?')}`);
+
+  await setJobState('JOB-001', 'PAUSED', 'Paused for the test', 'EU-001');
+  const pausedAlerts = await dispatchJobAlerts('JOB-001');
+  check('JOB-05', 'A paused job stops alerting immediately',
+    pausedAlerts.candidatesAlerted === 0, `${pausedAlerts.candidatesAlerted} alerted`);
+  await setJobState('JOB-001', 'LIVE', 'Resumed for the test', 'EU-001');
+
+  const dup = await duplicateJob('JOB-001', 'EU-001');
+  const [dupRow] = await sql<{ status: string; duplicated_from: string | null }[]>`
+    SELECT status, duplicated_from FROM app.job WHERE id=${(dup as { jobId: string }).jobId}`;
+  check('JOB-01', 'A duplicated job starts as a draft awaiting approval, never live',
+    dupRow.status === 'PENDING_APPROVAL' && dupRow.duplicated_from === 'JOB-001', dupRow.status);
+
+  // ---- END-02/03/09 endorsement lifecycle --------------------------------
+  const inv = await createEndorsementInvite('CAN-005', 'DEMO Anil Rane', '+910000009077', 'FORMER_MANAGER');
+  const noConsentSubmit = await submitEndorsement(inv.token, {
+    relationship: 'FORMER_MANAGER', periodKnown: '2 years',
+    competencies: ['RELIABILITY'], comment: 'Dependable.', displayConsent: false, otp: '123456',
+  });
+  check('END-02', 'An endorsement cannot be submitted without display consent',
+    'error' in noConsentSubmit && noConsentSubmit.error === 'DISPLAY_CONSENT_REQUIRED',
+    JSON.stringify(noConsentSubmit));
+
+  const submitted = await submitEndorsement(inv.token, {
+    relationship: 'FORMER_MANAGER', periodKnown: '2 years',
+    competencies: ['RELIABILITY'], comment: 'Dependable.', displayConsent: true, otp: '123456',
+  });
+  check('END-02', 'The endorser submits after verifying a channel',
+    'ok' in submitted && submitted.ok === true, JSON.stringify(submitted));
+
+  const reuse = await submitEndorsement(inv.token, {
+    relationship: 'PEER', periodKnown: '1 year', competencies: ['TEAMWORK'],
+    comment: 'Again.', displayConsent: true, otp: '123456',
+  });
+  check('END-01', 'An invitation link is single use',
+    'error' in reuse, JSON.stringify(reuse));
+
+  const wd = (submitted as { withdrawToken: string }).withdrawToken;
+  await withdrawEndorsement(wd);
+  const [afterWd] = await sql<{ status: string; raw_points: number }[]>`
+    SELECT status, raw_points FROM app.endorsement WHERE id=${inv.id}`;
+  check('END-03', 'The endorser can withdraw later, and it stops scoring',
+    afterWd.status === 'WITHDRAWN' && afterWd.raw_points === 0,
+    `${afterWd.status}, ${afterWd.raw_points} points`);
+
+  const [verified] = await sql<{ id: string }[]>`
+    SELECT id FROM app.endorsement WHERE status='VERIFIED_CONTACT' LIMIT 1`;
+  if (verified) {
+    await setEndorsementHidden(verified.id, true);
+    const [hid] = await sql<{ status: string; raw_points: number }[]>`
+      SELECT status, raw_points FROM app.endorsement WHERE id=${verified.id}`;
+    check('END-09', 'A candidate can hide an endorsement, and hidden scores zero',
+      hid.status === 'HIDDEN' && hid.raw_points === 0, `${hid.status}, ${hid.raw_points} points`);
+    await setEndorsementHidden(verified.id, false);
+  }
+
+  // ---- CAN-02/04/06 self-service -----------------------------------------
+  await updatePreferences('CAN-005', { maxCommuteMin: 20, alertMaxPerWeek: 1 });
+  const [prefs] = await sql<{ max_commute_min: number; alert_max_per_week: number }[]>`
+    SELECT max_commute_min, alert_max_per_week FROM app.candidate WHERE id='CAN-005'`;
+  check('CAN-04', 'A candidate can change commute and alert-frequency preferences',
+    prefs.max_commute_min === 20 && prefs.alert_max_per_week === 1,
+    `${prefs.max_commute_min} min, ${prefs.alert_max_per_week}/week`);
+
+  const tighter = await computeMatch('CAN-005', 'JOB-001');
+  check('CAN-04', 'A tighter commute limit changes eligibility immediately',
+    !tighter.stageA.pass && tighter.stageA.reasons.includes('COMMUTE_EXCEEDS_CANDIDATE_LIMIT'),
+    tighter.stageA.reasons.join(','));
+
+  const resume = await resumePoint('CAN-001');
+  check('CAN-02', 'A completed candidate resumes at the jobs step, not the beginning',
+    resume.step === 'jobs', resume.step);
+
+  const dr = await raiseDataRequest('CAN-001', 'ERASURE', 'Please delete my profile.');
+  const [drRow] = await sql<{ due_at: Date; created_at: Date }[]>`
+    SELECT due_at, created_at FROM app.data_request WHERE id=${dr.id}`;
+  const days = Math.round((drRow.due_at.getTime() - drRow.created_at.getTime()) / 86400000);
+  check('CAN-06', 'A data request carries the 90-day response clock the Rules require',
+    days === 90, `${days} days`);
+
+  // ---- PART-07 conduct ----------------------------------------------------
+  await acceptConduct('PAR-002');
+  const [conduct] = await sql<{ conduct_accepted_at: Date | null; conduct_version: string | null }[]>`
+    SELECT conduct_accepted_at, conduct_version FROM app.partner WHERE id='PAR-002'`;
+  check('PART-07', 'Conduct acceptance records the version and the moment',
+    !!conduct.conduct_accepted_at && !!conduct.conduct_version, String(conduct.conduct_version));
+
+  await setClock(SEED_INSTANT);
+
+  // ---- put the seeded fixtures back ---------------------------------------
+  // Everything above this line is deliberate mutation; everything below assumes
+  // the seed. Restoring here is what makes `npm test` repeatable without a reset.
+  await clearAlertFixtures();
+  for (const j of jobSnapshot) {
+    await sql`UPDATE app.job
+                 SET title = ${j.title}, status = ${j.status},
+                     fixed_pay_paise = ${Number(j.fixed_pay_paise)}
+               WHERE id = ${j.id}`;
+  }
+  await sql`DELETE FROM app.job_change WHERE job_id = ANY(${FIXTURE_JOBS})`;
+  await sql`DELETE FROM app.job WHERE duplicated_from = ANY(${FIXTURE_JOBS})`;
+  await sql`UPDATE app.candidate
+               SET max_commute_min = ${prefSnapshot.max_commute_min},
+                   alert_max_per_week = ${prefSnapshot.alert_max_per_week}
+             WHERE id='CAN-005'`;
 
   // ---- report --------------------------------------------------------------
   const w = Math.max(...results.map((r) => r.name.length));

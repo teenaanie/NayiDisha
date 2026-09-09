@@ -1,5 +1,6 @@
 import { sql } from '@/lib/db';
 import { Clause } from '../ui';
+import { SubNav, CANDIDATE_TABS } from '../subnav';
 import { Simulator } from './simulator';
 
 export const dynamic = 'force-dynamic';
@@ -55,7 +56,9 @@ export default async function WaPage({
     : [];
 
   return (
-    <main className="page">
+    <>
+      <SubNav tabs={CANDIDATE_TABS} />
+      <main className="page">
       <div className="page-head">
         <h1>Candidate journey — WhatsApp simulator</h1>
         <div className="sub">
@@ -132,5 +135,6 @@ export default async function WaPage({
         </div>
       </div>
     </main>
+    </>
   );
 }

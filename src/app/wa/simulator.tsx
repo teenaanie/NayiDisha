@@ -44,6 +44,7 @@ export function Simulator(p: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [score, setScore] = useState<number | null>(null);
   const [applyResult, setApplyResult] = useState<Record<string, string>>({});
+  const [endorseLink, setEndorseLink] = useState<string | null>(null);
 
   const say = (me: boolean, text: string) => setBubbles((b) => [...b, { me, text }]);
 
@@ -215,13 +216,21 @@ export function Simulator(p: Props) {
               <button className="btn btn-primary" disabled={pending} onClick={() => start(async () => {
                 const r = await actWaEndorse(candidateId!, 'DEMO Suresh Kale', '+910000009050', 'FORMER_MANAGER');
                 say(true, 'Invite my former manager');
-                say(false, r.flagged
-                  ? 'That endorsement was flagged for review and scores nothing.'
-                  : 'Your former manager confirmed. Verified endorsements slightly improve your position among equally qualified candidates.');
-                setStep('jobs');
+                say(false, 'Invitation sent to your former manager. They fill it in themselves — you cannot write it for them.');
+                setEndorseLink(r.link);
               })}>Invite former manager</button>
               <button className="btn" disabled={pending} onClick={() => setStep('jobs')}>Skip</button>
             </div>
+            {endorseLink && (
+              <div className="note small mt">
+                Open the endorser&apos;s page in a new tab — no login, they verify a code and write
+                their own words:{' '}
+                <a href={endorseLink} target="_blank" rel="noreferrer">{endorseLink}</a>
+                <div className="btnrow mt">
+                  <button className="btn btn-sm" onClick={() => setStep('jobs')}>Continue to jobs</button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
