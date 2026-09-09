@@ -355,9 +355,9 @@ export interface NewEmployerInput {
 export async function actCreateEmployer(input: NewEmployerInput) {
   const at = await now();
   return sql.begin(async (tx) => {
-    const empId = await nextId('EMP');
-    const locId = await nextId('LOC');
-    const userId = await nextId('EU');
+    const empId = await nextId('EMP', tx);
+    const locId = await nextId('LOC', tx);
+    const userId = await nextId('EU', tx);
 
     const [loc] = await tx<{ lat: number; lng: number }[]>`
       SELECT lat, lng FROM app.locality WHERE key = ${input.localityKey}
@@ -382,7 +382,7 @@ export async function actCreateEmployer(input: NewEmployerInput) {
     `;
     await tx`
       INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)
-      VALUES (${await nextId('AUD')}, 'OPS-001', 'OPERATIONS', 'EMPLOYER_CREATED',
+      VALUES (${await nextId('AUD', tx)}, 'OPS-001', 'OPERATIONS', 'EMPLOYER_CREATED',
               'employer_organisation', ${empId}, 'OPS-EMP-01',
               ${sql.json({ locId, userId } as never)}, ${at})
     `;
@@ -436,7 +436,7 @@ export async function actCreatePartner(input: NewPartnerInput) {
     `;
     await tx`
       INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)
-      VALUES (${await nextId('AUD')}, 'OPS-001', 'OPERATIONS', 'PARTNER_CREATED',
+      VALUES (${await nextId('AUD', tx)}, 'OPS-001', 'OPERATIONS', 'PARTNER_CREATED',
               'partner', ${parId}, 'PART-01', ${sql.json({ siteId, code } as never)}, ${at})
     `;
   });

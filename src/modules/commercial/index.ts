@@ -99,9 +99,9 @@ export async function unlockQualifiedProfile(
     const attributionValid =
       !!attr && attr.status === 'ACTIVE' && !!attr.partner_id && attr.expires_at > at;
 
-    const cfg = await getRoleConfig(m.role_config_id);
-    const unlockId = await nextId('UNL');
-    const revealed = await revealedProfile(candidateId, jobId, cfg.unlockFields);
+    const cfg = await getRoleConfig(m.role_config_id, tx);
+    const unlockId = await nextId('UNL', tx);
+    const revealed = await revealedProfile(candidateId, jobId, cfg.unlockFields, tx);
 
     await tx`
       INSERT INTO app.qualified_lead_unlock (
@@ -127,7 +127,7 @@ export async function unlockQualifiedProfile(
       )
     `;
 
-    const creditId = await nextId('CRD');
+    const creditId = await nextId('CRD', tx);
     await tx`
       INSERT INTO app.credit_ledger
         (id, entitlement_id, entry_type, credit_delta, amount_paise, unlock_id, note, created_at)
@@ -143,7 +143,7 @@ export async function unlockQualifiedProfile(
     // REF-05 — reward becomes eligible after the fraud hold, independent of
     // interview, joining or retention.
     if (attributionValid) {
-      const rewardId = await nextId('RWD');
+      const rewardId = await nextId('RWD', tx);
       await tx`
         INSERT INTO app.reward_ledger
           (id, partner_id, unlock_id, entry_type, amount_paise, status, hold_until, fy_label, note, created_at)
@@ -156,7 +156,7 @@ export async function unlockQualifiedProfile(
 
     await tx`
       INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)
-      VALUES (${await nextId('AUD')}, ${actor}, 'EMPLOYER', 'PROFILE_UNLOCKED',
+      VALUES (${await nextId('AUD', tx)}, ${actor}, 'EMPLOYER', 'PROFILE_UNLOCKED',
               'qualified_lead_unlock', ${unlockId}, 'LEAD-05',
               ${sql.json({ jobId, candidateId, attributionValid } as never)}, ${at})
     `;
@@ -166,9 +166,9 @@ export async function unlockQualifiedProfile(
 }
 
 async function revealedProfile(
-  candidateId: string, jobId: string, fields?: string[],
+  candidateId: string, jobId: string, fields?: string[], conn = sql,
 ): Promise<Record<string, unknown>> {
-  const [c] = await sql<{
+  const [c] = await conn<{
     id: string; name: string; phone: string; locality_key: string;
     experience_months: number; experience_tags: string[]; languages: string[];
     expected_pay_paise: string; current_pay_paise: string | null;
@@ -265,7 +265,7 @@ export async function decideReplacement(
     await tx`
       INSERT INTO app.credit_ledger
         (id, entitlement_id, entry_type, credit_delta, amount_paise, unlock_id, linked_entry_id, note, created_at)
-      VALUES (${await nextId('CRD')}, ${ent.id}, 'REPLACEMENT_RESTORE', 1, 0, ${u.id},
+      VALUES (${await nextId('CRD', tx)}, ${ent.id}, 'REPLACEMENT_RESTORE', 1, 0, ${u.id},
               ${consumeEntry?.id ?? null}, ${'Replacement ' + caseId + ' approved'}, ${at})
     `;
 
@@ -278,7 +278,7 @@ export async function decideReplacement(
         await tx`
           INSERT INTO app.reward_ledger
             (id, partner_id, unlock_id, entry_type, amount_paise, status, linked_entry_id, fy_label, note, created_at)
-          VALUES (${await nextId('RWD')}, ${u.attributed_partner_id}, ${u.id}, 'REVERSAL',
+          VALUES (${await nextId('RWD', tx)}, ${u.attributed_partner_id}, ${u.id}, 'REVERSAL',
                   ${-Number(accrual.amount_paise)}, 'REVERSED', ${accrual.id},
                   ${financialYear(at)}, ${'Reversed by replacement ' + caseId}, ${at})
         `;
@@ -289,7 +289,7 @@ export async function decideReplacement(
 
     await tx`
       INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)
-      VALUES (${await nextId('AUD')}, ${actor}, 'OPERATIONS', 'REPLACEMENT_APPROVED',
+      VALUES (${await nextId('AUD', tx)}, ${actor}, 'OPERATIONS', 'REPLACEMENT_APPROVED',
               'replacement_case', ${caseId}, 'LEAD-09',
               ${sql.json({ unlockId: u.id } as never)}, ${at})
     `;

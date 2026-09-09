@@ -43,13 +43,20 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
   ACH: 'app.achievement',
 };
 
-/** Next sequential ID for a prefix, e.g. nextId('CAN') -> 'CAN-009'. */
-export async function nextId(prefix: string): Promise<string> {
+/**
+ * Next sequential ID for a prefix, e.g. nextId('CAN') -> 'CAN-009'.
+ *
+ * Pass the transaction handle when calling this inside `sql.begin`. The pool is
+ * deliberately tiny on serverless, so a call that reaches for the global `sql`
+ * while a transaction holds a connection waits for a connection the transaction
+ * will never release — a hang with no error, which is the worst kind.
+ */
+export async function nextId(prefix: string, conn = sql): Promise<string> {
   const table = TABLE_FOR_PREFIX[prefix];
   if (!table) throw new Error(`Unknown id prefix: ${prefix}`);
   // Only rows whose suffix is purely numeric participate in the series, so a
   // structured seed id such as CRD-JOB001-0 cannot break the sequence.
-  const [row] = await sql<{ n: number }[]>`
+  const [row] = await conn<{ n: number }[]>`
     SELECT COALESCE(MAX(substring(id from '^[A-Z]+-([0-9]+)$')::int), 0) + 1 AS n
     FROM ${sql.unsafe(table)}
     WHERE id ~ ${'^' + prefix + '-[0-9]+$'}

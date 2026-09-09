@@ -6,6 +6,7 @@
  * breaks, not just an assertion.
  */
 import { sql } from '../src/lib/db';
+import { nextId } from '../src/lib/ids';
 import { SEED_INSTANT, addHours } from '../src/lib/clock';
 import { rupees } from '../src/lib/money';
 import { computeMatch, previewsForJob, maskName } from '../src/modules/matching';
@@ -13,7 +14,7 @@ import {
   unlockQualifiedProfile, creditBalance, reconcileEntitlement,
   raiseReplacement, releaseMaturedHolds, buildPayoutBatch, partnerRewardSummary,
 } from '../src/modules/commercial';
-import { validateRoleConfig, activeCommercialPolicy } from '../src/modules/configuration';
+import { validateRoleConfig, activeCommercialPolicy, getRoleConfig } from '../src/modules/configuration';
 import { startRegistration, verifyAndBind, grantConsent, completeProfile } from '../src/modules/candidate';
 import { dispatchJobAlerts, respondToAlert, sendNudge, NUDGE_LIMIT_PER_WEEK } from '../src/modules/alerts';
 import {
@@ -41,6 +42,39 @@ async function setClock(at: Date) {
 
 async function main() {
   await setClock(SEED_INSTANT);
+
+  // ---- §24: serverless connection discipline -------------------------------
+  // A transaction holds its connection for its whole life. A helper called
+  // inside `sql.begin` that reaches for the module-level `sql` instead of the
+  // transaction handle waits for a connection the transaction cannot release —
+  // a permanent hang with no error and no log line. It took the deployed demo
+  // down, because a serverless pool is tiny by necessity.
+  //
+  // This runs FIRST and exits on failure. A deadlocked transaction never gives
+  // its connection back, so every later check would hang behind it and the
+  // suite would report nothing at all — the same silent failure as the bug.
+  // `npm run test:serverless` runs at PG_POOL_MAX=1, which is the condition
+  // that turns the mistake into a hang.
+  const withTimeout = <T>(p: Promise<T>, ms: number) => Promise.race([
+    p, new Promise<'TIMED_OUT'>((r) => setTimeout(() => r('TIMED_OUT'), ms)),
+  ]);
+
+  const helperTx = await withTimeout(sql.begin(async (tx) => {
+    await nextId('EMP', tx);
+    await getRoleConfig('CFG-BFSI-RE-1', tx);
+    await creditBalance('ENT-001', tx);
+    return 'completed';
+  }), 8000);
+  if (helperTx === 'TIMED_OUT') {
+    console.error(
+      '\n  \u2717 \u00a724       Transaction deadlocked on a pool of ' +
+      `${process.env.PG_POOL_MAX ?? 'default'}.\n` +
+      '            A helper inside sql.begin is using the module-level sql\n' +
+      '            instead of the transaction handle. Nothing else can run.\n');
+    process.exit(1);
+  }
+  check('\u00a724', 'Helpers inside a transaction use the transaction connection',
+    true, 'nextId, getRoleConfig and creditBalance all honoured the handle');
 
   // ---- §25: persisted state -----------------------------------------------
   // Assert the canonical eight are present by ID rather than counting rows —
@@ -539,6 +573,25 @@ async function main() {
 
   await setClock(SEED_INSTANT);
 
+  // ---- §24: the unlock is the money path ---------------------------------
+  // The unlock is the money path and the largest transaction in the app, so it
+  // gets the same proof rather than an argument from code reading.
+  const freshUnlock = await withTimeout(
+    unlockQualifiedProfile('EMP-001', 'JOB-001', 'CAN-005', 'EU-001'), 8000);
+  check('§24', 'A new unlock completes inside one transaction',
+    freshUnlock !== 'TIMED_OUT' && freshUnlock.status === 'CREATED',
+    freshUnlock === 'TIMED_OUT' ? 'deadlocked' : `${freshUnlock.status} ${freshUnlock.unlockId ?? ''}`);
+
+  if (freshUnlock !== 'TIMED_OUT' && freshUnlock.unlockId) {
+    const u = freshUnlock.unlockId;
+    await sql`DELETE FROM app.reward_ledger WHERE unlock_id = ${u}`;
+    await sql`DELETE FROM app.credit_ledger WHERE unlock_id = ${u}`;
+    await sql`DELETE FROM app.audit_log WHERE entity_id = ${u}`;
+    await sql`DELETE FROM app.qualified_lead_unlock WHERE id = ${u}`;
+    await sql`UPDATE app.application SET status='QUALIFIED'
+               WHERE candidate_id='CAN-005' AND job_id='JOB-001'`;
+  }
+
   // ---- put the seeded fixtures back ---------------------------------------
   // Everything above this line is deliberate mutation; everything below assumes
   // the seed. Restoring here is what makes `npm test` repeatable without a reset.
@@ -558,7 +611,8 @@ async function main() {
 
   // ---- report --------------------------------------------------------------
   const w = Math.max(...results.map((r) => r.name.length));
-  console.log('\nPrototype acceptance — PRD v1.3 §25 and §23 backup paths\n');
+  console.log(`\nPrototype acceptance — PRD v1.3 §25 and §23 backup paths`);
+  console.log(`  connection pool: max ${process.env.PG_POOL_MAX ?? 'default'}\n`);
   for (const r of results) {
     console.log(`  ${r.ok ? '✓' : '✗'} ${r.clause.padEnd(10)} ${r.name.padEnd(w)}  ${r.detail}`);
   }

@@ -86,8 +86,8 @@ const hydrate = (r: Row): RoleConfig => ({
   documentChecklist: r.document_checklist,
 });
 
-export async function getRoleConfig(id: string): Promise<RoleConfig> {
-  const [row] = await sql<Row[]>`SELECT * FROM app.role_configuration WHERE id = ${id}`;
+export async function getRoleConfig(id: string, conn = sql): Promise<RoleConfig> {
+  const [row] = await conn<Row[]>`SELECT * FROM app.role_configuration WHERE id = ${id}`;
   if (!row) throw new Error(`Role configuration ${id} not found`);
   return hydrate(row);
 }
