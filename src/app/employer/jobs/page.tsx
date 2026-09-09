@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { formatPay } from '@/lib/money';
-import { creditBalance } from '@/modules/commercial';
+
 import { StatusPill, Clause } from '../../ui';
 import { SubNav, EMPLOYER_TABS } from '../../subnav';
 import { AddLocation } from '../employer-tools';
@@ -37,8 +37,8 @@ export default async function EmployerJobsPage() {
      WHERE j.employer_id=${employerId}
      ORDER BY (j.status='LIVE') DESC, j.id`;
 
-  const balances = new Map<string, number>();
-  for (const j of jobs) if (j.ent_id) balances.set(j.id, (await creditBalance(j.ent_id)).available);
+  const totals = await sql`SELECT e.job_id,COALESCE(SUM(c.credit_delta),0) AS available FROM app.posting_entitlement e JOIN app.job j ON j.id=e.job_id LEFT JOIN app.credit_ledger c ON c.entitlement_id=e.id WHERE j.employer_id=${employerId} GROUP BY e.job_id`;
+  const balances=new Map(totals.map(row=>[String(row.job_id),Number(row.available)]));
 
   const localities = await sql<{ key: string; display_name: string }[]>`
     SELECT key, display_name FROM app.locality ORDER BY display_name`;

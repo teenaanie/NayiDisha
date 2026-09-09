@@ -242,3 +242,5 @@ a.tile .d{font-size:.8rem; color:var(--muted); line-height:1.4;}
 a.tile .go{font-size:.76rem; color:var(--accent); font-weight:600; margin-top:8px; display:block;}
 .attn{border-left:3px solid var(--warn);}
 .attn .v{color:var(--warn);}
+
+.record-actions{display:flex;align-items:flex-start;justify-content:flex-end;gap:8px;flex-wrap:wrap}.record-actions .btn{white-space:nowrap}

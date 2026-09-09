@@ -21,7 +21,7 @@ export function RoleBar() {
       {ROLES.map((r) => {
         const active = r.href === '/' ? path === '/' : path.startsWith(r.href);
         return (
-          <Link key={r.href} href={r.href} className={active ? 'active' : ''}>
+          <Link prefetch={false} key={r.href} href={r.href} className={active ? 'active' : ''}>
             {r.label}
           </Link>
         );

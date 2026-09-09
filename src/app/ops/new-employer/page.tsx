@@ -22,7 +22,7 @@ export default async function NewEmployerPage() {
               {' '}<Clause>OPS-EMP-01 / 02 / 03</Clause>
             </div>
           </div>
-          <Link className="btn" href="/ops">← Operations</Link>
+          <Link className="btn" href="/ops/employers">← Employers</Link>
         </div>
       </div>
       <NewEmployerForm localities={localities} />

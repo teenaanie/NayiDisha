@@ -88,9 +88,9 @@ export function NewEmployerForm({ localities }: { localities: { key: string; dis
             const r = await actCreateEmployer(f);
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Failed: {r.error}</span>); return; }
             setMsg(<>Created <strong>{r.employerId}</strong> with branch {r.locationId} and admin {r.userId}. Approve it on the Operations console to let it post jobs.</>);
-            setTimeout(() => router.push('/ops'), 1400);
-          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Create employer</button>
-          <button className="btn" onClick={() => router.push('/ops')}>Cancel</button>
+            router.push('/ops/employers');
+          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>{pending?'Saving…':'Create employer'}</button>
+          <button className="btn" onClick={() => router.push('/ops/employers')}>Cancel</button>
         </div>
         {msg && <div className="note mt small">{msg}</div>}
       </div>

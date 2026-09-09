@@ -30,8 +30,8 @@ export default async function ConfigurationsPage() {
             is a configuration act, not a deployment. <Clause>§2.1 · §8.4A</Clause>
           </div>
         </div>
-        <a className="btn" href="/ops/manage">Add role, field or assessment</a><ConfigPanel configs={configs} />
-        <SandboxEditor configs={configs.filter((c) => c.status === 'SANDBOX' || c.status === 'DRAFT')} />
+        <a className="btn" href="/ops/manage">Add role, field or assessment</a><ConfigPanel configs={configs} canAdmin={viewer.role==='ADMIN'} />
+        {viewer.role==='ADMIN'&&<SandboxEditor configs={configs.filter((c) => c.status === 'SANDBOX' || c.status === 'DRAFT')} />}
         <div className="card">
           <div className="card-head"><h2>Release packages</h2><Clause>CFG-06/07</Clause></div>
           <div className="card-body tight"><div className="tblwrap">

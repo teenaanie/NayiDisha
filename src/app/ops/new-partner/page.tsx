@@ -25,7 +25,7 @@ export default async function NewPartnerPage() {
               {' '}<Clause>PART-01 / 03 / 04 / 05</Clause>
             </div>
           </div>
-          <Link className="btn" href="/ops">← Operations</Link>
+          <Link className="btn" href="/ops/partners">← Partners</Link>
         </div>
       </div>
       <p><Link href="/ops/manage#localities">Add a locality or sourcing capability</Link></p><NewPartnerForm localities={localities} roles={roles} />

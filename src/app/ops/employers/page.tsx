@@ -1,5 +1,6 @@
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
+import {NavigationLink} from '../../navigation-link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
@@ -33,7 +34,7 @@ export default async function EmployersPage() {
                 Only verified direct employers may post jobs <Clause>OPS-EMP-01 / 04</Clause>
               </div>
             </div>
-            <Link className="btn btn-primary" href="/ops/new-employer">+ Add employer</Link><Link className="btn" href="/ops/manage#employers">Edit employers</Link>
+            <NavigationLink className="btn btn-primary" href="/ops/new-employer">+ Add employer</NavigationLink>
           </div>
         </div>
         <div className="card"><div className="card-body tight"><div className="tblwrap">
@@ -56,7 +57,7 @@ export default async function EmployersPage() {
                     {e.status_reason && <div className="small muted">{e.status_reason}</div>}
                     <div className="small muted">{fmtDateTime(e.status_at)}</div>
                   </td>
-                  <td className="right"><OpsActions kind="employer" id={e.id} status={e.status} /></td>
+                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/employers/${e.id}/edit`} aria-label={`Edit ${e.brand_name}`}>Edit</Link><OpsActions kind="employer" id={e.id} status={e.status} /></div></td>
                 </tr>
               ))}
             </tbody>

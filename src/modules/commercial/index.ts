@@ -199,6 +199,10 @@ export async function creditBalance(entitlementId: string, tx = sql) {
     SELECT entry_type, credit_delta FROM app.credit_ledger
      WHERE entitlement_id = ${entitlementId} ORDER BY created_at
   `;
+  return summarizeCreditEntries(rows);
+}
+
+export function summarizeCreditEntries(rows:ReadonlyArray<{entry_type:string;credit_delta:number}>){
   let granted = 0, purchased = 0, consumed = 0, restored = 0, expired = 0;
   for (const r of rows) {
     if (r.entry_type === 'INCLUDED_GRANT') granted += r.credit_delta;

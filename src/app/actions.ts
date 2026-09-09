@@ -28,9 +28,7 @@ import {
 } from '@/modules/lifecycle';
 
 const touchAll = () => {
-  for (const p of ['/', '/ops', '/employer', '/partner', '/finance', '/wa']) {
-    revalidatePath(p, 'layout');
-  }
+  revalidatePath('/', 'layout');
 };
 
 // ---- demo controls ---------------------------------------------------------

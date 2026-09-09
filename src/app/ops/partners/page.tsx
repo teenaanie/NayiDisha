@@ -1,5 +1,6 @@
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
+import {NavigationLink} from '../../navigation-link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
@@ -33,7 +34,7 @@ export default async function PartnersPage() {
                 Verification, conduct rules, QR rotation and reward holds <Clause>§8.2 PART-01..10</Clause>
               </div>
             </div>
-            <Link className="btn btn-primary" href="/ops/new-partner">+ Add partner</Link><Link className="btn" href="/ops/manage#partners">Edit partners / add sites</Link>
+            <NavigationLink className="btn btn-primary" href="/ops/new-partner">+ Add partner</NavigationLink>
           </div>
         </div>
 
@@ -58,7 +59,7 @@ export default async function PartnersPage() {
                     ? <><span className="pill p-ok">accepted</span><div className="small muted">{fmtDateTime(p.conduct_accepted_at)}</div></>
                     : <span className="pill p-warn">not accepted</span>}</td>
                   <td><StatusPill status={p.status} /></td>
-                  <td className="right"><OpsActions kind="partner" id={p.id} status={p.status} /></td>
+                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit`} aria-label={`Edit ${p.name} and manage sites`}>Edit / sites</Link><OpsActions kind="partner" id={p.id} status={p.status} /></div></td>
                 </tr>
               ))}
             </tbody>
@@ -79,7 +80,7 @@ export default async function PartnersPage() {
                     <td className="id"><strong>{s.partner_code}</strong></td>
                     <td className="id small">{s.qr_token}</td>
                     <td><StatusPill status={s.status} /></td>
-                    <td className="right"><OpsActions kind="site" id={s.id} status={s.status} /></td>
+                    <td className="right"><Link className="btn btn-sm" href={`/ops/partners/${s.partner_id}/edit#${s.id}`}>Edit site</Link><OpsActions kind="site" id={s.id} status={s.status} /></td>
                   </tr>
                 ))}
               </tbody>

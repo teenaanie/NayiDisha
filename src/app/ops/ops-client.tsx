@@ -8,10 +8,12 @@ import {
 } from '../actions';
 import { StatusPill } from '../ui';
 
-export function OpsActions({ kind, id, status }: { kind: string; id: string; status: string }) {
-  const [pending, start] = useTransition();
-  const run = (fn: () => Promise<unknown>) => () => start(async () => { await fn(); });
-
+export function OpsActions(props:{kind:string;id:string;status:string}){
+ const [pending,start]=useTransition();const [message,setMessage]=useState('');
+ const run=(fn:()=>Promise<unknown>)=>()=>start(async()=>{setMessage('');try{await fn();setMessage('Saved.');}catch(error){setMessage(error instanceof Error?error.message:'Unable to save. Please try again.');}});
+ return <div><OpsButtons {...props} pending={pending} run={run}/><span role="status" aria-live="polite" className="small">{pending?'Saving…':message}</span></div>;
+}
+function OpsButtons({kind,id,status,pending,run}:{kind:string;id:string;status:string;pending:boolean;run:(fn:()=>Promise<unknown>)=>()=>void}){
   if (kind === 'employer') {
     return (
       <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
@@ -73,14 +75,14 @@ interface Cfg {
   assessment_threshold: number | null; scoring_weights: Record<string, number>;
 }
 
-export function ConfigPanel({ configs }: { configs: Cfg[] }) {
+export function ConfigPanel({ configs,canAdmin=true }: { configs: Cfg[];canAdmin?:boolean }) {
   const [pending, start] = useTransition();
   const [result, setResult] = useState<Record<string, { ok: boolean; checks: { name: string; ok: boolean; detail: string }[] }>>({});
 
   return (
     <div className="card">
       <div className="card-head">
-        <h2>Industry and role configuration</h2>
+        <h2>Industry and role configuration</h2>{!canAdmin&&<p className="small">Administrator identity is required to validate and publish. Drafts can be edited in Manage &amp; catalogue.</p>}
         <span className="clause">§8.4A CFG-04/07/10</span>
       </div>
       <div className="card-body tight">
@@ -102,12 +104,12 @@ export function ConfigPanel({ configs }: { configs: Cfg[] }) {
                   <td><StatusPill status={c.status} /></td>
                   <td className="right">
                     <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
-                      <button className="btn btn-sm" disabled={pending} onClick={() => start(async () => {
+                      <button className="btn btn-sm" disabled={pending || !canAdmin} onClick={() => start(async () => {
                         const r = await actValidateConfig(c.id);
                         setResult((s) => ({ ...s, [c.id]: r }));
                       })}>Validate</button>
                       {c.status !== 'PUBLISHED' && (
-                        <button className="btn btn-sm btn-primary" disabled={pending}
+                        <button className="btn btn-sm btn-primary" disabled={pending || !canAdmin}
                                 onClick={() => start(async () => { await actPublishConfig(c.id); })}>Publish</button>
                       )}
                     </div>

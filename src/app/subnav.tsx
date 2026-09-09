@@ -16,14 +16,16 @@ export function SubNav({ tabs }: { tabs: SubTab[] }) {
   const params = useSearchParams();
   // The partner console is viewed "as" a chosen partner; carrying that choice
   // across tabs is what stops the picker resetting on every click.
-  const carry = params.get('p') ? `?p=${params.get('p')}` : '';
+  const partner = params.get('p');
+  const candidate = params.get('c');
   return (
     <nav className="subnav" aria-label="Section">
       {tabs.map((t) => {
         const active = path === t.href;
-        const href = t.href.startsWith('/partner') ? t.href + carry : t.href;
+        const selected = t.href.startsWith('/partner') ? (partner ? '?p='+encodeURIComponent(partner) : '') : t.href.startsWith('/wa') && t.href!=='/wa' ? (candidate ? '?c='+encodeURIComponent(candidate) : '') : '';
+        const href = t.href + selected;
         return (
-          <Link key={t.href} href={href} className={active ? 'active' : ''} title={t.hint}>
+          <Link prefetch={false} key={t.href} href={href} className={active ? 'active' : ''} title={t.hint}>
             {t.label}
           </Link>
         );

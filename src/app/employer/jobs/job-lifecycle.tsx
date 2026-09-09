@@ -13,7 +13,7 @@ export function JobLifecycle({ jobId, status, fixedRupees, variableRupees, openi
   const [f, setF] = useState({ title, fixedRupees, variableRupees, openings });
 
   const act = (fn: () => Promise<unknown>, done: (r: unknown) => React.ReactNode) =>
-    start(async () => { const r = await fn(); setMsg(done(r)); setOpen('none'); });
+    start(async () => {setMsg(null);try{const r=await fn();if(r&&typeof r==='object'&&'error' in r){setMsg(String(r.error));return;}setMsg(done(r));setOpen('none');}catch(error){setMsg(error instanceof Error?error.message:'Unable to save. Please try again.');}});
 
   const editable = !['ARCHIVED', 'CLOSED', 'EXPIRED'].includes(status);
 

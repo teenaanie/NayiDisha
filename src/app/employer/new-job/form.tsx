@@ -203,7 +203,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
             });
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Rejected: {r.error}</span>); return; }
             setMsg(<>Submitted <strong>{r.jobId}</strong>. Approve it on the Operations console to publish it and issue its credits.</>);
-            setTimeout(() => router.push('/ops'), 1800);
+            router.push('/employer/jobs');
           }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Submit for approval</button>
           <button className="btn" onClick={() => router.push('/employer')}>Cancel</button>
         </div>

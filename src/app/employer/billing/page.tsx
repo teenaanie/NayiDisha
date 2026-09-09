@@ -1,7 +1,7 @@
 import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
-import { creditBalance, reconcileEntitlement } from '@/modules/commercial';
+import { creditBalance, reconcileEntitlement, summarizeCreditEntries } from '@/modules/commercial';
 import { activeCommercialPolicy } from '@/modules/configuration';
 import { Clause, Money, Stat } from '../../ui';
 import { SubNav, EMPLOYER_TABS } from '../../subnav';
@@ -22,13 +22,6 @@ export default async function BillingPage() {
     SELECT e.*, j.title FROM app.posting_entitlement e JOIN app.job j ON j.id=e.job_id
      WHERE j.employer_id = ${employerId} ORDER BY e.id`;
 
-  const recon = new Map<string, Awaited<ReturnType<typeof reconcileEntitlement>>>();
-  const bal = new Map<string, Awaited<ReturnType<typeof creditBalance>>>();
-  for (const e of ents) {
-    recon.set(e.id, await reconcileEntitlement(e.id));
-    bal.set(e.id, await creditBalance(e.id));
-  }
-
   const ledger = await sql<{
     id: string; entitlement_id: string; entry_type: string; credit_delta: number;
     amount_paise: string; unlock_id: string | null; linked_entry_id: string | null;
@@ -38,6 +31,16 @@ export default async function BillingPage() {
       JOIN app.posting_entitlement e ON e.id = c.entitlement_id
       JOIN app.job j ON j.id = e.job_id
      WHERE j.employer_id = ${employerId} ORDER BY c.created_at, c.id`;
+
+  const counts=await sql`SELECT e.id,COUNT(u.id) AS n FROM app.posting_entitlement e JOIN app.job j ON j.id=e.job_id LEFT JOIN app.qualified_lead_unlock u ON u.job_id=e.job_id AND u.status='CONFIRMED' WHERE j.employer_id=${employerId} GROUP BY e.id`;
+  const confirmed=new Map(counts.map(row=>[String(row.id),Number(row.n)]));
+  const recon=new Map<string,Awaited<ReturnType<typeof reconcileEntitlement>>>();
+  const bal=new Map<string,Awaited<ReturnType<typeof creditBalance>>>();
+  for(const e of ents){
+    const b=summarizeCreditEntries(ledger.filter(row=>row.entitlement_id===e.id));bal.set(e.id,b);
+    const closing=b.granted+b.purchased+b.restored-b.consumed-b.expired;
+    recon.set(e.id,{opening:0,granted:b.granted,purchased:b.purchased,unlocks:b.consumed,adjustments:b.restored-b.expired,closing,available:b.available,confirmedUnlocks:confirmed.get(e.id)||0,balances:closing===b.available,unlocksMatchLedger:(confirmed.get(e.id)||0)===b.consumed-b.restored});
+  }
 
   const spend = ents.reduce((a, e) => a + Number(e.posting_fee_paise), 0)
     + ledger.filter((l) => l.entry_type === 'PURCHASE').reduce((a, l) => a + Number(l.amount_paise), 0);
