@@ -1,3 +1,5 @@
+import {readQuery} from '@/lib/read-query';
+import {Suspense} from 'react';
 import {Reconfirm} from '../reconfirm';
 import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
@@ -8,18 +10,18 @@ import { CandidatePicker, AlertActions, InterviewReply, OfferReply, DocUpload } 
 
 export const dynamic = 'force-dynamic';
 
-export default async function InboxPage({
+async function InboxContent({
   searchParams,
 }: { searchParams: Promise<{ c?: string }> }) {
   const viewer=await scopePage('wa');
   const { c } = await searchParams;
   const candidateId = viewer.role==='ADMIN' ? (c ?? 'CAN-001') : viewer.id;
 
-  const all = await sql<{ id: string; name: string | null }[]>`
-    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`;
-
-  const pendingApplications=await sql`SELECT a.id,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${candidateId} AND a.reconfirmed_at IS NULL AND a.status NOT IN ('WITHDRAWN','REJECTED','JOINED')`;
-  const alerts = await sql<{
+  const [all,pendingApplications,alerts,interviews,offers,docs,messages]=await Promise.all([
+readQuery(sql<{ id: string; name: string | null }[]>`
+    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`),
+readQuery(sql`SELECT a.id,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${candidateId} AND a.reconfirmed_at IS NULL AND a.status NOT IN ('WITHDRAWN','REJECTED','JOINED')`),
+readQuery(sql<{
     id: string; job_id: string; title: string; brand: string; loc: string;
     fixed_pay_paise: string; response: string | null; sent_at: Date; applied: boolean;
   }[]>`
@@ -31,9 +33,8 @@ export default async function InboxPage({
       JOIN app.job j ON j.id=a.job_id
       JOIN app.employer_organisation e ON e.id=j.employer_id
       JOIN app.employer_location l ON l.id=j.location_id
-     WHERE a.candidate_id=${candidateId} ORDER BY a.sent_at DESC`;
-
-  const interviews = await sql<{
+     WHERE a.candidate_id=${candidateId} ORDER BY a.sent_at DESC`),
+readQuery(sql<{
     id: string; scheduled_at: Date | null; location_note: string | null; safety_note: string | null;
     status: string; candidate_confirmed: boolean; brand: string; title: string;
   }[]>`
@@ -43,9 +44,8 @@ export default async function InboxPage({
       JOIN app.application a ON a.id=i.application_id
       JOIN app.job j ON j.id=a.job_id
       JOIN app.employer_organisation e ON e.id=j.employer_id
-     WHERE a.candidate_id=${candidateId} ORDER BY i.scheduled_at DESC`;
-
-  const offers = await sql<{
+     WHERE a.candidate_id=${candidateId} ORDER BY i.scheduled_at DESC`),
+readQuery(sql<{
     id: string; status: string; role_title: string; offer_fixed_paise: string;
     offer_variable_paise: string; joining_date: string | null; offer_expires_at: Date; brand: string;
   }[]>`
@@ -55,23 +55,22 @@ export default async function InboxPage({
       JOIN app.application a ON a.id=o.application_id
       JOIN app.job j ON j.id=a.job_id
       JOIN app.employer_organisation e ON e.id=j.employer_id
-     WHERE a.candidate_id=${candidateId} ORDER BY o.created_at DESC`;
-
-  const docs = await sql<{
+     WHERE a.candidate_id=${candidateId} ORDER BY o.created_at DESC`),
+readQuery(sql<{
     id: string; document_key: string; status: string; reject_reason: string | null; case_id: string;
   }[]>`
     SELECT d.id, d.document_key, d.status, d.reject_reason, d.onboarding_case_id AS case_id
-      FROM app.candidate_document d WHERE d.candidate_id=${candidateId} ORDER BY d.document_key`;
-
-  const messages = await sql<{
+      FROM app.candidate_document d WHERE d.candidate_id=${candidateId} ORDER BY d.document_key`),
+readQuery(sql<{
     id: string; direction: string; body: string; category: string | null; created_at: Date;
   }[]>`
     SELECT id, direction, body, category, created_at FROM app.message_log
-     WHERE candidate_id=${candidateId} ORDER BY created_at DESC, id DESC LIMIT 30`;
+     WHERE candidate_id=${candidateId} ORDER BY created_at DESC, id DESC LIMIT 30`)
+]);
 
   return (
     <>
-      <SubNav tabs={CANDIDATE_TABS} />
+
       <main className="page">{viewer.role==='CANDIDATE'&&pendingApplications.map(a=><Reconfirm key={a.id} id={a.id} title={a.title}/>)}
         <div className="page-head">
           <div className="flexb">
@@ -218,4 +217,8 @@ export default async function InboxPage({
       </main>
     </>
   );
+}
+
+export default function InboxPage(props:{searchParams:Promise<{c?:string}>}) {
+ return <><SubNav tabs={CANDIDATE_TABS}/><Suspense fallback={<main className="page" role="status"><h1>Alerts &amp; messages</h1><p>Loading your candidate records…</p></main>}><InboxContent {...props}/></Suspense></>;
 }

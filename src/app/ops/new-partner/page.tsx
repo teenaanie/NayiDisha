@@ -28,7 +28,7 @@ export default async function NewPartnerPage() {
           <Link className="btn" href="/ops/partners">← Partners</Link>
         </div>
       </div>
-      <p><Link href="/ops/manage#localities">Add a locality or sourcing capability</Link></p><NewPartnerForm localities={localities} roles={roles} />
+      <p><Link href="/ops/manage/localities">Add a locality</Link> · <Link href="/ops/manage/roles">Add a sourcing capability</Link></p><NewPartnerForm localities={localities} roles={roles} />
     </main>
   );
 }

@@ -1,3 +1,4 @@
+import {readQuery} from '@/lib/read-query';
 import './globals.css';
 import {Suspense} from 'react';
 import type { Metadata } from 'next';
@@ -16,9 +17,9 @@ async function DemoBanner() {
   let clockLabel = '—';
   let demoMode = true;
   try {
-    const [row] = await sql<{ now_at: Date; demo_mode: boolean }[]>`
+    const [row] = await readQuery(sql<{ now_at: Date; demo_mode: boolean }[]>`
       SELECT now_at, demo_mode FROM app.demo_clock WHERE id = 1
-    `;
+    `);
     if (row) { clockLabel = fmtDateTime(row.now_at); demoMode = row.demo_mode; }
   } catch {
     clockLabel = 'clock unavailable';

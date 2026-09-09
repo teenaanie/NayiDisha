@@ -21,7 +21,7 @@ export function SubNav({ tabs }: { tabs: SubTab[] }) {
   return (
     <nav className="subnav" aria-label="Section">
       {tabs.map((t) => {
-        const active = path === t.href;
+        const active = path === t.href || (t.href === '/ops/manage' && path.startsWith('/ops/manage/'));
         const selected = t.href.startsWith('/partner') ? (partner ? '?p='+encodeURIComponent(partner) : '') : t.href.startsWith('/wa') && t.href!=='/wa' ? (candidate ? '?c='+encodeURIComponent(candidate) : '') : '';
         const href = t.href + selected;
         return (

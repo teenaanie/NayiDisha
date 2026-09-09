@@ -1,3 +1,4 @@
+import {readQuery} from './read-query';
 import {cookies} from 'next/headers';
 import {createHmac,timingSafeEqual} from 'node:crypto';
 import {sql} from './db';
@@ -13,7 +14,7 @@ export async function setIdentity(id:string,role:Identity['role'],name='nd_ident
  const body=Buffer.from(JSON.stringify({id,role,expires:Date.now()+8*3600000})).toString('base64url');
  (await cookies()).set(name,body+'.'+sign(body),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:8*3600});
 }
-export async function requireRole(roles:Identity['role'][]){const actor=await identity();if(!actor||!roles.includes(actor.role))throw new Error('This action is not available for the selected demo identity. Open Demo identities to sign in or switch.');if(actor.role==='CANDIDATE'){const [c]=await sql`SELECT status FROM app.candidate WHERE id=${actor.id}`;if(!c||c.status==='DELETED_BLOCKED')throw new Error('This profile is no longer active.');}return actor;}
+export async function requireRole(roles:Identity['role'][]){const actor=await identity();if(!actor||!roles.includes(actor.role))throw new Error('This action is not available for the selected demo identity. Open Demo identities to sign in or switch.');if(actor.role==='CANDIDATE'){const [c]=await readQuery(sql`SELECT status FROM app.candidate WHERE id=${actor.id}`);if(!c||c.status==='DELETED_BLOCKED')throw new Error('This profile is no longer active.');}return actor;}
 export async function scopePage(section:string,id?:string){
  const roles:Record<string,Identity['role'][]>= {ops:['ADMIN','OPERATIONS'],finance:['ADMIN','FINANCE'],employer:['ADMIN','EMPLOYER'],partner:['ADMIN','PARTNER'],wa:['ADMIN','CANDIDATE']};
  const actor=await requireRole(roles[section]||['ADMIN']);
