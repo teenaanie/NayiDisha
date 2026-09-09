@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { partnerRewardSummary } from '@/modules/commercial';
@@ -8,6 +9,7 @@ import { SubNav, FINANCE_TABS } from '../subnav';
 export const dynamic = 'force-dynamic';
 
 export default async function FinanceDashboard() {
+  const viewer=await scopePage('finance');
   const policy = await activeCommercialPolicy();
   const summaries = await partnerRewardSummary();
 

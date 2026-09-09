@@ -193,7 +193,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
         </div>
 
         <div className="btnrow mt">
-          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {
+          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {try{
             const r = await actCreateJob({
               employerId, locationId: f.locationId, roleConfigId: configId,
               title: f.title, openings: f.openings,
@@ -204,7 +204,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Rejected: {r.error}</span>); return; }
             setMsg(<>Submitted <strong>{r.jobId}</strong>. Approve it on the Operations console to publish it and issue its credits.</>);
             setTimeout(() => router.push('/ops'), 1800);
-          })}>Submit for approval</button>
+          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Submit for approval</button>
           <button className="btn" onClick={() => router.push('/employer')}>Cancel</button>
         </div>
         {msg && <div className="note mt small">{msg}</div>}

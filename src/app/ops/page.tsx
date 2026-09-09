@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -8,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 /** Operations dashboard — what needs attention, and where to go for it. */
 export default async function OpsDashboard() {
+  const viewer=await scopePage('ops');
   const [c] = await sql<{
     emp_pending: string; emp_total: string;
     par_pending: string; par_total: string;

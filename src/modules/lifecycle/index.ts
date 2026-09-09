@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { choice, integer } from '@/lib/validation';
 import { now, addDays } from '@/lib/clock';
 import { nextId, randomToken } from '@/lib/ids';
 import { messagingProvider } from '@/modules/adapters/messaging';
@@ -43,6 +44,17 @@ export async function editJob(jobId: string, edit: JobEdit, actor: string) {
     return { error: 'JOB_NOT_EDITABLE' };
   }
 
+  if(Object.keys(edit).some(k=>!(k in COLUMN_FOR)))throw new Error('Unknown job field.');
+  if(edit.locationId){const [loc]=await sql`SELECT id FROM app.employer_location WHERE id=${edit.locationId} AND employer_id=${String(before.employer_id)}`;if(!loc)throw new Error('Location belongs to another employer.');}
+  const materialRequested=Object.entries(edit).some(([key,value])=>value!==undefined && MATERIAL_FIELDS.has(COLUMN_FOR[key as keyof JobEdit]) && JSON.stringify(before[COLUMN_FOR[key as keyof JobEdit]])!==JSON.stringify(value));
+  if(materialRequested){
+    if(edit.fixedPayPaise!==undefined) integer(edit.fixedPayPaise,'Fixed pay',1,1_000_000_000);
+    if(edit.variableMaxPaise!==undefined) integer(edit.variableMaxPaise,'Variable pay');
+    if(edit.openings!==undefined) integer(edit.openings,'Openings',1,10000);
+    await sql`UPDATE app.job SET pending_changes=${sql.json(edit as never)},status='PENDING_APPROVAL' WHERE id=${jobId}`;
+    await sql`UPDATE app.application SET reconfirmed_at=NULL WHERE job_id=${jobId} AND status NOT IN ('WITHDRAWN','REJECTED','JOINED')`;
+    return {changes:Object.keys(edit),notified:0,material:true,pendingApproval:true};
+  }
   const changes: { field: string; oldValue: string; newValue: string; material: boolean }[] = [];
   for (const [k, v] of Object.entries(edit) as [keyof JobEdit, unknown][]) {
     if (v === undefined) continue;
@@ -114,6 +126,8 @@ export async function setJobState(
     SELECT status, expires_at FROM app.job WHERE id = ${jobId}
   `;
   if (!job) return { error: 'JOB_NOT_FOUND' };
+  choice(state,['LIVE','PAUSED','FILLED','CLOSED','ARCHIVED'],'Job state');
+  if(state==='LIVE'&&job.status!=='PAUSED')return {error:'ONLY_APPROVED_PAUSED_JOBS_CAN_RESUME'};
   if (state === 'LIVE' && job.expires_at && job.expires_at <= at) {
     return { error: 'CANNOT_RESUME_EXPIRED_JOB' };
   }
@@ -236,7 +250,7 @@ export async function submitEndorsement(token: string, input: {
   `;
   const [dupe] = await sql<{ n: string }[]>`
     SELECT COUNT(*)::text n FROM app.endorsement
-     WHERE endorser_contact = ${row.endorser_contact} AND id <> ${e.id}
+     WHERE candidate_id=${e.candidate_id} AND endorser_contact = ${row.endorser_contact} AND id <> ${e.id} AND status NOT IN ('WITHDRAWN','EXPIRED')
   `;
   const flagged =
     input.relationship === 'SELF_OR_DUPLICATE' ||
@@ -268,7 +282,7 @@ export async function withdrawEndorsement(withdrawToken: string) {
   const at = await now();
   const [row] = await sql<{ id: string }[]>`
     UPDATE app.endorsement SET status = 'WITHDRAWN', raw_points = 0
-     WHERE withdraw_token = ${withdrawToken} AND status IN ('VERIFIED_CONTACT','FLAGGED')
+     WHERE withdraw_token = ${withdrawToken} AND status IN ('VERIFIED_CONTACT','FLAGGED','HIDDEN')
      RETURNING id
   `;
   if (!row) return { error: 'NOT_FOUND_OR_ALREADY_WITHDRAWN' };
@@ -286,9 +300,11 @@ export async function setEndorsementHidden(endorsementId: string, hidden: boolea
     UPDATE app.endorsement
        SET hidden_by_candidate = ${hidden},
            status = ${hidden ? 'HIDDEN' : 'VERIFIED_CONTACT'},
-           raw_points = ${hidden ? 0 : 10}
+           raw_points = CASE WHEN ${hidden} THEN 0 WHEN relationship IN ('FORMER_MANAGER','SENIOR_COLLEAGUE') THEN 10 ELSE 5 END
      WHERE id = ${endorsementId} AND status IN ('VERIFIED_CONTACT','HIDDEN')
   `;
+  const [e]=await sql`SELECT candidate_id FROM app.endorsement WHERE id=${endorsementId}`;
+  if(e){const {recordMatch}=await import('@/modules/matching');for(const a of await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${e.candidate_id} AND status NOT IN ('WITHDRAWN','REJECTED')`)await recordMatch(a.id,e.candidate_id,a.job_id);}
   return { ok: true };
 }
 
@@ -301,29 +317,31 @@ export async function updatePreferences(candidateId: string, prefs: {
   language?: 'mr' | 'hi' | 'en'; maxCommuteMin?: number; expectedPayPaise?: number;
   alertQuietFrom?: number; alertQuietTo?: number; alertMaxPerWeek?: number;
 }) {
-  const sets: string[] = [];
-  if (prefs.language !== undefined) sets.push(`language = '${prefs.language}'`);
-  if (prefs.maxCommuteMin !== undefined) sets.push(`max_commute_min = ${Number(prefs.maxCommuteMin)}`);
-  if (prefs.expectedPayPaise !== undefined) sets.push(`expected_pay_paise = ${Number(prefs.expectedPayPaise)}`);
-  if (prefs.alertQuietFrom !== undefined) sets.push(`alert_quiet_from = ${Number(prefs.alertQuietFrom)}`);
-  if (prefs.alertQuietTo !== undefined) sets.push(`alert_quiet_to = ${Number(prefs.alertQuietTo)}`);
-  if (prefs.alertMaxPerWeek !== undefined) sets.push(`alert_max_per_week = ${Number(prefs.alertMaxPerWeek)}`);
-  if (!sets.length) return { ok: true, changed: 0 };
-  await sql.unsafe(`UPDATE app.candidate SET ${sets.join(', ')} WHERE id = '${candidateId.replace(/'/g, "''")}'`);
-  return { ok: true, changed: sets.length };
+  if (prefs.language !== undefined) choice(prefs.language,['mr','hi','en'],'language');
+  for (const [key,value] of Object.entries(prefs)) {
+    if (key !== 'language') integer(value,key,0,key.startsWith('alertQuiet')?23:key==='alertMaxPerWeek'?20:1_000_000_000);
+  }
+  const values: Record<string,string|number> = {};
+  const fields: Record<string,string>={language:'language',maxCommuteMin:'max_commute_min',expectedPayPaise:'expected_pay_paise',alertQuietFrom:'alert_quiet_from',alertQuietTo:'alert_quiet_to',alertMaxPerWeek:'alert_max_per_week'};
+  for(const [key,value] of Object.entries(prefs)) if(value!==undefined && fields[key]) values[fields[key]]=value;
+  if(Object.keys(values).length) await sql`UPDATE app.candidate SET ${sql(values)} WHERE id=${candidateId}`;
+  const {recordMatch}=await import('@/modules/matching');for(const a of await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${candidateId} AND status NOT IN ('WITHDRAWN','REJECTED')`)await recordMatch(a.id,candidateId,a.job_id);
+  return {ok:true,changed:Object.keys(values).length};
 }
 
 /** CAN-02 — where a candidate left off, so an interrupted flow can resume. */
 export async function resumePoint(candidateId: string) {
   const [c] = await sql<{
-    status: string; mobile_verified_at: Date | null; name: string | null;
-  }[]>`SELECT status, mobile_verified_at, name FROM app.candidate WHERE id = ${candidateId}`;
+    status: string; mobile_verified_at: Date | null; name: string | null;role_config_id:string|null;work_authorised:boolean;
+  }[]>`SELECT status, mobile_verified_at, name,role_config_id,work_authorised FROM app.candidate WHERE id = ${candidateId}`;
   if (!c) return { step: 'start' as const };
   const [assessment] = await sql<{ n: string }[]>`
     SELECT COUNT(*)::text n FROM app.assessment_attempt WHERE candidate_id = ${candidateId}
   `;
   if (!c.mobile_verified_at) return { step: 'otp' as const };
-  if (c.status !== 'PROFILE_ACTIVE' || !c.name) return { step: 'profile' as const };
+  const [consent]=await sql`SELECT id FROM app.consent_record WHERE candidate_id=${candidateId} AND purpose='PROCESSING' AND granted_at IS NOT NULL AND withdrawn_at IS NULL`;
+  if(!consent)return {step:'consent' as const};
+  if (c.status !== 'PROFILE_ACTIVE' || !c.name || !c.role_config_id || !c.work_authorised) return { step: 'profile' as const };
   if (Number(assessment.n) === 0) return { step: 'assess' as const };
   return { step: 'jobs' as const };
 }
@@ -345,12 +363,35 @@ export async function raiseDataRequest(
   return { id };
 }
 
-export async function resolveDataRequest(id: string, status: 'ACTIONED' | 'REFUSED') {
-  const at = await now();
-  await sql`
-    UPDATE app.data_request SET status = ${status}, resolved_at = ${at} WHERE id = ${id}
-  `;
-  return { ok: true };
+export async function resolveDataRequest(id:string,status:'ACTIONED'|'REFUSED',correction?:{field:string;value:string;reason:string}){
+ const at=await now();return sql.begin(async tx=>{
+ const [request]=await tx`SELECT * FROM app.data_request WHERE id=${id} FOR UPDATE`;
+ if(!request||request.status!=='OPEN')throw new Error('Request is not open.');
+ let response:Record<string,unknown>={};
+ if(status==='REFUSED'){if(!correction?.reason?.trim())throw new Error('A refusal reason is required.');response={reason:correction.reason};}
+ else if(request.kind==='ACCESS'){
+  const [profile]=await tx`SELECT * FROM app.candidate WHERE id=${request.candidate_id}`;
+  const consents=await tx`SELECT purpose,granted_at,withdrawn_at FROM app.consent_record WHERE candidate_id=${request.candidate_id}`;
+  const applications=await tx`SELECT id,job_id,status,applied_at FROM app.application WHERE candidate_id=${request.candidate_id}`;
+  response={profile,consents,applications};
+ }else if(request.kind==='CORRECTION'){
+  if(!correction || !['name','locality_key'].includes(correction.field)||!correction.value.trim())throw new Error('Specify name or locality_key and the corrected value.');
+  await tx`UPDATE app.candidate SET ${tx.unsafe(correction.field)}=${correction.value.trim()} WHERE id=${request.candidate_id}`;
+  response={field:correction.field,value:correction.value,reason:correction.reason};
+ }else if(request.kind==='ERASURE'){
+  await tx`UPDATE app.candidate SET name='Deleted candidate',phone=${'erased-'+request.candidate_id},locality_key=NULL,experience_tags='[]',languages='[]',current_pay_paise=NULL,expected_pay_paise=NULL,shift_availability='[]',pending_source=NULL,status='DELETED_BLOCKED' WHERE id=${request.candidate_id}`;
+  await tx`UPDATE app.consent_record SET withdrawn_at=${at} WHERE candidate_id=${request.candidate_id}`;
+  await tx`DELETE FROM app.candidate_attribute_value WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.candidate_document SET object_ref=NULL WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.endorsement SET endorser_name='Removed',endorser_contact='removed',comment=NULL,raw_points=0,status='WITHDRAWN',invite_token=NULL,withdraw_token=NULL WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.data_request SET detail='Erased',response=NULL WHERE candidate_id=${request.candidate_id} AND id<>${id}`;
+  await tx`UPDATE app.message_log SET body='Erased' WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.achievement SET description='Removed',evidence_ref=NULL WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.match_result SET inputs_snapshot='{}' WHERE candidate_id=${request.candidate_id}`;
+  response={result:'Profile anonymised; consent withdrawn; documents removed; transaction history retained.'};
+ }
+ await tx`UPDATE app.data_request SET status=${status},resolved_at=${at},response=${tx.json(response as never)} WHERE id=${id}`;
+ return {ok:true};});
 }
 
 /** PART-07 — conduct rules must be accepted, and the version is recorded. */

@@ -8,14 +8,14 @@ export function NewEmployerForm({ localities }: { localities: { key: string; dis
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<React.ReactNode>(null);
   const [f, setF] = useState({
-    legalName: 'DEMO Konkan Cooperative Bank Ltd',
-    brandName: 'DEMO Konkan Bank',
-    gstPan: '27CCCCC2222C1Z5',
-    billingContact: 'billing@demo-konkan.invalid',
-    locationName: 'Camp Branch',
+    legalName: '',
+    brandName: '',
+    gstPan: '',
+    billingContact: '',
+    locationName: '',
     localityKey: 'deccan',
     hours: '09:00-19:00',
-    adminName: 'DEMO Rajesh Kulkarni',
+    adminName: '',
   });
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: e.target.value });
@@ -26,8 +26,7 @@ export function NewEmployerForm({ localities }: { localities: { key: string; dis
     <div className="card" style={{ maxWidth: 720 }}>
       <div className="card-body">
         <p className="small muted">
-          Fields are pre-filled with a plausible example so you can create one in a single click
-          during a demo. Change anything you like.
+          Enter the employer and first branch details. Use synthetic details in this demo.
         </p>
 
         <h3 style={{ marginTop: 18, marginBottom: 10 }}>Organisation</h3>
@@ -85,12 +84,12 @@ export function NewEmployerForm({ localities }: { localities: { key: string; dis
         </div>
 
         <div className="btnrow mt">
-          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {
+          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {try{
             const r = await actCreateEmployer(f);
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Failed: {r.error}</span>); return; }
             setMsg(<>Created <strong>{r.employerId}</strong> with branch {r.locationId} and admin {r.userId}. Approve it on the Operations console to let it post jobs.</>);
             setTimeout(() => router.push('/ops'), 1400);
-          })}>Create employer</button>
+          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Create employer</button>
           <button className="btn" onClick={() => router.push('/ops')}>Cancel</button>
         </div>
         {msg && <div className="note mt small">{msg}</div>}

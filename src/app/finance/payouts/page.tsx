@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { activeCommercialPolicy } from '@/modules/configuration';
@@ -8,6 +9,7 @@ import { PayoutRow, FinanceActions } from '../finance-client';
 export const dynamic = 'force-dynamic';
 
 export default async function PayoutsPage() {
+  const viewer=await scopePage('finance');
   const policy = await activeCommercialPolicy();
   const payouts = await sql<{
     id: string; partner_id: string; name: string; gross_paise: string; tds_paise: string;
@@ -22,7 +24,7 @@ export default async function PayoutsPage() {
       <SubNav tabs={FINANCE_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Payout batches</h1>
+          <h1>Payout batches</h1><a className="btn" href="/finance/statement">Download statement</a>
           <div className="sub">
             s.194H withholding: 2% above ₹20,000 in a financial year with a PAN, 20% without
             {' '}<Clause>REF-09</Clause>

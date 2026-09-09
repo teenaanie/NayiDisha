@@ -70,10 +70,10 @@ export function UnlockPanel(props: Props) {
 
   if (!confirming) {
     return (
-      <button className="btn btn-sm btn-primary" disabled={pending || (props.creditsAvailable ?? 0) <= 0}
+      <div><button className="btn btn-sm btn-primary" disabled={pending || (props.creditsAvailable ?? 0) <= 0}
               onClick={() => setConfirming(true)}>
         Unlock profile
-      </button>
+      </button>{result && <p role="status" className="small">{result}</p>}</div>
     );
   }
 

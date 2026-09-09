@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { creditBalance, reconcileEntitlement } from '@/modules/commercial';
@@ -9,7 +10,8 @@ import { BuyCredits } from './billing-client';
 export const dynamic = 'force-dynamic';
 
 export default async function BillingPage() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
   const policy = await activeCommercialPolicy();
 
   const ents = await sql<{

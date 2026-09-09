@@ -149,7 +149,7 @@ async function main() {
   await sql`UPDATE app.application SET reconfirmed_at = NULL WHERE candidate_id='CAN-004' AND job_id='JOB-001'`;
   const blocked = await unlockQualifiedProfile('EMP-001', 'JOB-001', 'CAN-004', 'EU-001');
   check('MATCH-09', 'Unreconfirmed candidate cannot be unlocked',
-    blocked.status === 'BLOCKED' && blocked.reason === 'INTEREST_NOT_RECONFIRMED', String(blocked.reason));
+    blocked.status === 'BLOCKED' && String(blocked.reason).includes('INTEREST_NOT_RECONFIRMED'), String(blocked.reason));
   await sql`UPDATE app.application SET reconfirmed_at = ${SEED_INSTANT} WHERE candidate_id='CAN-004' AND job_id='JOB-001'`;
 
   // ---- §15: consent withdrawal --------------------------------------------
@@ -481,8 +481,8 @@ async function main() {
     `notified ${('notified' in minorEdit ? minorEdit.notified : '?')}`);
 
   const material = await editJob('JOB-001', { fixedPayPaise: rupees(19500) }, 'EU-001');
-  check('JOB-04', 'A pay change is material and notifies interested candidates',
-    'material' in material && material.material === true && (material.notified ?? 0) > 0,
+  check('JOB-04', 'A pay change requires approval before becoming live',
+    'material' in material && material.material === true && !!(await sql`SELECT id FROM app.job WHERE id='JOB-001' AND status='PENDING_APPROVAL' AND pending_changes IS NOT NULL`).length,
     `notified ${('notified' in material ? material.notified : '?')}`);
 
   await setJobState('JOB-001', 'PAUSED', 'Paused for the test', 'EU-001');
@@ -576,6 +576,10 @@ async function main() {
   // ---- §24: the unlock is the money path ---------------------------------
   // The unlock is the money path and the largest transaction in the app, so it
   // gets the same proof rather than an argument from code reading.
+  // Restore the independent money-path fixture after lifecycle and preference tests.
+  await sql`UPDATE app.job SET status='LIVE',pending_changes=NULL WHERE id='JOB-001'`;
+  await sql`UPDATE app.application SET reconfirmed_at=${SEED_INSTANT} WHERE candidate_id='CAN-005' AND job_id='JOB-001'`;
+  await updatePreferences('CAN-005',{maxCommuteMin:60});
   const freshUnlock = await withTimeout(
     unlockQualifiedProfile('EMP-001', 'JOB-001', 'CAN-005', 'EU-001'), 8000);
   check('§24', 'A new unlock completes inside one transaction',

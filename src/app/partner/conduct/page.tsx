@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { CONDUCT_RULES, CONDUCT_VERSION } from '@/modules/lifecycle';
@@ -10,8 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function ConductPage({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const [partner] = await sql<{
     id: string; name: string; conduct_accepted_at: Date | null; conduct_version: string | null;

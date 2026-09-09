@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -8,6 +9,7 @@ import { OpsActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function EmployersPage() {
+  const viewer=await scopePage('ops');
   const employers = await sql<{
     id: string; legal_name: string; brand_name: string; gst_pan: string | null;
     billing_contact: string | null; status: string; status_reason: string | null;
@@ -31,7 +33,7 @@ export default async function EmployersPage() {
                 Only verified direct employers may post jobs <Clause>OPS-EMP-01 / 04</Clause>
               </div>
             </div>
-            <Link className="btn btn-primary" href="/ops/new-employer">+ Add employer</Link>
+            <Link className="btn btn-primary" href="/ops/new-employer">+ Add employer</Link><Link className="btn" href="/ops/manage#employers">Edit employers</Link>
           </div>
         </div>
         <div className="card"><div className="card-body tight"><div className="tblwrap">

@@ -1,0 +1,5029 @@
+[
+  {
+    "table": "action_audit",
+    "jsonColumns": [
+      "detail"
+    ],
+    "rows": []
+  },
+  {
+    "table": "attribute_definition",
+    "jsonColumns": [
+      "allowed_values",
+      "validation",
+      "translations"
+    ],
+    "rows": [
+      {
+        "key": "joining_date",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Expected joining date",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "incentive_conditions",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Incentive conditions",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "overtime",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Overtime and pay",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "benefits",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Benefits",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "employment_type",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Employment type",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "safety",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Workplace and travel safety",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-09-09T11:02:38.170Z"
+      },
+      {
+        "key": "locality",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "TEXT",
+        "display_name": "Home locality",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "experience_months",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "INT",
+        "display_name": "Total experience (months)",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "expected_pay",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "MONEY_PAISE",
+        "display_name": "Expected monthly pay",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "max_commute_min",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "INT",
+        "display_name": "Maximum one-way commute (minutes)",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "languages",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "MULTI_ENUM",
+        "display_name": "Languages spoken",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "shift_availability",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "MULTI_ENUM",
+        "display_name": "Shifts available for",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "work_authorised",
+        "scope": "CANDIDATE_COMMON",
+        "data_type": "BOOL",
+        "display_name": "Authorised to work in India",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "casa_familiarity",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "ENUM",
+        "display_name": "Familiarity with CASA products",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "field_sales_comfort",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "ENUM",
+        "display_name": "Comfort with field sales targets",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "two_wheeler",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "BOOL",
+        "display_name": "Owns a two-wheeler",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "pos_billing",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "BOOL",
+        "display_name": "Has used POS/billing software",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "fixed_pay",
+        "scope": "JOB",
+        "data_type": "MONEY_PAISE",
+        "display_name": "Fixed monthly pay",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "variable_max",
+        "scope": "JOB",
+        "data_type": "MONEY_PAISE",
+        "display_name": "Maximum monthly variable",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "shift",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Shift window",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "weekly_off",
+        "scope": "JOB",
+        "data_type": "TEXT",
+        "display_name": "Weekly off",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "audit_log",
+    "jsonColumns": [
+      "detail"
+    ],
+    "rows": [
+      {
+        "id": "AUD-001",
+        "actor": "CAN-007",
+        "actor_role": "CANDIDATE",
+        "event": "CONSENT_WITHDRAWN",
+        "entity_type": "consent_record",
+        "entity_id": "CAN-007",
+        "reason": "PROCESSING",
+        "detail": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "AUD-002",
+        "actor": "EU-001",
+        "actor_role": "EMPLOYER",
+        "event": "PROFILE_UNLOCKED",
+        "entity_type": "qualified_lead_unlock",
+        "entity_id": "UNL-001",
+        "reason": "LEAD-05",
+        "detail": {
+          "jobId": "JOB-001",
+          "candidateId": "CAN-001",
+          "attributionValid": true
+        },
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "AUD-003",
+        "actor": "EU-001",
+        "actor_role": "EMPLOYER",
+        "event": "PROFILE_UNLOCKED",
+        "entity_type": "qualified_lead_unlock",
+        "entity_id": "UNL-002",
+        "reason": "LEAD-05",
+        "detail": {
+          "jobId": "JOB-001",
+          "candidateId": "CAN-003",
+          "attributionValid": true
+        },
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "AUD-004",
+        "actor": "OPS-001",
+        "actor_role": "OPERATIONS",
+        "event": "REPLACEMENT_APPROVED",
+        "entity_type": "replacement_case",
+        "entity_id": "RPL-001",
+        "reason": "LEAD-09",
+        "detail": {
+          "unlockId": "UNL-002"
+        },
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "AUD-005",
+        "actor": "FIN-001",
+        "actor_role": "FINANCE",
+        "event": "PAYOUT_BATCH_BUILT",
+        "entity_type": "payout",
+        "entity_id": null,
+        "reason": "Eligible earnings reserved once",
+        "detail": {
+          "created": [],
+          "skipped": [
+            {
+              "reason": "BELOW_PAYOUT_MINIMUM",
+              "partnerId": "PAR-001",
+              "balancePaise": 7500
+            }
+          ]
+        },
+        "created_at": "2026-10-08T05:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "commercial_policy",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "COM-DEMO-001",
+        "version": "1.0",
+        "posting_fee_paise": "250000",
+        "included_unlock_credits": 10,
+        "additional_credit_paise": "25000",
+        "max_distinct_unlocks_per_job": 100,
+        "partner_reward_paise": "7500",
+        "partner_reward_hold_hours": 72,
+        "replacement_window_hours": 72,
+        "attribution_window_days": 30,
+        "partner_payout_minimum_paise": "50000",
+        "payout_cadence": "WEEKLY_FRIDAY",
+        "credit_expiry_days": 90,
+        "preview_batch_size": 10,
+        "job_expiry_days": 30,
+        "active": true,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "salary_basis": "TOTAL",
+        "endorsement_cap": 5
+      }
+    ]
+  },
+  {
+    "table": "configuration_release",
+    "jsonColumns": [
+      "role_config_ids",
+      "validation"
+    ],
+    "rows": [
+      {
+        "id": "REL-BFSI-PUNE-1",
+        "package_name": "Pune BFSI launch package",
+        "version": "1.0",
+        "role_config_ids": [
+          "CFG-BFSI-RE-1",
+          "CFG-BFSI-CSA-1"
+        ],
+        "geography": "PUNE",
+        "cohort_flag": "PILOT",
+        "approved_by": "DEMO Platform Admin",
+        "effective_from": "2026-10-05T04:30:00.000Z",
+        "status": "PUBLISHED",
+        "validation": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "REL-RTL-SANDBOX-1",
+        "package_name": "Retail expansion sandbox",
+        "version": "0.1",
+        "role_config_ids": [
+          "CFG-RTL-SA-1"
+        ],
+        "geography": "PUNE",
+        "cohort_flag": "SANDBOX",
+        "approved_by": null,
+        "effective_from": null,
+        "status": "DRAFT",
+        "validation": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "demo_clock",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": 1,
+        "now_at": "2026-10-05T04:30:00.000Z",
+        "reset_at": "2026-10-05T04:30:00.000Z",
+        "demo_mode": true,
+        "messaging_failure": false,
+        "payout_failure": false
+      }
+    ]
+  },
+  {
+    "table": "document_definition",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "key": "identity_proof",
+        "industry_key": null,
+        "purpose": "Identity verification",
+        "required_stage": "ONBOARDING",
+        "access_policy": "EMPLOYER_CASE_SCOPED",
+        "retention_days": 365,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "address_proof",
+        "industry_key": null,
+        "purpose": "Address verification",
+        "required_stage": "ONBOARDING",
+        "access_policy": "EMPLOYER_CASE_SCOPED",
+        "retention_days": 365,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "education_certificate",
+        "industry_key": "BFSI",
+        "purpose": "Eligibility evidence",
+        "required_stage": "ONBOARDING",
+        "access_policy": "EMPLOYER_CASE_SCOPED",
+        "retention_days": 365,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "bank_passbook",
+        "industry_key": "BFSI",
+        "purpose": "Salary account setup",
+        "required_stage": "ONBOARDING",
+        "access_policy": "EMPLOYER_CASE_SCOPED",
+        "retention_days": 365,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "employer_organisation",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "EMP-001",
+        "legal_name": "DEMO Sahyadri Bank Ltd",
+        "brand_name": "DEMO Sahyadri Bank",
+        "gst_pan": "27AAAAA0000A1Z5",
+        "billing_contact": "billing@demo-sahyadri.invalid",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EMP-002",
+        "legal_name": "DEMO Deccan Finance Pvt Ltd",
+        "brand_name": "DEMO Deccan Finance",
+        "gst_pan": "27BBBBB1111B1Z5",
+        "billing_contact": "billing@demo-deccan.invalid",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EMP-003",
+        "legal_name": "DEMO Pragati Microfinance Ltd",
+        "brand_name": "DEMO Pragati Microfinance",
+        "gst_pan": null,
+        "billing_contact": "billing@demo-pragati.invalid",
+        "status": "PENDING_REVIEW",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "fraud_case",
+    "jsonColumns": [
+      "detail"
+    ],
+    "rows": [
+      {
+        "id": "FRD-001",
+        "subject_type": "attribution",
+        "subject_id": "ATT-008",
+        "signal": "SOURCE_SITE_NOT_ACTIVE",
+        "detail": {
+          "siteId": "SITE-005",
+          "candidateId": "CAN-008"
+        },
+        "status": "OPEN",
+        "resolution": null,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "FRD-002",
+        "subject_type": "endorsement",
+        "subject_id": "END-003",
+        "signal": "ENDORSEMENT_DUPLICATE_OR_SELF",
+        "detail": {
+          "candidateId": "CAN-006"
+        },
+        "status": "OPEN",
+        "resolution": null,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "id_counter",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "prefix": "CAN",
+        "value": "8"
+      },
+      {
+        "prefix": "ATT",
+        "value": "8"
+      },
+      {
+        "prefix": "CNS",
+        "value": "23"
+      },
+      {
+        "prefix": "ASM",
+        "value": "8"
+      },
+      {
+        "prefix": "END",
+        "value": "3"
+      },
+      {
+        "prefix": "FRD",
+        "value": "2"
+      },
+      {
+        "prefix": "APP",
+        "value": "8"
+      },
+      {
+        "prefix": "MATCH",
+        "value": "8"
+      },
+      {
+        "prefix": "UNL",
+        "value": "2"
+      },
+      {
+        "prefix": "RPL",
+        "value": "1"
+      },
+      {
+        "prefix": "CRD",
+        "value": "3"
+      },
+      {
+        "prefix": "RWD",
+        "value": "3"
+      },
+      {
+        "prefix": "AUD",
+        "value": "5"
+      }
+    ]
+  },
+  {
+    "table": "industry",
+    "jsonColumns": [
+      "translations"
+    ],
+    "rows": [
+      {
+        "key": "BFSI",
+        "display_name": "Banking & Financial Services",
+        "translations": {
+          "hi": "बैंकिंग एवं वित्तीय सेवाएँ",
+          "mr": "बँकिंग आणि वित्तीय सेवा"
+        },
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "RETAIL",
+        "display_name": "Retail",
+        "translations": {
+          "hi": "रिटेल",
+          "mr": "रिटेल"
+        },
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "locality",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "key": "shivajinagar",
+        "display_name": "Shivajinagar",
+        "city": "Pune",
+        "lat": 18.5308,
+        "lng": 73.8478
+      },
+      {
+        "key": "kothrud",
+        "display_name": "Kothrud",
+        "city": "Pune",
+        "lat": 18.5074,
+        "lng": 73.8077
+      },
+      {
+        "key": "viman_nagar",
+        "display_name": "Viman Nagar",
+        "city": "Pune",
+        "lat": 18.5679,
+        "lng": 73.9143
+      },
+      {
+        "key": "hadapsar",
+        "display_name": "Hadapsar",
+        "city": "Pune",
+        "lat": 18.5089,
+        "lng": 73.926
+      },
+      {
+        "key": "pimpri",
+        "display_name": "Pimpri",
+        "city": "Pune",
+        "lat": 18.6298,
+        "lng": 73.7997
+      },
+      {
+        "key": "baner",
+        "display_name": "Baner",
+        "city": "Pune",
+        "lat": 18.559,
+        "lng": 73.7868
+      },
+      {
+        "key": "aundh",
+        "display_name": "Aundh",
+        "city": "Pune",
+        "lat": 18.5626,
+        "lng": 73.8077
+      },
+      {
+        "key": "deccan",
+        "display_name": "Deccan Gymkhana",
+        "city": "Pune",
+        "lat": 18.5164,
+        "lng": 73.8416
+      }
+    ]
+  },
+  {
+    "table": "message_template",
+    "jsonColumns": [
+      "buttons"
+    ],
+    "rows": [
+      {
+        "key": "welcome",
+        "language": "mr",
+        "category": "SERVICE",
+        "body": "नमस्कार! ही नोकरी शोधण्याची मोफत सेवा आहे. आम्ही तुमच्या जवळच्या बँकेतील नोकऱ्या दाखवतो. भाषा निवडा.",
+        "buttons": []
+      },
+      {
+        "key": "welcome",
+        "language": "hi",
+        "category": "SERVICE",
+        "body": "नमस्ते! यह नौकरी खोजने की मुफ़्त सेवा है। हम आपके पास की बैंक नौकरियाँ दिखाते हैं। भाषा चुनें।",
+        "buttons": []
+      },
+      {
+        "key": "welcome",
+        "language": "en",
+        "category": "SERVICE",
+        "body": "Hello! This is a free job-finding service. We show you bank jobs near you. Choose your language.",
+        "buttons": []
+      },
+      {
+        "key": "consent_notice",
+        "language": "mr",
+        "category": "SERVICE",
+        "body": "आम्ही तुमचे नाव, पिनकोड, अनुभव आणि अपेक्षित पगार साठवतो — फक्त तुम्हाला नोकरी दाखवण्यासाठी. तुम्ही कधीही ही परवानगी मागे घेऊ शकता. सहमत आहात?",
+        "buttons": []
+      },
+      {
+        "key": "consent_notice",
+        "language": "hi",
+        "category": "SERVICE",
+        "body": "हम आपका नाम, पिनकोड, अनुभव और अपेक्षित वेतन रखते हैं — केवल आपको नौकरी दिखाने के लिए। आप कभी भी सहमति वापस ले सकते हैं। सहमत हैं?",
+        "buttons": []
+      },
+      {
+        "key": "consent_notice",
+        "language": "en",
+        "category": "SERVICE",
+        "body": "We store your name, pincode, experience and expected pay — only to show you jobs. You can withdraw this at any time. Do you agree?",
+        "buttons": []
+      },
+      {
+        "key": "otp",
+        "language": "mr",
+        "category": "AUTHENTICATION",
+        "body": "तुमचा पडताळणी कोड {{code}} आहे.",
+        "buttons": []
+      },
+      {
+        "key": "otp",
+        "language": "hi",
+        "category": "AUTHENTICATION",
+        "body": "आपका सत्यापन कोड {{code}} है।",
+        "buttons": []
+      },
+      {
+        "key": "otp",
+        "language": "en",
+        "category": "AUTHENTICATION",
+        "body": "Your verification code is {{code}}.",
+        "buttons": []
+      },
+      {
+        "key": "source_confirm",
+        "language": "mr",
+        "category": "SERVICE",
+        "body": "तुम्ही {{partner}} मार्फत आला आहात. बरोबर नसेल तर \"बदला\" लिहा.",
+        "buttons": []
+      },
+      {
+        "key": "source_confirm",
+        "language": "hi",
+        "category": "SERVICE",
+        "body": "आप {{partner}} के ज़रिए आए हैं। सही नहीं है तो \"बदलें\" लिखें।",
+        "buttons": []
+      },
+      {
+        "key": "source_confirm",
+        "language": "en",
+        "category": "SERVICE",
+        "body": "You came through {{partner}}. If that is not right, reply \"change\".",
+        "buttons": []
+      },
+      {
+        "key": "job_alert",
+        "language": "mr",
+        "category": "MARKETING",
+        "body": "{{employer}} — {{title}}, {{locality}}. निश्चित {{fixed}}/महिना. प्रवास सुमारे {{minutes}} मिनिटे. अर्ज करायचा?",
+        "buttons": []
+      },
+      {
+        "key": "job_alert",
+        "language": "hi",
+        "category": "MARKETING",
+        "body": "{{employer}} — {{title}}, {{locality}}. निश्चित {{fixed}}/माह. यात्रा लगभग {{minutes}} मिनट। आवेदन करें?",
+        "buttons": []
+      },
+      {
+        "key": "job_alert",
+        "language": "en",
+        "category": "MARKETING",
+        "body": "{{employer}} — {{title}} in {{locality}}. {{fixed}}/month fixed. About {{minutes}} minutes travel. Apply?",
+        "buttons": []
+      },
+      {
+        "key": "application_confirm",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "तुमचा अर्ज {{employer}} कडे पाठवला आहे. ही सेवा पूर्णपणे मोफत आहे.",
+        "buttons": []
+      },
+      {
+        "key": "application_confirm",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "आपका आवेदन {{employer}} को भेज दिया गया है। यह सेवा पूरी तरह मुफ़्त है।",
+        "buttons": []
+      },
+      {
+        "key": "application_confirm",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Your application has gone to {{employer}}. This service is completely free.",
+        "buttons": []
+      },
+      {
+        "key": "reconfirm_interest",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "{{employer}} च्या {{title}} पदासाठी तुम्हाला अजूनही रस आहे का? हो / नाही",
+        "buttons": []
+      },
+      {
+        "key": "reconfirm_interest",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "क्या आप {{employer}} की {{title}} भूमिका में अब भी रुचि रखते हैं? हाँ / नहीं",
+        "buttons": []
+      },
+      {
+        "key": "reconfirm_interest",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Are you still interested in the {{title}} role at {{employer}}? Yes / No",
+        "buttons": []
+      },
+      {
+        "key": "shared_with_employer",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "तुमचा प्रोफाइल {{employer}} ने पाहिला आहे. ते लवकरच संपर्क करू शकतात. कोणी पैसे मागितले तर लगेच कळवा.",
+        "buttons": []
+      },
+      {
+        "key": "shared_with_employer",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "आपका प्रोफ़ाइल {{employer}} ने देखा है। वे जल्द संपर्क कर सकते हैं। कोई पैसे माँगे तो तुरंत बताएँ।",
+        "buttons": []
+      },
+      {
+        "key": "shared_with_employer",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Your profile has been opened by {{employer}}. They may contact you soon. Tell us at once if anyone asks you for money.",
+        "buttons": []
+      },
+      {
+        "key": "endorsement_invite",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "{{candidate}} यांनी तुम्हाला त्यांच्या कामाबद्दल थोडक्यात सांगण्याची विनंती केली आहे. दुवा: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "endorsement_invite",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "{{candidate}} ने आपसे उनके काम के बारे में कुछ बताने का अनुरोध किया है। लिंक: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "endorsement_invite",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "{{candidate}} has asked you to say a few words about their work. Link: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "delivery_failure_fallback",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "आम्ही तुमच्यापर्यंत पोहोचू शकलो नाही. SMS पाठवत आहोत.",
+        "buttons": []
+      },
+      {
+        "key": "delivery_failure_fallback",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "हम आप तक नहीं पहुँच सके। SMS भेज रहे हैं।",
+        "buttons": []
+      },
+      {
+        "key": "delivery_failure_fallback",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "We could not reach you on WhatsApp. Sending an SMS instead.",
+        "buttons": []
+      },
+      {
+        "key": "interview_invite",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "{{employer}} ने तुम्हाला {{title}} पदासाठी मुलाखतीसाठी बोलावले आहे. {{when}} रोजी {{where}}. येऊ शकाल का? हो / नाही",
+        "buttons": []
+      },
+      {
+        "key": "interview_invite",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "{{employer}} ने आपको {{title}} पद के लिए साक्षात्कार पर बुलाया है। {{when}} को {{where}}। आ सकेंगे? हाँ / नहीं",
+        "buttons": []
+      },
+      {
+        "key": "interview_invite",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "{{employer}} has invited you to interview for {{title}} on {{when}} at {{where}}. Can you make it? Yes / No",
+        "buttons": []
+      },
+      {
+        "key": "interview_reminder",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "आठवण: तुमची मुलाखत {{when}} रोजी आहे.",
+        "buttons": []
+      },
+      {
+        "key": "interview_reminder",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "याद दिलाना: आपका साक्षात्कार {{when}} को है।",
+        "buttons": []
+      },
+      {
+        "key": "interview_reminder",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Reminder: your interview is on {{when}}.",
+        "buttons": []
+      },
+      {
+        "key": "offer_summary",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "{{employer}} कडून {{title}} पदाची ऑफर. निश्चित पगार {{fixed}}/महिना. रुजू होण्याची तारीख {{joining}}. स्वीकारायचे? हो / नाही",
+        "buttons": []
+      },
+      {
+        "key": "offer_summary",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "{{employer}} की ओर से {{title}} पद का प्रस्ताव। निश्चित वेतन {{fixed}}/माह। ज्वाइनिंग {{joining}}। स्वीकार करें? हाँ / नहीं",
+        "buttons": []
+      },
+      {
+        "key": "offer_summary",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Offer from {{employer}} for {{title}}. Fixed pay {{fixed}}/month. Joining {{joining}}. Accept? Yes / No",
+        "buttons": []
+      },
+      {
+        "key": "job_changed",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "तुम्ही अर्ज केलेल्या {{title}} पदात बदल झाला आहे: {{change}}. कृपया पुन्हा पहा.",
+        "buttons": []
+      },
+      {
+        "key": "job_changed",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "आपने जिस {{title}} पद के लिए आवेदन किया था उसमें बदलाव हुआ है: {{change}}। कृपया दोबारा देखें।",
+        "buttons": []
+      },
+      {
+        "key": "job_changed",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "The {{title}} role you applied for has changed: {{change}}. Please take another look.",
+        "buttons": []
+      },
+      {
+        "key": "documents_requested",
+        "language": "mr",
+        "category": "UTILITY",
+        "body": "ऑफर स्वीकारल्याबद्दल धन्यवाद. कागदपत्रे अपलोड करण्यासाठी दुवा: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "documents_requested",
+        "language": "hi",
+        "category": "UTILITY",
+        "body": "प्रस्ताव स्वीकारने के लिए धन्यवाद। दस्तावेज़ अपलोड करने का लिंक: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "documents_requested",
+        "language": "en",
+        "category": "UTILITY",
+        "body": "Thank you for accepting. Upload your documents here: {{link}}",
+        "buttons": []
+      },
+      {
+        "key": "opt_out",
+        "language": "mr",
+        "category": "SERVICE",
+        "body": "तुम्हाला यापुढे नोकरीचे संदेश येणार नाहीत. पुन्हा सुरू करण्यासाठी \"सुरू\" लिहा.",
+        "buttons": []
+      },
+      {
+        "key": "opt_out",
+        "language": "hi",
+        "category": "SERVICE",
+        "body": "अब आपको नौकरी के संदेश नहीं आएँगे। दोबारा शुरू करने के लिए \"शुरू\" लिखें।",
+        "buttons": []
+      },
+      {
+        "key": "opt_out",
+        "language": "en",
+        "category": "SERVICE",
+        "body": "You will not get job messages any more. Reply \"start\" to turn them back on.",
+        "buttons": []
+      }
+    ]
+  },
+  {
+    "table": "partner",
+    "jsonColumns": [
+      "capabilities",
+      "service_localities",
+      "languages"
+    ],
+    "rows": [
+      {
+        "id": "PAR-001",
+        "name": "DEMO CareerSetu Services",
+        "partner_type": "LOCAL_HIRING_AGENCY",
+        "is_business": true,
+        "capabilities": [
+          "BFSI/RELATIONSHIP_EXECUTIVE",
+          "BFSI/CUSTOMER_SERVICE_ASSOCIATE"
+        ],
+        "service_localities": [
+          "shivajinagar",
+          "deccan"
+        ],
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "pan": "AAAPA1234A",
+        "payout_upi": "careersetu@demoupi",
+        "risk_tier": "STANDARD",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "conduct_accepted_at": null,
+        "conduct_version": null
+      },
+      {
+        "id": "PAR-002",
+        "name": "DEMO Om Xerox Centre",
+        "partner_type": "PRINT_SHOP",
+        "is_business": true,
+        "capabilities": [
+          "BFSI/CUSTOMER_SERVICE_ASSOCIATE"
+        ],
+        "service_localities": [
+          "kothrud"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "pan": null,
+        "payout_upi": "omxerox@demoupi",
+        "risk_tier": "STANDARD",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "conduct_accepted_at": null,
+        "conduct_version": null
+      },
+      {
+        "id": "PAR-003",
+        "name": "DEMO Quick Mobile Point",
+        "partner_type": "MOBILE_RECHARGE_SHOP",
+        "is_business": true,
+        "capabilities": [
+          "BFSI/RELATIONSHIP_EXECUTIVE"
+        ],
+        "service_localities": [
+          "hadapsar"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "pan": null,
+        "payout_upi": "quickmobile@demoupi",
+        "risk_tier": "STANDARD",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "conduct_accepted_at": null,
+        "conduct_version": null
+      },
+      {
+        "id": "PAR-004",
+        "name": "DEMO Neha Jobs Network",
+        "partner_type": "INDEPENDENT_RECRUITER",
+        "is_business": false,
+        "capabilities": [
+          "BFSI/RELATIONSHIP_EXECUTIVE"
+        ],
+        "service_localities": [
+          "pimpri"
+        ],
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "pan": "BBBPB5678B",
+        "payout_upi": "nehajobs@demoupi",
+        "risk_tier": "STANDARD",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "conduct_accepted_at": null,
+        "conduct_version": null
+      },
+      {
+        "id": "PAR-005",
+        "name": "DEMO SkillBridge Centre",
+        "partner_type": "TRAINING_CENTRE",
+        "is_business": true,
+        "capabilities": [
+          "BFSI/RELATIONSHIP_EXECUTIVE"
+        ],
+        "service_localities": [
+          "viman_nagar"
+        ],
+        "languages": [
+          "hi",
+          "en"
+        ],
+        "pan": null,
+        "payout_upi": "skillbridge@demoupi",
+        "risk_tier": "STANDARD",
+        "status": "SUSPENDED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "conduct_accepted_at": null,
+        "conduct_version": null
+      }
+    ]
+  },
+  {
+    "table": "employer_location",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "LOC-001",
+        "employer_id": "EMP-001",
+        "name": "FC Road Branch",
+        "locality_key": "shivajinagar",
+        "lat": 18.5224,
+        "lng": 73.8412,
+        "hours": "09:00-19:00",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "LOC-002",
+        "employer_id": "EMP-001",
+        "name": "Kothrud Branch",
+        "locality_key": "kothrud",
+        "lat": 18.5074,
+        "lng": 73.8077,
+        "hours": "09:00-19:00",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "LOC-003",
+        "employer_id": "EMP-002",
+        "name": "Viman Nagar Office",
+        "locality_key": "viman_nagar",
+        "lat": 18.5679,
+        "lng": 73.9143,
+        "hours": "10:00-20:00",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "LOC-004",
+        "employer_id": "EMP-003",
+        "name": "Hadapsar Office",
+        "locality_key": "hadapsar",
+        "lat": 18.5089,
+        "lng": 73.926,
+        "hours": "09:00-18:00",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "employer_user",
+    "jsonColumns": [
+      "location_scope"
+    ],
+    "rows": [
+      {
+        "id": "EU-001",
+        "employer_id": "EMP-001",
+        "name": "DEMO Asha Kulkarni",
+        "role": "COMPANY_ADMIN",
+        "location_scope": [],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EU-002",
+        "employer_id": "EMP-001",
+        "name": "DEMO Nikhil Patil",
+        "role": "BRANCH_RECRUITER",
+        "location_scope": [
+          "LOC-002"
+        ],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EU-003",
+        "employer_id": "EMP-002",
+        "name": "DEMO Meera Shah",
+        "role": "COMPANY_ADMIN",
+        "location_scope": [],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EU-004",
+        "employer_id": "EMP-003",
+        "name": "DEMO Farhan Shaikh",
+        "role": "COMPANY_ADMIN",
+        "location_scope": [],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "partner_site",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "SITE-001",
+        "partner_id": "PAR-001",
+        "locality_key": "shivajinagar",
+        "partner_code": "DCS101",
+        "qr_token": "qr_DCS101_7K2QX",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "name": null,
+        "address": null,
+        "suspended_by_partner": false
+      },
+      {
+        "id": "SITE-002",
+        "partner_id": "PAR-002",
+        "locality_key": "kothrud",
+        "partner_code": "OXC202",
+        "qr_token": "qr_OXC202_M4RPD",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "name": null,
+        "address": null,
+        "suspended_by_partner": false
+      },
+      {
+        "id": "SITE-003",
+        "partner_id": "PAR-003",
+        "locality_key": "hadapsar",
+        "partner_code": "QMP303",
+        "qr_token": "qr_QMP303_V9TLZ",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "name": null,
+        "address": null,
+        "suspended_by_partner": false
+      },
+      {
+        "id": "SITE-004",
+        "partner_id": "PAR-004",
+        "locality_key": "pimpri",
+        "partner_code": "NJN404",
+        "qr_token": "qr_NJN404_B3HWY",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "name": null,
+        "address": null,
+        "suspended_by_partner": false
+      },
+      {
+        "id": "SITE-005",
+        "partner_id": "PAR-005",
+        "locality_key": "viman_nagar",
+        "partner_code": "SBC505",
+        "qr_token": "qr_SBC505_X8QNF",
+        "status": "SUSPENDED",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "name": null,
+        "address": null,
+        "suspended_by_partner": false
+      }
+    ]
+  },
+  {
+    "table": "payout",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "role_family",
+    "jsonColumns": [
+      "transferable",
+      "direct_tags",
+      "skill_mapping"
+    ],
+    "rows": [
+      {
+        "key": "SALES_ASSOCIATE",
+        "industry_key": "RETAIL",
+        "display_name": "Sales Associate",
+        "parent_key": null,
+        "transferable": [
+          "RETAIL_SALES",
+          "SALES",
+          "FIELD_SALES"
+        ],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "direct_tags": [
+          "RETAIL_SALES",
+          "SALES"
+        ],
+        "skill_mapping": {}
+      },
+      {
+        "key": "RELATIONSHIP_EXECUTIVE",
+        "industry_key": "BFSI",
+        "display_name": "Relationship Executive",
+        "parent_key": null,
+        "transferable": [
+          "FIELD_SALES",
+          "TELECOM_SALES",
+          "SALES"
+        ],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "direct_tags": [
+          "BFSI_SALES",
+          "FIELD_SALES"
+        ],
+        "skill_mapping": {
+          "BFSI_SALES": [
+            "FIELD_SALES",
+            "TELECOM_SALES",
+            "SALES"
+          ],
+          "PRODUCT_KNOWLEDGE": [
+            "BFSI_SERVICE",
+            "COMMERCE_GRADUATE"
+          ],
+          "TARGET_ACHIEVEMENT": [
+            "FIELD_SALES",
+            "TELECOM_SALES",
+            "RETAIL_SALES"
+          ],
+          "CUSTOMER_COMMUNICATION": [
+            "CUSTOMER_SERVICE",
+            "BFSI_SERVICE",
+            "RETAIL_SALES"
+          ]
+        }
+      },
+      {
+        "key": "CUSTOMER_SERVICE_ASSOCIATE",
+        "industry_key": "BFSI",
+        "display_name": "Customer Service Associate",
+        "parent_key": null,
+        "transferable": [
+          "CUSTOMER_SERVICE",
+          "RETAIL_SALES"
+        ],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "direct_tags": [
+          "CUSTOMER_SERVICE",
+          "BFSI_SERVICE"
+        ],
+        "skill_mapping": {
+          "BFSI_SALES": [
+            "FIELD_SALES",
+            "TELECOM_SALES",
+            "SALES"
+          ],
+          "PRODUCT_KNOWLEDGE": [
+            "BFSI_SERVICE",
+            "COMMERCE_GRADUATE"
+          ],
+          "TARGET_ACHIEVEMENT": [
+            "FIELD_SALES",
+            "TELECOM_SALES",
+            "RETAIL_SALES"
+          ],
+          "CUSTOMER_COMMUNICATION": [
+            "CUSTOMER_SERVICE",
+            "BFSI_SERVICE",
+            "RETAIL_SALES"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "table": "assessment_template",
+    "jsonColumns": [
+      "sections",
+      "questions",
+      "languages"
+    ],
+    "rows": [
+      {
+        "id": "AST-BFSI-RE-1",
+        "industry_key": "BFSI",
+        "role_family_key": "RELATIONSHIP_EXECUTIVE",
+        "version": "1.0",
+        "sections": [
+          "Numeracy",
+          "Customer communication",
+          "Sales scenario",
+          "Integrity",
+          "Digital comfort"
+        ],
+        "questions": [
+          {
+            "id": "q1",
+            "marks": 20,
+            "answer": "₹10,500 increase",
+            "prompt": "A customer deposits ₹15,000 and withdraws ₹4,500. What is the net change?",
+            "options": [
+              "₹10,500 increase",
+              "₹19,500 increase",
+              "₹10,500 decrease",
+              "₹4,500 increase"
+            ],
+            "section": "Numeracy",
+            "translations": {
+              "hi": "ग्राहक ₹15,000 जमा करता है और ₹4,500 निकालता है। शेष राशि में कितना बदलाव हुआ?",
+              "mr": "ग्राहक ₹15,000 जमा करतो आणि ₹4,500 काढतो. शिल्लक रकमेत किती बदल झाला?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "₹10,500 की वृद्धि",
+                "₹19,500 की वृद्धि",
+                "₹10,500 की कमी",
+                "₹4,500 की वृद्धि"
+              ],
+              "mr": [
+                "₹10,500 वाढ",
+                "₹19,500 वाढ",
+                "₹10,500 घट",
+                "₹4,500 वाढ"
+              ]
+            }
+          },
+          {
+            "id": "q2",
+            "marks": 20,
+            "answer": "Listen fully, then acknowledge the delay",
+            "prompt": "A customer is angry about a delayed passbook update. What do you do first?",
+            "options": [
+              "Explain the bank policy",
+              "Listen fully, then acknowledge the delay",
+              "Direct them to the manager",
+              "Ask them to come back tomorrow"
+            ],
+            "section": "Customer communication",
+            "translations": {
+              "hi": "पासबुक अपडेट में देरी से ग्राहक नाराज़ है। सबसे पहले क्या करेंगे?",
+              "mr": "पासबुक अद्ययावत करण्यास उशीर झाल्याने ग्राहक नाराज आहे. प्रथम काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "बैंक की नीति समझाएँगे",
+                "पूरी बात सुनकर देरी स्वीकार करेंगे",
+                "प्रबंधक के पास भेजेंगे",
+                "कल आने को कहेंगे"
+              ],
+              "mr": [
+                "बँकेचे धोरण सांगाल",
+                "पूर्ण ऐकून उशीर झाल्याचे मान्य कराल",
+                "व्यवस्थापकाकडे पाठवाल",
+                "उद्या यायला सांगाल"
+              ]
+            }
+          },
+          {
+            "id": "q3",
+            "marks": 20,
+            "answer": "Ask what they find useful about it",
+            "prompt": "A customer says they already have an account elsewhere. The best response is to:",
+            "options": [
+              "End the conversation",
+              "Ask what they find useful about it",
+              "Say our bank is better",
+              "Offer a discount immediately"
+            ],
+            "section": "Sales scenario",
+            "translations": {
+              "hi": "ग्राहक का दूसरे बैंक में खाता है। सबसे अच्छा उत्तर क्या होगा?",
+              "mr": "ग्राहकाचे दुसऱ्या बँकेत खाते आहे. उत्तम प्रतिसाद कोणता?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "बातचीत समाप्त करें",
+                "पूछें कि उस खाते में क्या उपयोगी लगता है",
+                "कहें कि हमारा बैंक बेहतर है",
+                "तुरंत छूट दें"
+              ],
+              "mr": [
+                "संवाद थांबवा",
+                "त्या खात्यात काय उपयोगी वाटते ते विचारा",
+                "आपली बँक चांगली आहे असे सांगा",
+                "लगेच सवलत द्या"
+              ]
+            }
+          },
+          {
+            "id": "q4",
+            "marks": 20,
+            "answer": "Decline and process in turn",
+            "prompt": "A customer offers you ₹500 to process their form ahead of others. You:",
+            "options": [
+              "Accept, it is small",
+              "Decline and process in turn",
+              "Accept and process faster",
+              "Ask a colleague to take it"
+            ],
+            "section": "Integrity",
+            "translations": {
+              "hi": "ग्राहक अपना फॉर्म पहले पूरा करने के लिए ₹500 देता है। आप क्या करेंगे?",
+              "mr": "ग्राहक अर्ज आधी पूर्ण करण्यासाठी ₹500 देतो. तुम्ही काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "छोटी रकम समझकर लेंगे",
+                "मना करेंगे और क्रम से काम करेंगे",
+                "पैसे लेकर जल्दी काम करेंगे",
+                "सहकर्मी को पैसे लेने को कहेंगे"
+              ],
+              "mr": [
+                "लहान रक्कम म्हणून घ्याल",
+                "नकार देऊन क्रमाने काम कराल",
+                "पैसे घेऊन लवकर काम कराल",
+                "सहकाऱ्याला पैसे घ्यायला सांगाल"
+              ]
+            }
+          },
+          {
+            "id": "q5",
+            "marks": 20,
+            "answer": "Guide them step by step on their own phone",
+            "prompt": "A customer cannot complete UPI registration on their phone. You should:",
+            "options": [
+              "Take their phone and do it yourself",
+              "Guide them step by step on their own phone",
+              "Ask them to visit a cyber cafe",
+              "Tell them UPI is unavailable"
+            ],
+            "section": "Digital comfort",
+            "translations": {
+              "hi": "ग्राहक फोन पर UPI पंजीकरण नहीं कर पा रहा। आप क्या करेंगे?",
+              "mr": "ग्राहकाला फोनवर UPI नोंदणी करता येत नाही. काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "फोन लेकर खुद करेंगे",
+                "उनके फोन पर चरण-दर-चरण मार्गदर्शन देंगे",
+                "साइबर कैफे भेजेंगे",
+                "कहेंगे कि UPI उपलब्ध नहीं है"
+              ],
+              "mr": [
+                "फोन घेऊन स्वतः कराल",
+                "त्यांच्या फोनवर टप्प्याटप्प्याने मार्गदर्शन कराल",
+                "सायबर कॅफेत पाठवाल",
+                "UPI उपलब्ध नाही असे सांगाल"
+              ]
+            }
+          }
+        ],
+        "pass_threshold": 60,
+        "time_limit_sec": 900,
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "status": "PUBLISHED",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "retake_hours": 24,
+        "max_attempts": 3
+      },
+      {
+        "id": "AST-BFSI-CSA-1",
+        "industry_key": "BFSI",
+        "role_family_key": "CUSTOMER_SERVICE_ASSOCIATE",
+        "version": "1.0",
+        "sections": [
+          "Customer communication",
+          "Product knowledge",
+          "Integrity"
+        ],
+        "questions": [
+          {
+            "id": "q2",
+            "marks": 20,
+            "answer": "Listen fully, then acknowledge the delay",
+            "prompt": "A customer is angry about a delayed passbook update. What do you do first?",
+            "options": [
+              "Explain the bank policy",
+              "Listen fully, then acknowledge the delay",
+              "Direct them to the manager",
+              "Ask them to come back tomorrow"
+            ],
+            "section": "Customer communication",
+            "translations": {
+              "hi": "पासबुक अपडेट में देरी से ग्राहक नाराज़ है। सबसे पहले क्या करेंगे?",
+              "mr": "पासबुक अद्ययावत करण्यास उशीर झाल्याने ग्राहक नाराज आहे. प्रथम काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "बैंक की नीति समझाएँगे",
+                "पूरी बात सुनकर देरी स्वीकार करेंगे",
+                "प्रबंधक के पास भेजेंगे",
+                "कल आने को कहेंगे"
+              ],
+              "mr": [
+                "बँकेचे धोरण सांगाल",
+                "पूर्ण ऐकून उशीर झाल्याचे मान्य कराल",
+                "व्यवस्थापकाकडे पाठवाल",
+                "उद्या यायला सांगाल"
+              ]
+            }
+          },
+          {
+            "id": "q3",
+            "marks": 20,
+            "answer": "Ask what they find useful about it",
+            "prompt": "A customer says they already have an account elsewhere. The best response is to:",
+            "options": [
+              "End the conversation",
+              "Ask what they find useful about it",
+              "Say our bank is better",
+              "Offer a discount immediately"
+            ],
+            "section": "Sales scenario",
+            "translations": {
+              "hi": "ग्राहक का दूसरे बैंक में खाता है। सबसे अच्छा उत्तर क्या होगा?",
+              "mr": "ग्राहकाचे दुसऱ्या बँकेत खाते आहे. उत्तम प्रतिसाद कोणता?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "बातचीत समाप्त करें",
+                "पूछें कि उस खाते में क्या उपयोगी लगता है",
+                "कहें कि हमारा बैंक बेहतर है",
+                "तुरंत छूट दें"
+              ],
+              "mr": [
+                "संवाद थांबवा",
+                "त्या खात्यात काय उपयोगी वाटते ते विचारा",
+                "आपली बँक चांगली आहे असे सांगा",
+                "लगेच सवलत द्या"
+              ]
+            }
+          },
+          {
+            "id": "q4",
+            "marks": 20,
+            "answer": "Decline and process in turn",
+            "prompt": "A customer offers you ₹500 to process their form ahead of others. You:",
+            "options": [
+              "Accept, it is small",
+              "Decline and process in turn",
+              "Accept and process faster",
+              "Ask a colleague to take it"
+            ],
+            "section": "Integrity",
+            "translations": {
+              "hi": "ग्राहक अपना फॉर्म पहले पूरा करने के लिए ₹500 देता है। आप क्या करेंगे?",
+              "mr": "ग्राहक अर्ज आधी पूर्ण करण्यासाठी ₹500 देतो. तुम्ही काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "छोटी रकम समझकर लेंगे",
+                "मना करेंगे और क्रम से काम करेंगे",
+                "पैसे लेकर जल्दी काम करेंगे",
+                "सहकर्मी को पैसे लेने को कहेंगे"
+              ],
+              "mr": [
+                "लहान रक्कम म्हणून घ्याल",
+                "नकार देऊन क्रमाने काम कराल",
+                "पैसे घेऊन लवकर काम कराल",
+                "सहकाऱ्याला पैसे घ्यायला सांगाल"
+              ]
+            }
+          },
+          {
+            "id": "q5",
+            "marks": 20,
+            "answer": "Guide them step by step on their own phone",
+            "prompt": "A customer cannot complete UPI registration on their phone. You should:",
+            "options": [
+              "Take their phone and do it yourself",
+              "Guide them step by step on their own phone",
+              "Ask them to visit a cyber cafe",
+              "Tell them UPI is unavailable"
+            ],
+            "section": "Digital comfort",
+            "translations": {
+              "hi": "ग्राहक फोन पर UPI पंजीकरण नहीं कर पा रहा। आप क्या करेंगे?",
+              "mr": "ग्राहकाला फोनवर UPI नोंदणी करता येत नाही. काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "फोन लेकर खुद करेंगे",
+                "उनके फोन पर चरण-दर-चरण मार्गदर्शन देंगे",
+                "साइबर कैफे भेजेंगे",
+                "कहेंगे कि UPI उपलब्ध नहीं है"
+              ],
+              "mr": [
+                "फोन घेऊन स्वतः कराल",
+                "त्यांच्या फोनवर टप्प्याटप्प्याने मार्गदर्शन कराल",
+                "सायबर कॅफेत पाठवाल",
+                "UPI उपलब्ध नाही असे सांगाल"
+              ]
+            }
+          }
+        ],
+        "pass_threshold": 60,
+        "time_limit_sec": 900,
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "status": "PUBLISHED",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "retake_hours": 24,
+        "max_attempts": 3
+      },
+      {
+        "id": "AST-RTL-SA-1",
+        "industry_key": "RETAIL",
+        "role_family_key": "SALES_ASSOCIATE",
+        "version": "0.1",
+        "sections": [
+          "Product knowledge",
+          "Billing",
+          "Customer service",
+          "Numeracy"
+        ],
+        "questions": [
+          {
+            "id": "r1",
+            "marks": 25,
+            "answer": "Compare capacity, warranty and price",
+            "prompt": "A customer asks the difference between two washing machine models. You should:",
+            "options": [
+              "Recommend the costlier one",
+              "Compare capacity, warranty and price",
+              "Say both are the same",
+              "Ask them to search online"
+            ],
+            "section": "Product knowledge",
+            "translations": {
+              "hi": "ग्राहक दो वॉशिंग मशीनों में अंतर पूछता है। आप क्या करेंगे?",
+              "mr": "ग्राहक दोन वॉशिंग मशीनमधील फरक विचारतो. काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "महँगी मशीन सुझाएँगे",
+                "क्षमता, वारंटी और कीमत की तुलना करेंगे",
+                "दोनों समान बताएँगे",
+                "ऑनलाइन खोजने को कहेंगे"
+              ],
+              "mr": [
+                "महाग मशीन सुचवाल",
+                "क्षमता, हमी आणि किंमत यांची तुलना कराल",
+                "दोन्ही सारख्या आहेत सांगाल",
+                "ऑनलाइन शोधायला सांगाल"
+              ]
+            }
+          },
+          {
+            "id": "r2",
+            "marks": 25,
+            "answer": "Check with the supervisor before billing",
+            "prompt": "The POS shows a price different from the shelf tag. You:",
+            "options": [
+              "Charge the POS price",
+              "Check with the supervisor before billing",
+              "Charge the shelf price silently",
+              "Cancel the sale"
+            ],
+            "section": "Billing",
+            "translations": {
+              "hi": "बिलिंग मशीन और शेल्फ पर कीमत अलग है। आप क्या करेंगे?",
+              "mr": "बिलिंग मशीन आणि शेल्फवरील किंमत वेगळी आहे. काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "मशीन की कीमत लेंगे",
+                "बिल बनाने से पहले सुपरवाइज़र से जाँचेंगे",
+                "बिना बताए शेल्फ की कीमत लेंगे",
+                "बिक्री रद्द करेंगे"
+              ],
+              "mr": [
+                "मशीनची किंमत घ्याल",
+                "बिल करण्यापूर्वी पर्यवेक्षकाकडे तपासाल",
+                "न सांगता शेल्फची किंमत घ्याल",
+                "विक्री रद्द कराल"
+              ]
+            }
+          },
+          {
+            "id": "r3",
+            "marks": 25,
+            "answer": "Explain the policy and offer to check the purchase record",
+            "prompt": "A customer wants to return an item without a bill. You:",
+            "options": [
+              "Refuse immediately",
+              "Explain the policy and offer to check the purchase record",
+              "Accept the return",
+              "Ignore the request"
+            ],
+            "section": "Customer service",
+            "translations": {
+              "hi": "ग्राहक बिना बिल सामान वापस करना चाहता है। आप क्या करेंगे?",
+              "mr": "ग्राहक बिलाशिवाय वस्तू परत करू इच्छितो. काय कराल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "तुरंत मना करेंगे",
+                "नीति समझाकर खरीद का रिकॉर्ड जाँचने की पेशकश करेंगे",
+                "सामान वापस ले लेंगे",
+                "अनुरोध अनदेखा करेंगे"
+              ],
+              "mr": [
+                "लगेच नकार द्याल",
+                "धोरण सांगून खरेदीची नोंद तपासण्याची तयारी दर्शवाल",
+                "वस्तू परत घ्याल",
+                "विनंती दुर्लक्षित कराल"
+              ]
+            }
+          },
+          {
+            "id": "r4",
+            "marks": 25,
+            "answer": "₹2,040",
+            "prompt": "An item costs ₹2,400 with 15% off. What does the customer pay?",
+            "options": [
+              "₹2,040",
+              "₹2,160",
+              "₹1,960",
+              "₹2,100"
+            ],
+            "section": "Numeracy",
+            "translations": {
+              "hi": "₹2,400 के सामान पर 15% छूट है। ग्राहक कितना देगा?",
+              "mr": "₹2,400 च्या वस्तूवर 15% सूट आहे. ग्राहक किती देईल?"
+            },
+            "optionTranslations": {
+              "hi": [
+                "₹2,040",
+                "₹2,160",
+                "₹1,960",
+                "₹2,100"
+              ],
+              "mr": [
+                "₹2,040",
+                "₹2,160",
+                "₹1,960",
+                "₹2,100"
+              ]
+            }
+          }
+        ],
+        "pass_threshold": 55,
+        "time_limit_sec": 720,
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "status": "PUBLISHED",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "retake_hours": 24,
+        "max_attempts": 3
+      }
+    ]
+  },
+  {
+    "table": "role_configuration",
+    "jsonColumns": [
+      "candidate_attributes",
+      "job_attributes",
+      "critical_skills",
+      "qualification_rules",
+      "scoring_weights",
+      "preview_fields",
+      "unlock_fields",
+      "document_checklist"
+    ],
+    "rows": [
+      {
+        "id": "CFG-BFSI-RE-1",
+        "industry_key": "BFSI",
+        "role_family_key": "RELATIONSHIP_EXECUTIVE",
+        "version": "1.0",
+        "status": "PUBLISHED",
+        "candidate_attributes": [
+          {
+            "key": "locality",
+            "required": true
+          },
+          {
+            "key": "experience_months",
+            "required": true
+          },
+          {
+            "key": "expected_pay",
+            "required": true
+          },
+          {
+            "key": "max_commute_min",
+            "required": true
+          },
+          {
+            "key": "languages",
+            "required": true
+          },
+          {
+            "key": "shift_availability",
+            "required": true
+          },
+          {
+            "key": "work_authorised",
+            "required": true
+          },
+          {
+            "key": "casa_familiarity",
+            "required": false
+          },
+          {
+            "key": "field_sales_comfort",
+            "required": true
+          },
+          {
+            "key": "two_wheeler",
+            "required": false
+          }
+        ],
+        "job_attributes": [
+          {
+            "key": "fixed_pay",
+            "required": true
+          },
+          {
+            "key": "variable_max",
+            "required": true
+          },
+          {
+            "key": "shift",
+            "required": true
+          },
+          {
+            "key": "weekly_off",
+            "required": true
+          }
+        ],
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "qualification_rules": {
+          "minAge18": true,
+          "minAssessmentScore": 60,
+          "requireLanguageMatch": true,
+          "requireMobileVerified": true,
+          "requireReconfirmation": true,
+          "requireShiftCompatible": true,
+          "requireMandatoryProfile": true,
+          "requireSalaryCompatible": true,
+          "requireWorkAuthDeclaration": true
+        },
+        "scoring_weights": {
+          "commute": 20,
+          "language": 10,
+          "schedule": 10,
+          "assessment": 5,
+          "experience": 10,
+          "compensation": 15,
+          "jobPreference": 15,
+          "criticalSkills": 15
+        },
+        "endorsement_cap": 5,
+        "assessment_template_id": "AST-BFSI-RE-1",
+        "assessment_threshold": 60,
+        "preview_fields": [
+          "maskedName",
+          "locality",
+          "travelEstimate",
+          "experienceSummary",
+          "payFit",
+          "skills",
+          "assessmentBand",
+          "endorsementPoints",
+          "explanation"
+        ],
+        "unlock_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise",
+          "currentPayPaise"
+        ],
+        "document_checklist": [
+          "identity_proof",
+          "address_proof",
+          "education_certificate",
+          "bank_passbook"
+        ],
+        "effective_from": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CFG-BFSI-CSA-1",
+        "industry_key": "BFSI",
+        "role_family_key": "CUSTOMER_SERVICE_ASSOCIATE",
+        "version": "1.0",
+        "status": "PUBLISHED",
+        "candidate_attributes": [
+          {
+            "key": "locality",
+            "required": true
+          },
+          {
+            "key": "experience_months",
+            "required": true
+          },
+          {
+            "key": "expected_pay",
+            "required": true
+          },
+          {
+            "key": "max_commute_min",
+            "required": true
+          },
+          {
+            "key": "languages",
+            "required": true
+          },
+          {
+            "key": "shift_availability",
+            "required": true
+          },
+          {
+            "key": "work_authorised",
+            "required": true
+          },
+          {
+            "key": "casa_familiarity",
+            "required": false
+          }
+        ],
+        "job_attributes": [
+          {
+            "key": "fixed_pay",
+            "required": true
+          },
+          {
+            "key": "variable_max",
+            "required": true
+          },
+          {
+            "key": "shift",
+            "required": true
+          },
+          {
+            "key": "weekly_off",
+            "required": true
+          }
+        ],
+        "critical_skills": [
+          "CUSTOMER_COMMUNICATION",
+          "PRODUCT_KNOWLEDGE"
+        ],
+        "qualification_rules": {
+          "minAge18": true,
+          "minAssessmentScore": 60,
+          "requireLanguageMatch": true,
+          "requireMobileVerified": true,
+          "requireReconfirmation": true,
+          "requireShiftCompatible": true,
+          "requireMandatoryProfile": true,
+          "requireSalaryCompatible": true,
+          "requireWorkAuthDeclaration": true
+        },
+        "scoring_weights": {
+          "commute": 20,
+          "language": 15,
+          "schedule": 15,
+          "assessment": 5,
+          "experience": 10,
+          "compensation": 10,
+          "jobPreference": 15,
+          "criticalSkills": 10
+        },
+        "endorsement_cap": 5,
+        "assessment_template_id": "AST-BFSI-CSA-1",
+        "assessment_threshold": 60,
+        "preview_fields": [
+          "maskedName",
+          "locality",
+          "travelEstimate",
+          "experienceSummary",
+          "payFit",
+          "skills",
+          "assessmentBand",
+          "endorsementPoints",
+          "explanation"
+        ],
+        "unlock_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise"
+        ],
+        "document_checklist": [
+          "identity_proof",
+          "address_proof"
+        ],
+        "effective_from": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CFG-RTL-SA-1",
+        "industry_key": "RETAIL",
+        "role_family_key": "SALES_ASSOCIATE",
+        "version": "0.1",
+        "status": "SANDBOX",
+        "candidate_attributes": [
+          {
+            "key": "locality",
+            "required": true
+          },
+          {
+            "key": "experience_months",
+            "required": true
+          },
+          {
+            "key": "expected_pay",
+            "required": true
+          },
+          {
+            "key": "max_commute_min",
+            "required": true
+          },
+          {
+            "key": "languages",
+            "required": true
+          },
+          {
+            "key": "shift_availability",
+            "required": true
+          },
+          {
+            "key": "work_authorised",
+            "required": true
+          },
+          {
+            "key": "pos_billing",
+            "required": true
+          }
+        ],
+        "job_attributes": [
+          {
+            "key": "fixed_pay",
+            "required": true
+          },
+          {
+            "key": "variable_max",
+            "required": true
+          },
+          {
+            "key": "shift",
+            "required": true
+          },
+          {
+            "key": "weekly_off",
+            "required": true
+          }
+        ],
+        "critical_skills": [
+          "RETAIL_SALES",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "qualification_rules": {
+          "minAge18": true,
+          "minAssessmentScore": 55,
+          "requireLanguageMatch": true,
+          "requireMobileVerified": true,
+          "requireReconfirmation": true,
+          "requireShiftCompatible": true,
+          "requireMandatoryProfile": true,
+          "requireSalaryCompatible": true,
+          "requireWorkAuthDeclaration": true
+        },
+        "scoring_weights": {
+          "commute": 25,
+          "language": 10,
+          "schedule": 10,
+          "assessment": 5,
+          "experience": 10,
+          "compensation": 10,
+          "jobPreference": 20,
+          "criticalSkills": 10
+        },
+        "endorsement_cap": 5,
+        "assessment_template_id": "AST-RTL-SA-1",
+        "assessment_threshold": 55,
+        "preview_fields": [
+          "maskedName",
+          "locality",
+          "travelEstimate",
+          "experienceSummary",
+          "payFit",
+          "skills",
+          "assessmentBand",
+          "explanation"
+        ],
+        "unlock_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise"
+        ],
+        "document_checklist": [
+          "identity_proof",
+          "address_proof"
+        ],
+        "effective_from": null,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "candidate",
+    "jsonColumns": [
+      "experience_tags",
+      "languages",
+      "shift_availability",
+      "pending_source"
+    ],
+    "rows": [
+      {
+        "id": "CAN-001",
+        "phone": "+910000000001",
+        "name": "DEMO Aarav Deshmukh",
+        "language": "mr",
+        "locality_key": "shivajinagar",
+        "age_confirmed_18": true,
+        "experience_months": 18,
+        "experience_tags": [
+          "FIELD_SALES",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "current_pay_paise": "1600000",
+        "expected_pay_paise": "2000000",
+        "max_commute_min": 45,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "QR",
+          "siteId": "SITE-001",
+          "partnerId": "PAR-001"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-002",
+        "phone": "+910000000002",
+        "name": "DEMO Sana Shaikh",
+        "language": "hi",
+        "locality_key": "kothrud",
+        "age_confirmed_18": true,
+        "experience_months": 12,
+        "experience_tags": [
+          "CUSTOMER_SERVICE",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "current_pay_paise": "1700000",
+        "expected_pay_paise": "2100000",
+        "max_commute_min": 45,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "PARTNER_CODE",
+          "siteId": "SITE-002",
+          "partnerId": "PAR-002"
+        },
+        "role_config_id": "CFG-BFSI-CSA-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-008",
+        "phone": "+910000000008",
+        "name": "DEMO Anaya Joshi",
+        "language": "hi",
+        "locality_key": "aundh",
+        "age_confirmed_18": true,
+        "experience_months": 20,
+        "experience_tags": [
+          "BFSI_SERVICE",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "current_pay_paise": "1950000",
+        "expected_pay_paise": "2200000",
+        "max_commute_min": 60,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": false,
+          "method": "QR",
+          "siteId": "SITE-005",
+          "partnerId": "PAR-005"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-007",
+        "phone": "+910000000007",
+        "name": "DEMO Dev Mehta",
+        "language": "en",
+        "locality_key": "baner",
+        "age_confirmed_18": true,
+        "experience_months": 14,
+        "experience_tags": [
+          "SALES",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "languages": [
+          "hi",
+          "en"
+        ],
+        "current_pay_paise": "1800000",
+        "expected_pay_paise": "2000000",
+        "max_commute_min": 60,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PAUSED",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "QR",
+          "siteId": "SITE-001",
+          "partnerId": "PAR-001"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-003",
+        "phone": "+910000000003",
+        "name": "DEMO Rohan Jadhav",
+        "language": "mr",
+        "locality_key": "hadapsar",
+        "age_confirmed_18": true,
+        "experience_months": 0,
+        "experience_tags": [
+          "COMMERCE_GRADUATE"
+        ],
+        "languages": [
+          "mr",
+          "hi",
+          "en"
+        ],
+        "current_pay_paise": null,
+        "expected_pay_paise": "1800000",
+        "max_commute_min": 60,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "QR",
+          "siteId": "SITE-003",
+          "partnerId": "PAR-003"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-004",
+        "phone": "+910000000004",
+        "name": "DEMO Priya Nair",
+        "language": "en",
+        "locality_key": "viman_nagar",
+        "age_confirmed_18": true,
+        "experience_months": 30,
+        "experience_tags": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "languages": [
+          "hi",
+          "en"
+        ],
+        "current_pay_paise": "2100000",
+        "expected_pay_paise": "2400000",
+        "max_commute_min": 60,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": false,
+          "method": "DIRECT",
+          "siteId": null,
+          "partnerId": null
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-005",
+        "phone": "+910000000005",
+        "name": "DEMO Imran Khan",
+        "language": "hi",
+        "locality_key": "pimpri",
+        "age_confirmed_18": true,
+        "experience_months": 24,
+        "experience_tags": [
+          "TELECOM_SALES",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "current_pay_paise": "1750000",
+        "expected_pay_paise": "1900000",
+        "max_commute_min": 75,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "PARTNER_CODE",
+          "siteId": "SITE-004",
+          "partnerId": "PAR-004"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      },
+      {
+        "id": "CAN-006",
+        "phone": "+910000000006",
+        "name": "DEMO Kavya More",
+        "language": "mr",
+        "locality_key": "kothrud",
+        "age_confirmed_18": true,
+        "experience_months": 6,
+        "experience_tags": [
+          "RETAIL_SALES"
+        ],
+        "languages": [
+          "mr"
+        ],
+        "current_pay_paise": "1400000",
+        "expected_pay_paise": "1800000",
+        "max_commute_min": 45,
+        "shift_availability": [
+          "ANY"
+        ],
+        "status": "PROFILE_ACTIVE",
+        "mobile_verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "alert_quiet_from": 21,
+        "alert_quiet_to": 8,
+        "alert_max_per_week": 5,
+        "pending_source": {
+          "valid": true,
+          "method": "QR",
+          "siteId": "SITE-002",
+          "partnerId": "PAR-002"
+        },
+        "role_config_id": "CFG-BFSI-RE-1",
+        "work_authorised": true
+      }
+    ]
+  },
+  {
+    "table": "job",
+    "jsonColumns": [
+      "languages",
+      "critical_skills",
+      "attributes",
+      "pending_changes",
+      "requirements"
+    ],
+    "rows": [
+      {
+        "id": "JOB-001",
+        "employer_id": "EMP-001",
+        "location_id": "LOC-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "title": "Relationship Executive",
+        "openings": 5,
+        "fixed_pay_paise": "1800000",
+        "variable_max_paise": "700000",
+        "shift": "09:30-18:30",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 6,
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "attributes": {},
+        "status": "LIVE",
+        "published_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {}
+      },
+      {
+        "id": "JOB-002",
+        "employer_id": "EMP-001",
+        "location_id": "LOC-002",
+        "role_config_id": "CFG-BFSI-CSA-1",
+        "title": "Customer Service Associate",
+        "openings": 3,
+        "fixed_pay_paise": "2000000",
+        "variable_max_paise": "300000",
+        "shift": "ROTATIONAL_DAYTIME",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 6,
+        "critical_skills": [
+          "CUSTOMER_COMMUNICATION",
+          "PRODUCT_KNOWLEDGE"
+        ],
+        "attributes": {},
+        "status": "LIVE",
+        "published_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {}
+      },
+      {
+        "id": "JOB-003",
+        "employer_id": "EMP-002",
+        "location_id": "LOC-003",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "title": "Relationship Executive",
+        "openings": 4,
+        "fixed_pay_paise": "2200000",
+        "variable_max_paise": "800000",
+        "shift": "10:00-19:00",
+        "weekly_off": "Sunday",
+        "languages": [
+          "hi",
+          "en"
+        ],
+        "min_experience_mo": 12,
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "attributes": {},
+        "status": "LIVE",
+        "published_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {}
+      },
+      {
+        "id": "JOB-004",
+        "employer_id": "EMP-003",
+        "location_id": "LOC-004",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "title": "Relationship Executive",
+        "openings": 6,
+        "fixed_pay_paise": "1750000",
+        "variable_max_paise": "600000",
+        "shift": "09:00-18:00",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 0,
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "attributes": {},
+        "status": "PENDING_APPROVAL",
+        "published_at": null,
+        "expires_at": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {}
+      },
+      {
+        "id": "JOB-005",
+        "employer_id": "EMP-001",
+        "location_id": "LOC-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "title": "Relationship Executive",
+        "openings": 2,
+        "fixed_pay_paise": "1800000",
+        "variable_max_paise": "500000",
+        "shift": "09:30-18:30",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 6,
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION"
+        ],
+        "attributes": {},
+        "status": "EXPIRED",
+        "published_at": "2026-08-31T04:30:00.000Z",
+        "expires_at": "2026-09-30T04:30:00.000Z",
+        "created_at": "2026-08-31T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {}
+      }
+    ]
+  },
+  {
+    "table": "achievement",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "application",
+    "jsonColumns": [
+      "consent_snapshot"
+    ],
+    "rows": [
+      {
+        "id": "APP-003",
+        "candidate_id": "CAN-004",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "QUALIFIED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-004",
+        "candidate_id": "CAN-005",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "QUALIFIED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-005",
+        "candidate_id": "CAN-006",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "NOT_QUALIFIED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-006",
+        "candidate_id": "CAN-002",
+        "job_id": "JOB-002",
+        "source": "WHATSAPP",
+        "status": "QUALIFIED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-007",
+        "candidate_id": "CAN-008",
+        "job_id": "JOB-003",
+        "source": "WHATSAPP",
+        "status": "QUALIFIED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-008",
+        "candidate_id": "CAN-007",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "WITHDRAWN",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-001",
+        "candidate_id": "CAN-001",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "UNLOCKED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "APP-002",
+        "candidate_id": "CAN-003",
+        "job_id": "JOB-001",
+        "source": "WHATSAPP",
+        "status": "UNLOCKED",
+        "consent_snapshot": {
+          "JOB_ALERTS": "GRANTED",
+          "PROCESSING": "GRANTED",
+          "PARTNER_ASSISTANCE": "GRANTED"
+        },
+        "reconfirmed_at": "2026-10-05T04:30:00.000Z",
+        "applied_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "assessment_attempt",
+    "jsonColumns": [
+      "responses"
+    ],
+    "rows": [
+      {
+        "id": "ASM-001",
+        "candidate_id": "CAN-001",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 82,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-002",
+        "candidate_id": "CAN-002",
+        "template_id": "AST-BFSI-CSA-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 76,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-003",
+        "candidate_id": "CAN-003",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 68,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-004",
+        "candidate_id": "CAN-004",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 91,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-005",
+        "candidate_id": "CAN-005",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 73,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-006",
+        "candidate_id": "CAN-006",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 54,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-007",
+        "candidate_id": "CAN-007",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 79,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ASM-008",
+        "candidate_id": "CAN-008",
+        "template_id": "AST-BFSI-RE-1",
+        "template_version": "1.0",
+        "responses": [
+          {
+            "note": "seeded canonical score per §22.6"
+          }
+        ],
+        "score": 85,
+        "started_at": "2026-10-05T04:30:00.000Z",
+        "completed_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "assessment_session",
+    "jsonColumns": [
+      "question_ids"
+    ],
+    "rows": []
+  },
+  {
+    "table": "attribution",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "ATT-001",
+        "candidate_id": "CAN-001",
+        "partner_id": "PAR-001",
+        "partner_site_id": "SITE-001",
+        "method": "QR",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-002",
+        "candidate_id": "CAN-002",
+        "partner_id": "PAR-002",
+        "partner_site_id": "SITE-002",
+        "method": "PARTNER_CODE",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-003",
+        "candidate_id": "CAN-003",
+        "partner_id": "PAR-003",
+        "partner_site_id": "SITE-003",
+        "method": "QR",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-004",
+        "candidate_id": "CAN-004",
+        "partner_id": null,
+        "partner_site_id": null,
+        "method": "DIRECT",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-005",
+        "candidate_id": "CAN-005",
+        "partner_id": "PAR-004",
+        "partner_site_id": "SITE-004",
+        "method": "PARTNER_CODE",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-006",
+        "candidate_id": "CAN-006",
+        "partner_id": "PAR-002",
+        "partner_site_id": "SITE-002",
+        "method": "QR",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-007",
+        "candidate_id": "CAN-007",
+        "partner_id": "PAR-001",
+        "partner_site_id": "SITE-001",
+        "method": "QR",
+        "window_days": 30,
+        "status": "ACTIVE",
+        "status_reason": null,
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      },
+      {
+        "id": "ATT-008",
+        "candidate_id": "CAN-008",
+        "partner_id": "PAR-005",
+        "partner_site_id": "SITE-005",
+        "method": "QR",
+        "window_days": 30,
+        "status": "UNDER_REVIEW",
+        "status_reason": "SOURCE_SITE_NOT_ACTIVE_AT_BINDING",
+        "bound_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "candidate_attribute_value",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "ATV-SEED-CAN-001",
+        "candidate_id": "CAN-001",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-002",
+        "candidate_id": "CAN-002",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-003",
+        "candidate_id": "CAN-003",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-004",
+        "candidate_id": "CAN-004",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-005",
+        "candidate_id": "CAN-005",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-006",
+        "candidate_id": "CAN-006",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-007",
+        "candidate_id": "CAN-007",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ATV-SEED-CAN-008",
+        "candidate_id": "CAN-008",
+        "attribute_key": "field_sales_comfort",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "value_text": null,
+        "value_int": null,
+        "value_bool": true,
+        "verified": false,
+        "collected_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "consent_record",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "CNS-001",
+        "candidate_id": "CAN-001",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-002",
+        "candidate_id": "CAN-001",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-003",
+        "candidate_id": "CAN-001",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-004",
+        "candidate_id": "CAN-002",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-005",
+        "candidate_id": "CAN-002",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-006",
+        "candidate_id": "CAN-002",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-007",
+        "candidate_id": "CAN-003",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-008",
+        "candidate_id": "CAN-003",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-009",
+        "candidate_id": "CAN-003",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-010",
+        "candidate_id": "CAN-004",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-011",
+        "candidate_id": "CAN-004",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-012",
+        "candidate_id": "CAN-005",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-013",
+        "candidate_id": "CAN-005",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-014",
+        "candidate_id": "CAN-005",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-015",
+        "candidate_id": "CAN-006",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-016",
+        "candidate_id": "CAN-006",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-017",
+        "candidate_id": "CAN-006",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-019",
+        "candidate_id": "CAN-007",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-020",
+        "candidate_id": "CAN-007",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-021",
+        "candidate_id": "CAN-008",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-022",
+        "candidate_id": "CAN-008",
+        "purpose": "JOB_ALERTS",
+        "notice_version": "notice-v1.3-job_alerts",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-023",
+        "candidate_id": "CAN-008",
+        "purpose": "PARTNER_ASSISTANCE",
+        "notice_version": "notice-v1.3-partner_assistance",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": null
+      },
+      {
+        "id": "CNS-018",
+        "candidate_id": "CAN-007",
+        "purpose": "PROCESSING",
+        "notice_version": "notice-v1.3-processing",
+        "channel": "WHATSAPP",
+        "granted_at": "2026-10-05T04:30:00.000Z",
+        "withdrawn_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "data_request",
+    "jsonColumns": [
+      "response"
+    ],
+    "rows": []
+  },
+  {
+    "table": "endorsement",
+    "jsonColumns": [
+      "competencies"
+    ],
+    "rows": [
+      {
+        "id": "END-001",
+        "candidate_id": "CAN-001",
+        "endorser_name": "DEMO Vikram Rao",
+        "endorser_contact": "+910000009001",
+        "relationship": "FORMER_MANAGER",
+        "period_known": null,
+        "competencies": [
+          "CUSTOMER_COMMUNICATION",
+          "RELIABILITY"
+        ],
+        "comment": "Reliable, handled walk-in customers well.",
+        "status": "VERIFIED_CONTACT",
+        "raw_points": 10,
+        "invite_token": "7AMGAs4yl2LzBb-CKg6wCFgn",
+        "invited_at": "2026-10-05T04:30:00.000Z",
+        "verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "withdraw_token": null,
+        "hidden_by_candidate": false,
+        "invite_expires_at": null,
+        "display_consent": false
+      },
+      {
+        "id": "END-002",
+        "candidate_id": "CAN-003",
+        "endorser_name": "DEMO Leena Pawar",
+        "endorser_contact": "+910000009002",
+        "relationship": "SENIOR_COLLEAGUE",
+        "period_known": null,
+        "competencies": [
+          "LEARNING_AGILITY"
+        ],
+        "comment": "Picks up new processes quickly.",
+        "status": "VERIFIED_CONTACT",
+        "raw_points": 10,
+        "invite_token": "LHqLPR4y1EOmuEYJVtMSlfaB",
+        "invited_at": "2026-10-05T04:30:00.000Z",
+        "verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "withdraw_token": null,
+        "hidden_by_candidate": false,
+        "invite_expires_at": null,
+        "display_consent": false
+      },
+      {
+        "id": "END-003",
+        "candidate_id": "CAN-006",
+        "endorser_name": "DEMO Duplicate Contact",
+        "endorser_contact": "+910000000006",
+        "relationship": "SELF_OR_DUPLICATE",
+        "period_known": null,
+        "competencies": [
+          "SALES"
+        ],
+        "comment": "Self-submitted.",
+        "status": "FLAGGED",
+        "raw_points": 0,
+        "invite_token": "LLQq0RcPlQoQ1njoiV5VVDDE",
+        "invited_at": "2026-10-05T04:30:00.000Z",
+        "verified_at": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "withdraw_token": null,
+        "hidden_by_candidate": false,
+        "invite_expires_at": null,
+        "display_consent": false
+      }
+    ]
+  },
+  {
+    "table": "job_alert",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "job_change",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "message_log",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "partner_job_alert",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "partner_nudge",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "posting_entitlement",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "ENT-001",
+        "job_id": "JOB-001",
+        "location_id": "LOC-001",
+        "posting_fee_paise": "250000",
+        "credits_included": 10,
+        "credits_purchased": 0,
+        "max_distinct_unlocks": 100,
+        "starts_at": "2026-10-05T04:30:00.000Z",
+        "ends_at": "2026-11-04T04:30:00.000Z",
+        "credit_expiry_at": "2027-01-03T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ENT-002",
+        "job_id": "JOB-002",
+        "location_id": "LOC-002",
+        "posting_fee_paise": "250000",
+        "credits_included": 10,
+        "credits_purchased": 0,
+        "max_distinct_unlocks": 100,
+        "starts_at": "2026-10-05T04:30:00.000Z",
+        "ends_at": "2026-11-04T04:30:00.000Z",
+        "credit_expiry_at": "2027-01-03T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ENT-003",
+        "job_id": "JOB-003",
+        "location_id": "LOC-003",
+        "posting_fee_paise": "250000",
+        "credits_included": 10,
+        "credits_purchased": 0,
+        "max_distinct_unlocks": 100,
+        "starts_at": "2026-10-05T04:30:00.000Z",
+        "ends_at": "2026-11-04T04:30:00.000Z",
+        "credit_expiry_at": "2027-01-03T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "interview",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "match_result",
+    "jsonColumns": [
+      "score_components",
+      "explanation",
+      "gaps",
+      "inputs_snapshot"
+    ],
+    "rows": [
+      {
+        "id": "MATCH-001",
+        "application_id": "APP-001",
+        "candidate_id": "CAN-001",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 93,
+        "score_components": {
+          "commute": {
+            "raw": 100,
+            "weight": 20,
+            "weighted": 20
+          },
+          "language": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 82,
+            "weight": 5,
+            "weighted": 4.1
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 63,
+            "weight": 15,
+            "weighted": 9.5
+          },
+          "jobPreference": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "criticalSkills": {
+            "raw": 73,
+            "weight": 15,
+            "weighted": 11
+          }
+        },
+        "endorsement_points": 3,
+        "explanation": [
+          "CLOSE_COMMUTE",
+          "SHIFT_FIT",
+          "DIRECT_ROLE_EXPERIENCE",
+          "ASSESSMENT_PASS",
+          "VERIFIED_ENDORSEMENT"
+        ],
+        "gaps": [
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 1.6,
+            "band": "CLOSE",
+            "minutes": 5,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "localityKey": "shivajinagar",
+            "maxCommuteMin": 45,
+            "experienceTags": [
+              "FIELD_SALES",
+              "CUSTOMER_COMMUNICATION"
+            ],
+            "expectedPayPaise": 2000000,
+            "experienceMonths": 18,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 82,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 10
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-002",
+        "application_id": "APP-002",
+        "candidate_id": "CAN-003",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 56,
+        "score_components": {
+          "commute": {
+            "raw": 35,
+            "weight": 20,
+            "weighted": 7
+          },
+          "language": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 68,
+            "weight": 5,
+            "weighted": 3.4
+          },
+          "experience": {
+            "raw": 25,
+            "weight": 10,
+            "weighted": 2.5
+          },
+          "compensation": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "jobPreference": {
+            "raw": 35,
+            "weight": 15,
+            "weighted": 5.3
+          },
+          "criticalSkills": {
+            "raw": 0,
+            "weight": 15,
+            "weighted": 0
+          }
+        },
+        "endorsement_points": 3,
+        "explanation": [
+          "SALARY_FIT",
+          "SHIFT_FIT",
+          "ASSESSMENT_PASS",
+          "VERIFIED_ENDORSEMENT"
+        ],
+        "gaps": [
+          "LONG_COMMUTE",
+          "LIMITED_DIRECT_EXPERIENCE",
+          "SKILL_GAPS",
+          "FRESHER"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 12.2,
+            "band": "LONG",
+            "minutes": 41,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr",
+              "hi",
+              "en"
+            ],
+            "localityKey": "hadapsar",
+            "maxCommuteMin": 60,
+            "experienceTags": [
+              "COMMERCE_GRADUATE"
+            ],
+            "expectedPayPaise": 1800000,
+            "experienceMonths": 0,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 68,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 10
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-003",
+        "application_id": "APP-003",
+        "candidate_id": "CAN-004",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 71,
+        "score_components": {
+          "commute": {
+            "raw": 35,
+            "weight": 20,
+            "weighted": 7
+          },
+          "language": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 91,
+            "weight": 5,
+            "weighted": 4.6
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 29,
+            "weight": 15,
+            "weighted": 4.4
+          },
+          "jobPreference": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "criticalSkills": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "SHIFT_FIT",
+          "DIRECT_ROLE_EXPERIENCE",
+          "STRONG_SKILLS",
+          "STRONG_ASSESSMENT"
+        ],
+        "gaps": [
+          "LONG_COMMUTE",
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 12.4,
+            "band": "LONG",
+            "minutes": 41,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "hi",
+              "en"
+            ],
+            "localityKey": "viman_nagar",
+            "maxCommuteMin": 60,
+            "experienceTags": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "expectedPayPaise": 2400000,
+            "experienceMonths": 30,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 91,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-004",
+        "application_id": "APP-004",
+        "candidate_id": "CAN-005",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 69,
+        "score_components": {
+          "commute": {
+            "raw": 35,
+            "weight": 20,
+            "weighted": 7
+          },
+          "language": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 73,
+            "weight": 5,
+            "weighted": 3.7
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 71,
+            "weight": 15,
+            "weighted": 10.7
+          },
+          "jobPreference": {
+            "raw": 65,
+            "weight": 15,
+            "weighted": 9.8
+          },
+          "criticalSkills": {
+            "raw": 53,
+            "weight": 15,
+            "weighted": 8
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "SHIFT_FIT",
+          "TRANSFERABLE_EXPERIENCE",
+          "ASSESSMENT_PASS"
+        ],
+        "gaps": [
+          "LONG_COMMUTE",
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 17.2,
+            "band": "LONG",
+            "minutes": 57,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "localityKey": "pimpri",
+            "maxCommuteMin": 75,
+            "experienceTags": [
+              "TELECOM_SALES",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "expectedPayPaise": 1900000,
+            "experienceMonths": 24,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 73,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-005",
+        "application_id": "APP-005",
+        "candidate_id": "CAN-006",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": false,
+        "qualified": false,
+        "score": null,
+        "score_components": {
+          "commute": {
+            "raw": 100,
+            "weight": 20,
+            "weighted": 20
+          },
+          "language": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 54,
+            "weight": 5,
+            "weighted": 2.7
+          },
+          "experience": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "compensation": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "jobPreference": {
+            "raw": 35,
+            "weight": 15,
+            "weighted": 5.3
+          },
+          "criticalSkills": {
+            "raw": 40,
+            "weight": 15,
+            "weighted": 6
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "CLOSE_COMMUTE",
+          "SALARY_FIT",
+          "SHIFT_FIT"
+        ],
+        "gaps": [
+          "LIMITED_DIRECT_EXPERIENCE",
+          "SKILL_GAPS",
+          "ASSESSMENT_BELOW_60"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": false,
+            "reasons": [
+              "ASSESSMENT_BELOW_60"
+            ]
+          },
+          "travel": {
+            "km": 5.3,
+            "band": "CLOSE",
+            "minutes": 18,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr"
+            ],
+            "localityKey": "kothrud",
+            "maxCommuteMin": 45,
+            "experienceTags": [
+              "RETAIL_SALES"
+            ],
+            "expectedPayPaise": 1800000,
+            "experienceMonths": 6,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 54,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-006",
+        "application_id": "APP-006",
+        "candidate_id": "CAN-002",
+        "job_id": "JOB-002",
+        "role_config_id": "CFG-BFSI-CSA-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 90,
+        "score_components": {
+          "commute": {
+            "raw": 100,
+            "weight": 20,
+            "weighted": 20
+          },
+          "language": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "assessment": {
+            "raw": 76,
+            "weight": 5,
+            "weighted": 3.8
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 60,
+            "weight": 10,
+            "weighted": 6
+          },
+          "jobPreference": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "criticalSkills": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "CLOSE_COMMUTE",
+          "SHIFT_FIT",
+          "DIRECT_ROLE_EXPERIENCE",
+          "ASSESSMENT_PASS"
+        ],
+        "gaps": [
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "ROTATIONAL_DAYTIME",
+            "locality": "kothrud",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 2000000,
+            "criticalSkills": [
+              "CUSTOMER_COMMUNICATION",
+              "PRODUCT_KNOWLEDGE"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 300000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 0,
+            "band": "CLOSE",
+            "minutes": 5,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "localityKey": "kothrud",
+            "maxCommuteMin": 45,
+            "experienceTags": [
+              "CUSTOMER_SERVICE",
+              "CUSTOMER_COMMUNICATION"
+            ],
+            "expectedPayPaise": 2100000,
+            "experienceMonths": 12,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 76,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-CSA-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 15,
+            "schedule": 15,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 10,
+            "jobPreference": 15,
+            "criticalSkills": 10
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-007",
+        "application_id": "APP-007",
+        "candidate_id": "CAN-008",
+        "job_id": "JOB-003",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 61,
+        "score_components": {
+          "commute": {
+            "raw": 35,
+            "weight": 20,
+            "weighted": 7
+          },
+          "language": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 85,
+            "weight": 5,
+            "weighted": 4.3
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 100,
+            "weight": 15,
+            "weighted": 15
+          },
+          "jobPreference": {
+            "raw": 35,
+            "weight": 15,
+            "weighted": 5.3
+          },
+          "criticalSkills": {
+            "raw": 33,
+            "weight": 15,
+            "weighted": 5
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "SALARY_FIT",
+          "SHIFT_FIT",
+          "STRONG_ASSESSMENT"
+        ],
+        "gaps": [
+          "LONG_COMMUTE",
+          "LIMITED_DIRECT_EXPERIENCE",
+          "SKILL_GAPS"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "10:00-19:00",
+            "locality": "viman_nagar",
+            "languages": [
+              "hi",
+              "en"
+            ],
+            "fixedPayPaise": 2200000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 12,
+            "variableMaxPaise": 800000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 15.2,
+            "band": "LONG",
+            "minutes": 51,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "localityKey": "aundh",
+            "maxCommuteMin": 60,
+            "experienceTags": [
+              "BFSI_SERVICE",
+              "CUSTOMER_COMMUNICATION"
+            ],
+            "expectedPayPaise": 2200000,
+            "experienceMonths": 20,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 85,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-008",
+        "application_id": "APP-008",
+        "candidate_id": "CAN-007",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 70,
+        "score_components": {
+          "commute": {
+            "raw": 70,
+            "weight": 20,
+            "weighted": 14
+          },
+          "language": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 79,
+            "weight": 5,
+            "weighted": 4
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 63,
+            "weight": 15,
+            "weighted": 9.5
+          },
+          "jobPreference": {
+            "raw": 65,
+            "weight": 15,
+            "weighted": 9.8
+          },
+          "criticalSkills": {
+            "raw": 53,
+            "weight": 15,
+            "weighted": 8
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "MODERATE_COMMUTE",
+          "SHIFT_FIT",
+          "TRANSFERABLE_EXPERIENCE",
+          "ASSESSMENT_PASS"
+        ],
+        "gaps": [
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 9.5,
+            "band": "MODERATE",
+            "minutes": 32,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "hi",
+              "en"
+            ],
+            "localityKey": "baner",
+            "maxCommuteMin": 60,
+            "experienceTags": [
+              "SALES",
+              "CUSTOMER_COMMUNICATION"
+            ],
+            "expectedPayPaise": 2000000,
+            "experienceMonths": 14,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 79,
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "onboarding_case",
+    "jsonColumns": [
+      "checklist"
+    ],
+    "rows": []
+  },
+  {
+    "table": "optional_outcome_event",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "candidate_document",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "qualified_lead_unlock",
+    "jsonColumns": [
+      "consent_snapshot",
+      "revealed_fields",
+      "attribution_snapshot"
+    ],
+    "rows": [
+      {
+        "id": "UNL-001",
+        "employer_id": "EMP-001",
+        "job_id": "JOB-001",
+        "candidate_id": "CAN-001",
+        "application_id": "APP-001",
+        "match_result_id": "MATCH-001",
+        "idempotency_key": "unlock:EMP-001:JOB-001:CAN-001",
+        "price_paise": "25000",
+        "paid_with": "INCLUDED_CREDIT",
+        "consent_snapshot": {
+          "capturedAt": "2026-10-05T04:30:00.000Z",
+          "processing": "GRANTED"
+        },
+        "revealed_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise",
+          "currentPayPaise"
+        ],
+        "attributed_partner_id": "PAR-001",
+        "attributed_site_id": "SITE-001",
+        "attribution_snapshot": {
+          "valid": true,
+          "method": "QR",
+          "status": "ACTIVE",
+          "boundAt": "2026-10-05T04:30:00.000Z"
+        },
+        "status": "CONFIRMED",
+        "unlocked_by": "EU-001",
+        "unlocked_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "UNL-002",
+        "employer_id": "EMP-001",
+        "job_id": "JOB-001",
+        "candidate_id": "CAN-003",
+        "application_id": "APP-002",
+        "match_result_id": "MATCH-002",
+        "idempotency_key": "unlock:EMP-001:JOB-001:CAN-003",
+        "price_paise": "25000",
+        "paid_with": "INCLUDED_CREDIT",
+        "consent_snapshot": {
+          "capturedAt": "2026-10-05T04:30:00.000Z",
+          "processing": "GRANTED"
+        },
+        "revealed_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise",
+          "currentPayPaise"
+        ],
+        "attributed_partner_id": "PAR-003",
+        "attributed_site_id": "SITE-003",
+        "attribution_snapshot": {
+          "valid": true,
+          "method": "QR",
+          "status": "ACTIVE",
+          "boundAt": "2026-10-05T04:30:00.000Z"
+        },
+        "status": "REPLACED",
+        "unlocked_by": "EU-001",
+        "unlocked_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "credit_ledger",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "CRD-001-0",
+        "entitlement_id": "ENT-001",
+        "entry_type": "INCLUDED_GRANT",
+        "credit_delta": 10,
+        "amount_paise": "250000",
+        "unlock_id": null,
+        "linked_entry_id": null,
+        "note": "Included with ₹2,500 posting entitlement",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-002-0",
+        "entitlement_id": "ENT-002",
+        "entry_type": "INCLUDED_GRANT",
+        "credit_delta": 10,
+        "amount_paise": "250000",
+        "unlock_id": null,
+        "linked_entry_id": null,
+        "note": "Included with ₹2,500 posting entitlement",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-003-0",
+        "entitlement_id": "ENT-003",
+        "entry_type": "INCLUDED_GRANT",
+        "credit_delta": 10,
+        "amount_paise": "250000",
+        "unlock_id": null,
+        "linked_entry_id": null,
+        "note": "Included with ₹2,500 posting entitlement",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-001",
+        "entitlement_id": "ENT-001",
+        "entry_type": "UNLOCK_CONSUME",
+        "credit_delta": -1,
+        "amount_paise": "0",
+        "unlock_id": "UNL-001",
+        "linked_entry_id": null,
+        "note": "Unlock CAN-001 for JOB-001",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-002",
+        "entitlement_id": "ENT-001",
+        "entry_type": "UNLOCK_CONSUME",
+        "credit_delta": -1,
+        "amount_paise": "0",
+        "unlock_id": "UNL-002",
+        "linked_entry_id": null,
+        "note": "Unlock CAN-003 for JOB-001",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-003",
+        "entitlement_id": "ENT-001",
+        "entry_type": "REPLACEMENT_RESTORE",
+        "credit_delta": 1,
+        "amount_paise": "0",
+        "unlock_id": "UNL-002",
+        "linked_entry_id": "CRD-002",
+        "note": "Replacement RPL-001 approved",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "replacement_case",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "RPL-001",
+        "unlock_id": "UNL-002",
+        "reason_code": "INVALID_CONTACT",
+        "evidence": "Number unreachable on three attempts across two days; call log attached.",
+        "decision": "APPROVED",
+        "decided_by": "OPS-001",
+        "raised_at": "2026-10-05T04:30:00.000Z",
+        "window_ends_at": "2026-10-08T04:30:00.000Z",
+        "decided_at": "2026-10-05T04:30:00.000Z"
+      }
+    ]
+  },
+  {
+    "table": "reward_ledger",
+    "jsonColumns": [],
+    "rows": [
+      {
+        "id": "RWD-003",
+        "partner_id": "PAR-003",
+        "unlock_id": "UNL-002",
+        "entry_type": "REVERSAL",
+        "amount_paise": "-7500",
+        "status": "REVERSED",
+        "hold_until": null,
+        "linked_entry_id": "RWD-002",
+        "payout_id": null,
+        "fy_label": "2026-27",
+        "note": "Reversed by replacement RPL-001",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_before_suspension": null
+      },
+      {
+        "id": "RWD-002",
+        "partner_id": "PAR-003",
+        "unlock_id": "UNL-002",
+        "entry_type": "ACCRUAL",
+        "amount_paise": "7500",
+        "status": "REVERSED",
+        "hold_until": "2026-10-08T04:30:00.000Z",
+        "linked_entry_id": null,
+        "payout_id": null,
+        "fy_label": "2026-27",
+        "note": "Valid attributed qualified-profile unlock",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_before_suspension": null
+      },
+      {
+        "id": "RWD-001",
+        "partner_id": "PAR-001",
+        "unlock_id": "UNL-001",
+        "entry_type": "ACCRUAL",
+        "amount_paise": "7500",
+        "status": "ELIGIBLE",
+        "hold_until": "2026-10-08T04:30:00.000Z",
+        "linked_entry_id": null,
+        "payout_id": null,
+        "fy_label": "2026-27",
+        "note": "Valid attributed qualified-profile unlock",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_before_suspension": null
+      }
+    ]
+  },
+  {
+    "table": "payout_recovery",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "payout_recovery_offset",
+    "jsonColumns": [],
+    "rows": []
+  }
+]

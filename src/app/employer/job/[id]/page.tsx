@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -12,6 +13,7 @@ import { JobTools } from './job-tools';
 export const dynamic = 'force-dynamic';
 
 export default async function JobShortlist({ params }: { params: Promise<{ id: string }> }) {
+  const viewer=await scopePage('employer');
   const { id: jobId } = await params;
   const policy = await activeCommercialPolicy();
 
@@ -25,6 +27,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
       JOIN app.employer_organisation e ON e.id=j.employer_id
       JOIN app.employer_location l ON l.id=j.location_id
      WHERE j.id=${jobId}`;
+  if(job && viewer.role!=='ADMIN' && job.employer_id!==viewer.id) throw new Error('Job outside your organisation.');
   if (!job) return <main className="page"><h1>Job not found</h1></main>;
 
   const [ent] = await sql<{ id: string; max_distinct_unlocks: number }[]>`
@@ -38,7 +41,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
     endorsement_points: number; rule_version: string; inputs_snapshot: Record<string, unknown>;
   }[]>`
     SELECT candidate_id, score_components, endorsement_points, rule_version, inputs_snapshot
-      FROM app.match_result WHERE job_id=${jobId} AND qualified=TRUE`;
+      FROM (SELECT DISTINCT ON(candidate_id,job_id) * FROM app.match_result ORDER BY candidate_id,job_id,computed_at DESC,id DESC) current_match WHERE job_id=${jobId} AND qualified=TRUE`;
   const detail = new Map(matchDetail.map((m) => [m.candidate_id, m]));
 
   const unlocks = await sql<{
@@ -46,14 +49,16 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
     revealed_fields: string[]; attributed_partner_id: string | null; application_id: string;
     name: string; phone: string; locality_key: string; expected_pay_paise: string;
   }[]>`
-    SELECT u.*, c.name, c.phone, c.locality_key, c.expected_pay_paise
-      FROM app.qualified_lead_unlock u JOIN app.candidate c ON c.id=u.candidate_id
+    SELECT u.*, CASE WHEN u.revealed_fields ? 'name' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.name ELSE 'Access withdrawn' END AS name,
+      CASE WHEN u.revealed_fields ? 'phone' AND EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.phone ELSE 'Access withdrawn' END AS phone,
+      CASE WHEN u.revealed_fields ? 'locality' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.locality_key ELSE NULL END AS locality_key, CASE WHEN u.revealed_fields ? 'expectedPayPaise' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.expected_pay_paise ELSE NULL END AS expected_pay_paise
+      FROM app.qualified_lead_unlock u JOIN app.candidate c ON c.id=u.candidate_id LEFT JOIN app.consent_record cr ON cr.candidate_id=c.id AND cr.purpose='PROCESSING'
      WHERE u.job_id=${jobId} ORDER BY u.unlocked_at DESC`;
 
   const notQualified = await sql<{
     candidate_id: string; name: string | null; gaps: string[];
   }[]>`
-    SELECT m.candidate_id, c.name, m.gaps FROM app.match_result m
+    SELECT m.candidate_id, c.name, m.gaps FROM (SELECT DISTINCT ON(candidate_id,job_id) * FROM app.match_result ORDER BY candidate_id,job_id,computed_at DESC,id DESC) m
       JOIN app.candidate c ON c.id=m.candidate_id
      WHERE m.job_id=${jobId} AND m.qualified=FALSE`;
 

@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause, Stat } from '../../ui';
@@ -6,13 +7,14 @@ import { SubNav, EMPLOYER_TABS } from '../../subnav';
 export const dynamic = 'force-dynamic';
 
 export default async function OutcomesPage() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
 
   const rows = await sql<{
     id: string; application_id: string; candidate_id: string; name: string; job_id: string;
     title: string; outcome: string; actor: string; source: string; created_at: Date;
   }[]>`
-    SELECT o.id, o.application_id, a.candidate_id, c.name, a.job_id, j.title,
+    SELECT o.id, o.application_id, a.candidate_id, CASE WHEN EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.name ELSE 'Access withdrawn' END AS name, a.job_id, j.title,
            o.outcome, o.actor, o.source, o.created_at
       FROM app.optional_outcome_event o
       JOIN app.application a ON a.id = o.application_id

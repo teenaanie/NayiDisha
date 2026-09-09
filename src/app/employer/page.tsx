@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { creditBalance } from '@/modules/commercial';
@@ -7,7 +8,8 @@ import { SubNav, EMPLOYER_TABS } from '../subnav';
 export const dynamic = 'force-dynamic';
 
 export default async function EmployerDashboard() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
   const [emp] = await sql<{ brand_name: string; status: string }[]>`
     SELECT brand_name, status FROM app.employer_organisation WHERE id=${employerId}`;
 

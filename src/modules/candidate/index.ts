@@ -51,6 +51,7 @@ export async function startRegistration(input: RegistrationInput) {
     if (site) { siteId = site.id; partnerId = site.partner_id; siteStatus = site.status === 'ACTIVE' && site.p_status === 'VERIFIED' ? 'OK' : 'INACTIVE'; }
   }
 
+  await sql`UPDATE app.candidate SET pending_source=${sql.json({siteId,partnerId,method:input.method,valid:siteStatus==='OK'} as never)} WHERE id=${id}`;
   return {
     candidateId: id, returning: false,
     pendingAttribution: siteId
@@ -151,13 +152,14 @@ export interface ProfileInput {
   name: string; localityKey: string; age18: boolean;
   experienceMonths: number; experienceTags: string[]; languages: string[];
   currentPayPaise: number | null; expectedPayPaise: number;
-  maxCommuteMin: number; shiftAvailability: string[];
+  maxCommuteMin: number; shiftAvailability: string[]; workAuthorised?:boolean;
 }
 
 export async function completeProfile(candidateId: string, p: ProfileInput) {
   await sql`
     UPDATE app.candidate SET
-      name = ${p.name}, locality_key = ${p.localityKey}, age_confirmed_18 = ${p.age18},
+      work_authorised=${p.workAuthorised ?? false},
+      name = ${p.age18?p.name:null}, locality_key = ${p.localityKey}, age_confirmed_18 = ${p.age18},
       experience_months = ${p.experienceMonths},
       experience_tags = ${sql.json(p.experienceTags as never)},
       languages = ${sql.json(p.languages as never)},
@@ -170,10 +172,10 @@ export async function completeProfile(candidateId: string, p: ProfileInput) {
 }
 
 export async function recordAssessment(
-  candidateId: string, templateId: string, answers: Record<string, string>,
+  candidateId: string, templateId: string, answers: Record<string, string>, conn=sql,
 ) {
-  const at = await now();
-  const [tpl] = await sql<{ version: string; questions: { id: string; answer: string; marks: number }[] }[]>`
+  const at = await now(conn);
+  const [tpl] = await conn<{ version: string; questions: { id: string; answer: string; marks: number }[] }[]>`
     SELECT version, questions FROM app.assessment_template WHERE id = ${templateId}
   `;
   let earned = 0, total = 0;
@@ -185,12 +187,12 @@ export async function recordAssessment(
     return { questionId: q.id, given: given ?? null, correct };
   });
   const score = total === 0 ? 0 : Math.round((earned / total) * 100);
-  const id = await nextId('ASM');
-  await sql`
+  const id = await nextId('ASM',conn);
+  await conn`
     INSERT INTO app.assessment_attempt
       (id, candidate_id, template_id, template_version, responses, score, started_at, completed_at)
     VALUES (${id}, ${candidateId}, ${templateId}, ${tpl.version},
-            ${sql.json(responses as never)}, ${score}, ${at}, ${at})
+            ${conn.json(responses as never)}, ${score}, ${at}, ${at})
   `;
   return { id, score };
 }
@@ -248,7 +250,7 @@ export async function verifyEndorsement(endorsementId: string) {
   `;
   const [dupe] = await sql<{ n: string }[]>`
     SELECT COUNT(*)::text AS n FROM app.endorsement
-     WHERE endorser_contact = ${e.endorser_contact} AND id <> ${endorsementId}
+     WHERE candidate_id=${e.candidate_id} AND endorser_contact = ${e.endorser_contact} AND id <> ${endorsementId} AND status NOT IN ('WITHDRAWN','EXPIRED')
   `;
   const flagged =
     e.relationship === 'SELF_OR_DUPLICATE' ||
@@ -275,12 +277,15 @@ export async function verifyEndorsement(endorsementId: string) {
 /** §8.3 step 9 — the candidate explicitly applies. Nothing is auto-applied. */
 export async function apply(candidateId: string, jobId: string, source = 'WHATSAPP') {
   const at = await now();
+  const [live]=await sql`SELECT 1 FROM app.job j JOIN app.employer_organisation e ON e.id=j.employer_id WHERE j.id=${jobId} AND j.status='LIVE' AND e.status='VERIFIED' AND (j.expires_at IS NULL OR j.expires_at>${at})`;
+  if(!live)throw new Error('This job is no longer accepting applications.');
   const consents = await sql<{ purpose: string; granted_at: Date | null; withdrawn_at: Date | null }[]>`
     SELECT purpose, granted_at, withdrawn_at FROM app.consent_record WHERE candidate_id = ${candidateId}
   `;
   const snapshot = Object.fromEntries(
     consents.map((c) => [c.purpose, c.withdrawn_at ? 'WITHDRAWN' : c.granted_at ? 'GRANTED' : 'NONE']),
   );
+  if(snapshot.PROCESSING!=='GRANTED')throw new Error('Processing consent is required before applying.');
   const id = await nextId('APP');
   await sql`
     INSERT INTO app.application

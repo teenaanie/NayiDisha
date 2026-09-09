@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { formatPay } from '@/lib/money';
@@ -8,6 +9,7 @@ import { OpsActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function JobModerationPage() {
+  const viewer=await scopePage('ops');
   const jobs = await sql<{
     id: string; title: string; brand: string; loc: string; status: string; openings: number;
     fixed_pay_paise: string; variable_max_paise: string; expires_at: Date | null;

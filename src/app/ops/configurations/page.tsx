@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { Clause } from '../../ui';
 import { SubNav, OPS_TABS } from '../../subnav';
@@ -6,6 +7,7 @@ import { ConfigPanel, SandboxEditor } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function ConfigurationsPage() {
+  const viewer=await scopePage('ops');
   const configs = await sql<{
     id: string; industry_key: string; role_family_key: string; version: string; status: string;
     assessment_threshold: number | null; scoring_weights: Record<string, number>;
@@ -28,7 +30,7 @@ export default async function ConfigurationsPage() {
             is a configuration act, not a deployment. <Clause>§2.1 · §8.4A</Clause>
           </div>
         </div>
-        <ConfigPanel configs={configs} />
+        <a className="btn" href="/ops/manage">Add role, field or assessment</a><ConfigPanel configs={configs} />
         <SandboxEditor configs={configs.filter((c) => c.status === 'SANDBOX' || c.status === 'DRAFT')} />
         <div className="card">
           <div className="card-head"><h2>Release packages</h2><Clause>CFG-06/07</Clause></div>

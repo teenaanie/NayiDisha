@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -11,7 +12,8 @@ import { JobLifecycle } from './job-lifecycle';
 export const dynamic = 'force-dynamic';
 
 export default async function EmployerJobsPage() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
 
   const jobs = await sql<{
     id: string; title: string; status: string; status_reason: string | null; openings: number;

@@ -1,0 +1,2 @@
+import {resetDemo} from '../src/modules/demo';import {sql} from '../src/lib/db';
+async function main(){if(!process.env.DATABASE_URL?.includes('nayidisha_test'))throw new Error('Disposable database required');await resetDemo('RESET DEMO');const [count]=await sql`SELECT count(*) AS n FROM app.candidate`;if(Number(count.n)!==8)throw new Error('Incorrect seed');console.log('Atomic reset passed');}main().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>sql.end());

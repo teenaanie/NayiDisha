@@ -55,6 +55,9 @@ export class SimulatorMessagingProvider implements MessagingProvider {
   readonly name = 'whatsapp-simulator@1.0';
 
   async send(msg: OutboundMessage): Promise<NormalisedEvent> {
+    const [candidate]=await sql`SELECT language FROM app.candidate WHERE id=${msg.candidateId}`;
+    msg={...msg,language:candidate?.language||msg.language};
+    const [flags]=await sql`SELECT messaging_failure FROM app.demo_clock WHERE id=1`;
     const [tpl] = await sql<{ body: string; category: TemplateCategory }[]>`
       SELECT body, category FROM app.message_template
        WHERE key = ${msg.templateKey}
@@ -73,10 +76,10 @@ export class SimulatorMessagingProvider implements MessagingProvider {
 
     await sql`
       INSERT INTO app.message_log
-        (id, candidate_id, direction, template_key, language, category, body, cost_paise, created_at)
+        (id, candidate_id, direction, template_key, language, category, body, cost_paise, created_at,delivery_status,failure_reason)
       VALUES
         (${id}, ${msg.candidateId}, 'OUTBOUND', ${msg.templateKey}, ${msg.language},
-         ${chosen.category}, ${body}, ${COST_PAISE[chosen.category]}, ${at})
+         ${chosen.category}, ${body}, ${flags?.messaging_failure?0:COST_PAISE[chosen.category]}, ${at},${flags?.messaging_failure?'FAILED':'DELIVERED'},${flags?.messaging_failure?'SIMULATED_DELIVERY_FAILURE':null})
     `;
     return {
       id, candidateId: msg.candidateId, direction: 'OUTBOUND',
@@ -104,8 +107,8 @@ export function messagingProvider(): MessagingProvider {
   return new SimulatorMessagingProvider();
 }
 
-/** OTP verification — simulated. Any 6-digit code is accepted in demo mode. */
+/** OTP verification — simulated. Only the documented demo code is accepted. */
 export async function verifyOtp(code: string): Promise<boolean> {
-  return /^\d{6}$/.test(code);
+  return code === DEMO_OTP;
 }
 export const DEMO_OTP = '123456';

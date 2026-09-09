@@ -1,3 +1,4 @@
+import {RealQr} from './qr-code';
 import { formatINR } from '@/lib/money';
 
 export function Pill({ children, tone = 'mute' }: {
@@ -39,40 +40,7 @@ export function Clause({ children }: { children: React.ReactNode }) {
   return <span className="clause">{children}</span>;
 }
 
-/** A deterministic pseudo-QR block. Encodes nothing — the code beneath it does. */
-export function QrBlock({ seed }: { seed: string }) {
-  const N = 25;
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
-  const rand = () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return (h >>> 0) / 4294967296; };
-  const cells: [number, number][] = [];
-  const inFinder = (x: number, y: number) =>
-    (x < 8 && y < 8) || (x >= N - 8 && y < 8) || (x < 8 && y >= N - 8);
-  for (let y = 0; y < N; y++) {
-    for (let x = 0; x < N; x++) {
-      if (inFinder(x, y)) continue;
-      if (rand() > 0.52) cells.push([x, y]);
-    }
-  }
-  const finder = (ox: number, oy: number) => (
-    <g key={`f${ox}-${oy}`}>
-      <rect x={ox} y={oy} width="7" height="7" fill="#0B1A17" />
-      <rect x={ox + 1} y={oy + 1} width="5" height="5" fill="#fff" />
-      <rect x={ox + 2} y={oy + 2} width="3" height="3" fill="#0B1A17" />
-    </g>
-  );
-  return (
-    <div className="qr-box">
-      <svg viewBox={`0 0 ${N} ${N}`} shapeRendering="crispEdges" aria-hidden="true">
-        <rect width={N} height={N} fill="#fff" />
-        {finder(0, 0)}{finder(N - 7, 0)}{finder(0, N - 7)}
-        {cells.map(([x, y]) => (
-          <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="#0B1A17" />
-        ))}
-      </svg>
-    </div>
-  );
-}
+export function QrBlock({seed}:{seed:string}){return <RealQr token={seed}/>;}
 
 export function ScoreBars({ components, endorsement }: {
   components: Record<string, { raw: number; weight: number; weighted: number }>;

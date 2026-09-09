@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { formatPay } from '@/lib/money';
@@ -9,8 +10,9 @@ export const dynamic = 'force-dynamic';
 export default async function PartnerAlertsPage({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const alerts = await sql<{
     id: string; job_id: string; title: string; brand: string; loc: string;

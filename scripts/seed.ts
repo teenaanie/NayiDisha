@@ -11,6 +11,7 @@
  * All identities are fictional and prefixed DEMO. Phone numbers are
  * non-routable. Nothing here may be sent to a live provider.
  */
+import assessmentTranslations from '../db/assessment-translations.json';
 import { sql } from '../src/lib/db';
 import { SEED_INSTANT, addDays, addHours } from '../src/lib/clock';
 import { rupees } from '../src/lib/money';
@@ -74,6 +75,8 @@ async function main() {
     ('CUSTOMER_SERVICE_ASSOCIATE', 'BFSI',   'Customer Service Associate', ${j(['CUSTOMER_SERVICE','RETAIL_SALES'])}, ${T0}),
     ('SALES_ASSOCIATE',            'RETAIL', 'Sales Associate',            ${j(['RETAIL_SALES','SALES','FIELD_SALES'])}, ${T0})`;
 
+  await sql`UPDATE app.role_family SET direct_tags=CASE key WHEN 'RELATIONSHIP_EXECUTIVE' THEN '["BFSI_SALES","FIELD_SALES"]'::jsonb WHEN 'CUSTOMER_SERVICE_ASSOCIATE' THEN '["CUSTOMER_SERVICE","BFSI_SERVICE"]'::jsonb ELSE '["RETAIL_SALES","SALES"]'::jsonb END`;
+  await sql`UPDATE app.role_family SET skill_mapping='{"BFSI_SALES":["FIELD_SALES","TELECOM_SALES","SALES"],"CUSTOMER_COMMUNICATION":["CUSTOMER_SERVICE","BFSI_SERVICE","RETAIL_SALES"],"TARGET_ACHIEVEMENT":["FIELD_SALES","TELECOM_SALES","RETAIL_SALES"],"PRODUCT_KNOWLEDGE":["BFSI_SERVICE","COMMERCE_GRADUATE"]}' WHERE industry_key='BFSI'`;
   // --- attribute definitions (CFG-02) ---------------------------------------
   const attrs: [string, string, string, string][] = [
     ['locality',          'CANDIDATE_COMMON', 'TEXT',        'Home locality'],
@@ -116,13 +119,13 @@ async function main() {
     (id, industry_key, role_family_key, version, sections, questions, pass_threshold, time_limit_sec, languages, created_at) VALUES
     ('AST-BFSI-RE-1',  'BFSI',   'RELATIONSHIP_EXECUTIVE',     '1.0',
       ${j(['Numeracy','Customer communication','Sales scenario','Integrity','Digital comfort'])},
-      ${j(bfsiQuestions)}, 60, 900, ${j(['mr','hi','en'])}, ${T0}),
+      ${j(bfsiQuestions.map(q=>({...q,...(assessmentTranslations as any)[q.id]})))}, 60, 900, ${j(['mr','hi','en'])}, ${T0}),
     ('AST-BFSI-CSA-1', 'BFSI',   'CUSTOMER_SERVICE_ASSOCIATE', '1.0',
       ${j(['Customer communication','Product knowledge','Integrity'])},
-      ${j(bfsiQuestions.slice(1, 5))}, 60, 900, ${j(['mr','hi','en'])}, ${T0}),
+      ${j(bfsiQuestions.slice(1, 5).map(q=>({...q,...(assessmentTranslations as any)[q.id]})))}, 60, 900, ${j(['mr','hi','en'])}, ${T0}),
     ('AST-RTL-SA-1',   'RETAIL', 'SALES_ASSOCIATE',            '0.1',
       ${j(['Product knowledge','Billing','Customer service','Numeracy'])},
-      ${j(retailQuestions)}, 55, 720, ${j(['mr','hi','en'])}, ${T0})`;
+      ${j(retailQuestions.map(q=>({...q,...(assessmentTranslations as any)[q.id]})))}, 55, 720, ${j(['mr','hi','en'])}, ${T0})`;
 
   // --- role configurations (§22.1) ------------------------------------------
   // Weights total 100. endorsement_cap is a separate, scaled ordering boost
@@ -366,7 +369,7 @@ async function main() {
     await grantConsent(id, 'JOB_ALERTS');
     if (c.site) await grantConsent(id, 'PARTNER_ASSISTANCE');
     await completeProfile(id, {
-      name: c.name, localityKey: c.locality, age18: true,
+      name: c.name, localityKey: c.locality, age18: true, workAuthorised:true,
       experienceMonths: c.months, experienceTags: c.tags, languages: c.langs,
       currentPayPaise: c.current === null ? null : rupees(c.current),
       expectedPayPaise: rupees(c.expected),
@@ -374,6 +377,8 @@ async function main() {
     });
     const templateId = c.locality === 'kothrud' && c.tags.includes('CUSTOMER_SERVICE')
       ? 'AST-BFSI-CSA-1' : 'AST-BFSI-RE-1';
+    await sql`UPDATE app.candidate SET role_config_id=${templateId==='AST-BFSI-CSA-1'?'CFG-BFSI-CSA-1':'CFG-BFSI-RE-1'} WHERE id=${id}`;
+    await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_bool,collected_at) VALUES(${'ATV-SEED-'+id},${id},'field_sales_comfort','CFG-BFSI-RE-1',true,${T0})`;
     await seedAssessmentScore(id, templateId, c.score, T0);
   }
 

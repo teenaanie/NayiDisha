@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { Clause, StatusPill, QrBlock } from '../../ui';
 import { SubNav, PARTNER_TABS } from '../../subnav';
@@ -7,8 +8,9 @@ export const dynamic = 'force-dynamic';
 export default async function SitesPage({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const sites = await sql<{
     id: string; locality_key: string; partner_code: string; qr_token: string;

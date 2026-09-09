@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { partnerRewardSummary } from '@/modules/commercial';
@@ -11,12 +12,13 @@ export const dynamic = 'force-dynamic';
 export default async function PartnerDashboard({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
   const policy = await activeCommercialPolicy();
 
   const all = await sql<{ id: string; name: string; status: string }[]>`
-    SELECT id, name, status FROM app.partner ORDER BY id`;
+    SELECT id, name, status FROM app.partner WHERE (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`;
   const [partner] = await sql<{
     id: string; name: string; partner_type: string; status: string;
     conduct_accepted_at: Date | null; pan: string | null;

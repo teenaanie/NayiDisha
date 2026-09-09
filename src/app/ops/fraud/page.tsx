@@ -1,3 +1,5 @@
+import {ManagedForm} from '../manage/form';
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
@@ -6,6 +8,7 @@ import { SubNav, OPS_TABS } from '../../subnav';
 export const dynamic = 'force-dynamic';
 
 export default async function FraudPage() {
+  const viewer=await scopePage('ops');
   const cases = await sql<{
     id: string; subject_type: string; subject_id: string; signal: string;
     detail: Record<string, unknown>; status: string; resolution: string | null; created_at: Date;
@@ -21,7 +24,7 @@ export default async function FraudPage() {
       <SubNav tabs={OPS_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Fraud signals</h1>
+          <h1>Fraud signals</h1><p className="note">Cases appear when source validation or endorsement checks raise a signal, or a candidate requests a source correction. A signal requires review and is not proof of fraud. This demo does not claim to detect collusion or device networks.</p>
           <div className="sub">
             Self-referral, duplicate accounts, recycled numbers, partner–employer collusion,
             fabricated endorsements and artificial unlock activity <Clause>REF-07 / END-06</Clause>
@@ -43,7 +46,7 @@ export default async function FraudPage() {
                         {JSON.stringify(f.detail)}
                       </td>
                       <td><StatusPill status={f.status} />
-                        {f.resolution && <div className="small muted">{f.resolution}</div>}</td>
+                        {f.status==='OPEN'&&<ManagedForm kind="fraud" id={f.id}><select name="decision"><option value="DISMISSED">Dismiss signal</option><option value="CONFIRMED">Confirm signal</option>{f.signal==='SOURCE_CORRECTION_REQUEST'&&<option value="CORRECT_SOURCE">Approve requested source</option>}</select></ManagedForm>}{f.resolution && <div className="small muted">{f.resolution}</div>}</td>
                       <td className="small muted">{fmtDateTime(f.created_at)}</td>
                     </tr>
                   ))}

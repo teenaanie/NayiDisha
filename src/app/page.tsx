@@ -1,3 +1,4 @@
+import {requireRole} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { Stat, Clause, StatusPill, Money } from './ui';
@@ -6,6 +7,7 @@ import { DemoControls } from './demo-controls';
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
+  await requireRole(['ADMIN']);
   const [counts] = await sql<{
     employers: string; partners: string; sites: string; jobs: string; candidates: string;
     qualified: string; unlocks: string; rewards: string;

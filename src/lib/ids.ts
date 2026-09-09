@@ -6,6 +6,7 @@
  * acceptance criterion. Runtime IDs continue the same series.
  */
 import { sql } from './db';
+import { randomBytes } from 'node:crypto';
 
 const TABLE_FOR_PREFIX: Record<string, string> = {
   EMP: 'app.employer_organisation',
@@ -57,9 +58,11 @@ export async function nextId(prefix: string, conn = sql): Promise<string> {
   // Only rows whose suffix is purely numeric participate in the series, so a
   // structured seed id such as CRD-JOB001-0 cannot break the sequence.
   const [row] = await conn<{ n: number }[]>`
-    SELECT COALESCE(MAX(substring(id from '^[A-Z]+-([0-9]+)$')::int), 0) + 1 AS n
-    FROM ${sql.unsafe(table)}
-    WHERE id ~ ${'^' + prefix + '-[0-9]+$'}
+    INSERT INTO app.id_counter(prefix, value)
+    SELECT ${prefix}, COALESCE(MAX(substring(id from '^[A-Z]+-([0-9]+)$')::bigint),0)+1
+      FROM ${conn.unsafe(table)} WHERE id ~ ${'^'+prefix+'-[0-9]+$'}
+    ON CONFLICT(prefix) DO UPDATE SET value=app.id_counter.value+1
+    RETURNING value AS n
   `;
   return `${prefix}-${String(row.n).padStart(3, '0')}`;
 }
@@ -72,10 +75,5 @@ export function unlockIdempotencyKey(
 }
 
 export function randomToken(len = 24): string {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let out = '';
-  for (let i = 0; i < len; i++) {
-    out += alphabet[Math.floor(Math.random() * alphabet.length)];
-  }
-  return out;
+  return randomBytes(len).toString('base64url').slice(0, len);
 }

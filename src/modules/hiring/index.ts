@@ -113,6 +113,7 @@ export async function sendDueInterviewReminders(): Promise<number> {
     SELECT i.id, a.candidate_id, i.scheduled_at
       FROM app.interview i JOIN app.application a ON a.id = i.application_id
      WHERE i.status = 'CONFIRMED'
+       AND EXISTS(SELECT 1 FROM app.candidate c WHERE c.id=a.candidate_id AND c.status='PROFILE_ACTIVE' AND NOT (CASE WHEN c.alert_quiet_from<=c.alert_quiet_to THEN EXTRACT(HOUR FROM ${at}::timestamptz AT TIME ZONE 'Asia/Kolkata')>=c.alert_quiet_from AND EXTRACT(HOUR FROM ${at}::timestamptz AT TIME ZONE 'Asia/Kolkata')<c.alert_quiet_to ELSE EXTRACT(HOUR FROM ${at}::timestamptz AT TIME ZONE 'Asia/Kolkata')>=c.alert_quiet_from OR EXTRACT(HOUR FROM ${at}::timestamptz AT TIME ZONE 'Asia/Kolkata')<c.alert_quiet_to END))
        AND i.reminder_sent_at IS NULL
        AND i.scheduled_at BETWEEN ${at} AND ${addHours(at, 24)}
   `;
@@ -334,7 +335,7 @@ export async function onboardingCasesForEmployer(employerId: string) {
     application_id: string; offer_fixed_paise: string; offer_variable_paise: string;
     joining_date: string | null; offer_expires_at: Date; docs_total: string; docs_approved: string;
   }[]>`
-    SELECT o.id, o.status, o.role_title, a.candidate_id, c.name, o.application_id,
+    SELECT o.id, o.status, o.role_title, a.candidate_id, CASE WHEN EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.name ELSE 'Access withdrawn' END AS name, o.application_id,
            o.offer_fixed_paise, o.offer_variable_paise, o.joining_date::text AS joining_date,
            o.offer_expires_at,
            (SELECT COUNT(*)::text FROM app.candidate_document d WHERE d.onboarding_case_id=o.id) AS docs_total,
@@ -366,7 +367,7 @@ export async function interviewsForEmployer(employerId: string) {
     format: string | null; location_note: string | null; safety_note: string | null;
     rescheduled_from: Date | null; reminder_sent_at: Date | null;
   }[]>`
-    SELECT i.id, i.application_id, a.candidate_id, c.name, a.job_id, i.scheduled_at,
+    SELECT i.id, i.application_id, a.candidate_id, CASE WHEN EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.name ELSE 'Access withdrawn' END AS name, a.job_id, i.scheduled_at,
            i.status, i.candidate_confirmed, i.format, i.location_note, i.safety_note,
            i.rescheduled_from, i.reminder_sent_at
       FROM app.interview i

@@ -34,6 +34,7 @@ export function SubNav({ tabs }: { tabs: SubTab[] }) {
 
 export const OPS_TABS: SubTab[] = [
   { href: '/ops', label: 'Dashboard' },
+  { href: '/ops/manage', label: 'Manage & catalogue' },
   { href: '/ops/configurations', label: 'Configurations', hint: '§8.4A' },
   { href: '/ops/employers', label: 'Employers', hint: '§8.1' },
   { href: '/ops/partners', label: 'Partners', hint: '§8.2' },

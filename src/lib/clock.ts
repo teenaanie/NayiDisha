@@ -13,8 +13,8 @@ import { sql } from './db';
  */
 export const SEED_INSTANT = new Date('2026-10-05T10:00:00+05:30');
 
-export async function now(): Promise<Date> {
-  const [row] = await sql<{ now_at: Date }[]>`
+export async function now(conn=sql): Promise<Date> {
+  const [row] = await conn<{ now_at: Date }[]>`
     SELECT now_at FROM app.demo_clock WHERE id = 1
   `;
   return row?.now_at ?? SEED_INSTANT;

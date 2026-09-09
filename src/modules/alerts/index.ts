@@ -61,7 +61,7 @@ export async function dispatchJobAlerts(jobId: string): Promise<AlertOutcome> {
       JOIN app.employer_organisation e ON e.id = j.employer_id
       JOIN app.employer_location l ON l.id = j.location_id
       JOIN app.role_configuration rc ON rc.id = j.role_config_id
-     WHERE j.id = ${jobId}
+     WHERE j.id = ${jobId} AND e.status='VERIFIED' AND j.pending_changes IS NULL AND (j.expires_at IS NULL OR j.expires_at>${at})
   `;
   // JOB-05 — a job that is not live must never generate an alert.
   if (!job || job.status !== 'LIVE') {
@@ -219,7 +219,7 @@ export async function sendNudge(partnerId: string, candidateId: string, jobId: s
   `;
   const [job] = await sql<{ title: string; brand: string }[]>`
     SELECT j.title, e.brand_name AS brand FROM app.job j
-      JOIN app.employer_organisation e ON e.id = j.employer_id WHERE j.id = ${jobId}
+      JOIN app.employer_organisation e ON e.id = j.employer_id WHERE j.id = ${jobId} AND e.status='VERIFIED' AND j.pending_changes IS NULL AND (j.expires_at IS NULL OR j.expires_at>${at})
   `;
   await messagingProvider().send({
     candidateId, templateKey: 'reconfirm_interest', language: 'en',

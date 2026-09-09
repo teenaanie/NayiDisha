@@ -1,7 +1,7 @@
 import { sql } from '@/lib/db';
 import { now } from '@/lib/clock';
 import { nextId } from '@/lib/ids';
-import { getRoleConfig, RoleConfig } from '@/modules/configuration';
+import { getRoleConfig, RoleConfig, activeCommercialPolicy } from '@/modules/configuration';
 import { travelProvider, TravelEstimate } from '@/modules/adapters/travel';
 
 /**
@@ -104,24 +104,11 @@ function scoreLanguage(candidateLangs: string[], required: string[]): number {
   return Math.round((hit / required.length) * 100);
 }
 
-function scoreJobPreference(tags: string[], roleFamily: string): number {
-  const direct: Record<string, string[]> = {
-    RELATIONSHIP_EXECUTIVE: ['BFSI_SALES', 'FIELD_SALES'],
-    CUSTOMER_SERVICE_ASSOCIATE: ['CUSTOMER_SERVICE', 'BFSI_SERVICE'],
-    SALES_ASSOCIATE: ['RETAIL_SALES', 'SALES'],
-  };
-  const adjacent = ['SALES', 'TELECOM_SALES', 'RETAIL_SALES', 'CUSTOMER_SERVICE', 'COMMERCE_GRADUATE'];
-  if ((direct[roleFamily] ?? []).some((t) => tags.includes(t))) return 100;
-  if (tags.some((t) => adjacent.includes(t))) return 65;
-  return 35;
+function scoreJobPreference(tags:string[],direct:string[],adjacent:string[]):number {
+ if(direct.some(t=>tags.includes(t)))return 100;
+ if(adjacent.some(t=>tags.includes(t)))return 65;
+ return 35;
 }
-
-const TRANSFERABLE: Record<string, string[]> = {
-  BFSI_SALES: ['FIELD_SALES', 'TELECOM_SALES', 'SALES'],
-  CUSTOMER_COMMUNICATION: ['CUSTOMER_SERVICE', 'BFSI_SERVICE', 'RETAIL_SALES'],
-  TARGET_ACHIEVEMENT: ['FIELD_SALES', 'TELECOM_SALES', 'RETAIL_SALES'],
-  PRODUCT_KNOWLEDGE: ['BFSI_SERVICE', 'COMMERCE_GRADUATE'],
-};
 
 export async function computeMatch(
   candidateId: string, jobId: string,
@@ -137,7 +124,9 @@ export async function computeMatch(
   if (!cand || !job) throw new Error(`Cannot match ${candidateId} against ${jobId}`);
 
   const cfg: RoleConfig = await getRoleConfig(job.role_config_id);
+  const [family]=await sql`SELECT direct_tags,transferable,skill_mapping FROM app.role_family WHERE key=${cfg.roleFamilyKey} AND industry_key=${cfg.industryKey}`;
   const rules = cfg.qualificationRules;
+  const policy = await activeCommercialPolicy();
   const at = await now();
 
   const [app] = await sql<{ status: string; reconfirmed_at: Date | null }[]>`
@@ -151,7 +140,8 @@ export async function computeMatch(
   const [attempt] = await sql<{ score: number; template_version: string }[]>`
     SELECT score, template_version FROM app.assessment_attempt
      WHERE candidate_id = ${candidateId}
-     ORDER BY completed_at DESC LIMIT 1
+     AND template_id=${cfg.assessmentTemplateId}
+     ORDER BY completed_at DESC, id DESC LIMIT 1
   `;
   const endorsements = await sql<{ raw_points: number; status: string }[]>`
     SELECT raw_points, status FROM app.endorsement
@@ -184,7 +174,7 @@ export async function computeMatch(
   // Salary compatibility per §22.1: total reachable pay must meet the
   // expectation. Expectations above fixed pay still pass but are surfaced as a
   // SALARY_GAP in the explanation, never hidden.
-  if (rules.requireSalaryCompatible && expected !== null && expected > fixed + variableMax) {
+  if (rules.requireSalaryCompatible && expected !== null && expected > (policy.salaryBasis === 'FIXED' ? fixed : fixed + variableMax)) {
     aReasons.push('SALARY_INCOMPATIBLE');
   }
   if (rules.requireLanguageMatch && scoreLanguage(cand.languages, job.languages) === 0) {
@@ -204,6 +194,14 @@ export async function computeMatch(
       bReasons.push(`ASSESSMENT_BELOW_${rules.minAssessmentScore}`);
     }
   }
+  const [declaration]=await sql`SELECT work_authorised FROM app.candidate WHERE id=${candidateId}`;
+  if(rules.requireWorkAuthDeclaration && !declaration?.work_authorised) bReasons.push('WORK_AUTHORISATION_REQUIRED');
+  const attributes=await sql`SELECT d.key,d.freshness_days,v.value_text,v.value_bool,v.value_int,v.collected_at FROM app.attribute_definition d LEFT JOIN app.candidate_attribute_value v ON v.attribute_key=d.key AND v.candidate_id=${candidateId} WHERE d.scope='CANDIDATE_ROLE'`;
+  for(const required of cfg.candidateAttributes.filter(a=>a.required)) {
+    const row=attributes.find(a=>a.key===required.key);
+    if(row && (row.collected_at===null || (row.value_text===null && row.value_bool===null && row.value_int===null))) bReasons.push('REQUIRED_FIELD_'+required.key);
+    else if(row?.freshness_days && new Date(row.collected_at).getTime()+row.freshness_days*86400000<at.getTime()) bReasons.push('STALE_FIELD_'+required.key);
+  }
   const stageB: StageOutcome = { pass: bReasons.length === 0, reasons: bReasons };
 
   const qualified = stageA.pass && stageB.pass;
@@ -211,13 +209,13 @@ export async function computeMatch(
   // ---- Stage C: weighted ranking ------------------------------------------
   const w = cfg.scoringWeights;
   const raws: Record<keyof typeof w, number> = {
-    jobPreference: scoreJobPreference(cand.experience_tags, cfg.roleFamilyKey),
+    jobPreference: scoreJobPreference(cand.experience_tags, family.direct_tags, family.transferable),
     commute: scoreCommute(travel),
     compensation: scoreCompensation(expected, fixed, variableMax),
     schedule: cand.shift_availability.includes(job.shift) || cand.shift_availability.includes('ANY') ? 100 : 40,
     language: scoreLanguage(cand.languages, job.languages),
     experience: scoreExperience(cand.experience_months, job.min_experience_mo),
-    criticalSkills: scoreSkills(cand.experience_tags, job.critical_skills, TRANSFERABLE),
+    criticalSkills: scoreSkills(cand.experience_tags, job.critical_skills, family.skill_mapping),
     assessment: attempt?.score ?? 0,
   };
 
@@ -233,11 +231,11 @@ export async function computeMatch(
   // is itself bounded at 10% of the score. Ordering boost only, never eligibility.
   const rawEndorsement = endorsements.reduce((s, e) => s + e.raw_points, 0);
   const endorsementPoints = Math.min(
-    Math.round((rawEndorsement / 20) * cfg.endorsementCap),
-    cfg.endorsementCap,
+    Math.round((rawEndorsement / 20) * Math.min(cfg.endorsementCap, policy.endorsementCap)),
+    Math.min(cfg.endorsementCap, policy.endorsementCap),
   );
 
-  const score = qualified ? Math.round(base + endorsementPoints) : null;
+  const score = qualified ? Math.min(100, Math.round(base + endorsementPoints)) : null;
 
   // ---- Explanation (MATCH-03/10) ------------------------------------------
   const explanation: string[] = [];
@@ -268,6 +266,7 @@ export async function computeMatch(
     stageA, stageB, qualified, score, components, endorsementPoints,
     explanation: [...new Set(explanation)], gaps: [...new Set(gaps)], travel,
     inputs: {
+      stageA, stageB, travel, rules, scoringWeights: w, endorsementCap: cfg.endorsementCap, salaryBasis: policy.salaryBasis,
       candidate: {
         localityKey: cand.locality_key, experienceMonths: cand.experience_months,
         experienceTags: cand.experience_tags, languages: cand.languages,
@@ -313,7 +312,7 @@ export async function recordMatch(
   await sql`
     UPDATE app.application
        SET status = ${c.qualified ? 'QUALIFIED' : 'NOT_QUALIFIED'}, status_at = ${at}
-     WHERE id = ${applicationId}
+     WHERE id = ${applicationId} AND status IN ('APPLIED','ELIGIBILITY_CHECK','CANDIDATE_RECONFIRMED','QUALIFIED','NOT_QUALIFIED','PREVIEWED')
   `;
   return { id, computation: c };
 }
@@ -339,11 +338,14 @@ export async function previewsForJob(jobId: string, batchSize: number) {
            EXISTS (SELECT 1 FROM app.qualified_lead_unlock u
                     WHERE u.job_id = m.job_id AND u.candidate_id = m.candidate_id
                       AND u.status = 'CONFIRMED') AS unlocked
-      FROM app.match_result m
+      FROM (SELECT DISTINCT ON (candidate_id,job_id) * FROM app.match_result ORDER BY candidate_id,job_id,computed_at DESC,id DESC) m
       JOIN app.candidate c ON c.id = m.candidate_id
       JOIN app.application a ON a.id = m.application_id
      WHERE m.job_id = ${jobId}
        AND m.qualified = TRUE
+       AND c.status='PROFILE_ACTIVE'
+       AND EXISTS(SELECT 1 FROM app.job j JOIN app.employer_organisation e ON e.id=j.employer_id WHERE j.id=m.job_id AND j.status='LIVE' AND e.status='VERIFIED' AND j.pending_changes IS NULL AND (j.expires_at IS NULL OR j.expires_at>(SELECT now_at FROM app.demo_clock WHERE id=1)))
+       AND EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL)
        AND a.reconfirmed_at IS NOT NULL
        AND a.status NOT IN ('WITHDRAWN','REJECTED')
      ORDER BY m.score DESC, m.candidate_id ASC

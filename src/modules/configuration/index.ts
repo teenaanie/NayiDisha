@@ -137,6 +137,7 @@ export async function validateRoleConfig(id: string): Promise<ValidationResult> 
     detail: missing.length ? `undefined: ${missing.join(', ')}` : `${attrKeys.length} attributes resolved`,
   });
 
+  checks.push({name:'Assessment is configured',ok:!!cfg.assessmentTemplateId,detail:cfg.assessmentTemplateId||'Add an assessment before publishing'});
   if (cfg.assessmentTemplateId) {
     const [tpl] = await sql<{ id: string; languages: string[] }[]>`
       SELECT id, languages FROM app.assessment_template WHERE id = ${cfg.assessmentTemplateId}
@@ -188,7 +189,7 @@ export async function publishRoleConfig(
 
 export async function activeCommercialPolicy() {
   const [row] = await sql<{
-    id: string; version: string;
+    id: string; version: string; salary_basis: string; endorsement_cap: number;
     posting_fee_paise: string; included_unlock_credits: number;
     additional_credit_paise: string; max_distinct_unlocks_per_job: number;
     partner_reward_paise: string; partner_reward_hold_hours: number;
@@ -200,6 +201,8 @@ export async function activeCommercialPolicy() {
   return {
     id: row.id,
     version: row.version,
+    salaryBasis: (row.salary_basis ?? 'TOTAL') as 'FIXED' | 'TOTAL',
+    endorsementCap: Number(row.endorsement_cap ?? 5),
     postingFeePaise: Number(row.posting_fee_paise),
     includedUnlockCredits: row.included_unlock_credits,
     additionalCreditPaise: Number(row.additional_credit_paise),

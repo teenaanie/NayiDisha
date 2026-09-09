@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { maskName } from '@/modules/matching';
@@ -10,8 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function PartnerCandidatesPage({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const rows = await sql<{
     candidate_id: string; name: string | null; locality_key: string | null; status: string;
@@ -28,7 +30,7 @@ export default async function PartnerCandidatesPage({
       (SELECT COUNT(*)::text FROM app.partner_nudge n WHERE n.candidate_id=c.id
         AND n.created_at > (SELECT now_at FROM app.demo_clock WHERE id=1) - interval '7 days') AS nudges_week
     FROM app.attribution a JOIN app.candidate c ON c.id=a.candidate_id
-    WHERE a.partner_id=${partnerId} ORDER BY a.bound_at`;
+    WHERE a.partner_id=${partnerId} AND EXISTS (SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PARTNER_ASSISTANCE' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) ORDER BY a.bound_at`;
 
   const liveJobs = await sql<{ id: string; title: string; brand: string }[]>`
     SELECT j.id, j.title, e.brand_name AS brand FROM app.job j

@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { Clause } from '../../ui';
@@ -6,6 +7,7 @@ import { NewPartnerForm } from './form';
 export const dynamic = 'force-dynamic';
 
 export default async function NewPartnerPage() {
+  const viewer=await scopePage('ops');
   const localities = await sql<{ key: string; display_name: string }[]>`
     SELECT key, display_name FROM app.locality ORDER BY display_name
   `;
@@ -26,7 +28,7 @@ export default async function NewPartnerPage() {
           <Link className="btn" href="/ops">← Operations</Link>
         </div>
       </div>
-      <NewPartnerForm localities={localities} roles={roles} />
+      <p><Link href="/ops/manage#localities">Add a locality or sourcing capability</Link></p><NewPartnerForm localities={localities} roles={roles} />
     </main>
   );
 }

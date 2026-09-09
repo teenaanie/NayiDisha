@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { Clause, Money, StatusPill } from '../../ui';
@@ -6,6 +7,7 @@ import { SubNav, FINANCE_TABS } from '../../subnav';
 export const dynamic = 'force-dynamic';
 
 export default async function LedgerPage() {
+  const viewer=await scopePage('finance');
   const rows = await sql<{
     id: string; partner_id: string; entry_type: string; amount_paise: string; status: string;
     unlock_id: string | null; linked_entry_id: string | null; payout_id: string | null;

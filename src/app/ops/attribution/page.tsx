@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
@@ -7,6 +8,7 @@ import { OpsActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function AttributionPage() {
+  const viewer=await scopePage('ops');
   const rows = await sql<{
     id: string; candidate_id: string; name: string | null; partner_id: string | null;
     partner_name: string | null; partner_site_id: string | null; method: string;
@@ -27,7 +29,7 @@ export default async function AttributionPage() {
       <SubNav tabs={OPS_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Attribution</h1>
+          <h1>Attribution</h1><p className="note">Attribution records who sourced a candidate. Method is QR, typed partner code or direct entry. It is created at verification; later scans never overwrite a valid source. Allow approves the reviewed source; Void removes reward eligibility.</p>
           <div className="sub">
             One acquisition partner per candidate, bound at first verified registration and never
             overwritten by a later scan <Clause>§8.11 REF-01 / REF-02</Clause>

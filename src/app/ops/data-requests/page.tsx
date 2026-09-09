@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
@@ -7,6 +8,7 @@ import { DataRequestActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function DataRequestsPage() {
+  const viewer=await scopePage('ops');
   const rows = await sql<{
     id: string; candidate_id: string; name: string | null; kind: string; detail: string | null;
     status: string; due_at: Date; created_at: Date; resolved_at: Date | null; days_left: number;
@@ -21,7 +23,7 @@ export default async function DataRequestsPage() {
       <SubNav tabs={OPS_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Data principal requests</h1>
+          <h1>Data principal requests</h1><p className="note">Candidates create requests from My data. Access produces a private export; erasure anonymises profile data while retaining necessary transaction history. Corrections require a specific field and value.</p>
           <div className="sub">
             Access, correction and erasure. The DPDP Rules require a response within 90 days, so the
             due date is stored on the row and this queue sorts by what is closest to breaching.

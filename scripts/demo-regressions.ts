@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import {sql} from '../src/lib/db';
+import {nextId} from '../src/lib/ids';
+import {now,SEED_INSTANT} from '../src/lib/clock';
+import {buildPayoutBatch,approveAndExecutePayout,raiseReplacement,decideReplacement} from '../src/modules/commercial';
+import {raiseDataRequest,resolveDataRequest,updatePreferences} from '../src/modules/lifecycle';
+import {SimulatorMessagingProvider} from '../src/modules/adapters/messaging';
+let passed=0;function check(name:string,value:unknown){assert.ok(value,name);console.log('PASS '+name);passed++;}
+async function main(){
+ if(!process.env.DATABASE_URL?.includes('nayidisha_test'))throw new Error('Use the named disposable test database.');
+ const ids=await Promise.all(Array.from({length:20},()=>nextId('EMP')));check('Concurrent ID allocation is unique',new Set(ids).size===20);
+ await sql`UPDATE app.demo_clock SET now_at=${SEED_INSTANT}`;
+ await sql`UPDATE app.commercial_policy SET partner_payout_minimum_paise=1 WHERE active`;
+ await sql`UPDATE app.reward_ledger SET status='ELIGIBLE' WHERE id='RWD-001'`;
+ const batches=await Promise.all([buildPayoutBatch('TEST'),buildPayoutBatch('TEST')]);
+ const created=batches.flatMap(b=>b.created);check('Concurrent batches reserve an earning only once',created.length===1);
+ const id=created[0];await sql`UPDATE app.demo_clock SET payout_failure=true`;
+ const failed=await approveAndExecutePayout(id,'TEST');check('Failed provider leaves a retryable payout',failed.ok===false);
+ await sql`UPDATE app.demo_clock SET payout_failure=false`;
+ await Promise.all([approveAndExecutePayout(id,'TEST'),approveAndExecutePayout(id,'TEST')]);
+ const [paid]=await sql`SELECT * FROM app.payout WHERE id=${id}`;check('Duplicate execution settles once',paid.status==='SIMULATED_PAID');
+ const [accrual]=await sql`SELECT * FROM app.reward_ledger WHERE id='RWD-001'`;check('Paid earnings retain ACCRUAL classification',accrual.entry_type==='ACCRUAL'&&accrual.status==='PAID');
+ const claim=await raiseReplacement('UNL-001','INVALID_CONTACT','Synthetic disconnected number');assert.ok('id' in claim);
+ await Promise.allSettled([decideReplacement(claim.id,'APPROVED','TEST'),decideReplacement(claim.id,'APPROVED','TEST')]);
+ const reversals=await sql`SELECT id FROM app.reward_ledger WHERE entry_type='REVERSAL' AND unlock_id='UNL-001'`;
+ check('Concurrent claim decisions create one reversal',reversals.length===1);
+ const [debt]=await sql`SELECT * FROM app.payout_recovery WHERE partner_id='PAR-001'`;
+ check('Already-paid reversal records recovery',Number(debt.amount_paise)===7500&&Number(debt.recovered_paise)===0);
+ await sql`INSERT INTO app.reward_ledger(id,partner_id,entry_type,amount_paise,status,fy_label,created_at) VALUES(${await nextId('RWD')},'PAR-001','ACCRUAL',10000,'ELIGIBLE','2026-27',${await now()})`;
+ const next=await buildPayoutBatch('TEST');await approveAndExecutePayout(next.created[0],'TEST');
+ const [settlement]=await sql`SELECT * FROM app.payout WHERE id=${next.created[0]}`;
+ check('Recovery offsets future payout exactly once',Number(settlement.recovery_paise)===7500&&Number(settlement.net_paise)===2500);
+ await sql`UPDATE app.demo_clock SET messaging_failure=true`;
+ const msg=await new SimulatorMessagingProvider().send({candidateId:'CAN-001',templateKey:'application_confirm',language:'en',variables:{employer:'DEMO'}});
+ const [logged]=await sql`SELECT delivery_status,cost_paise FROM app.message_log WHERE id=${msg.id}`;
+ check('Simulated failed delivery is visible and has no sent cost',logged.delivery_status==='FAILED'&&Number(logged.cost_paise)===0);
+ let injectionRejected=false;try{await updatePreferences('CAN-001',{language:"en'; DELETE FROM app.candidate; --" as any});}catch{injectionRejected=true;}check('Malformed preference is rejected',injectionRejected);
+ const access=await raiseDataRequest('CAN-008','ACCESS','Download');await resolveDataRequest(access.id,'ACTIONED');
+ const [exported]=await sql`SELECT response FROM app.data_request WHERE id=${access.id}`;check('Access request produces real export',exported.response.profile.id==='CAN-008');
+ const correction=await raiseDataRequest('CAN-008','CORRECTION','Correct name');await resolveDataRequest(correction.id,'ACTIONED',{field:'name',value:'DEMO Corrected',reason:'Test'});
+ const [corrected]=await sql`SELECT name FROM app.candidate WHERE id='CAN-008'`;check('Correction changes requested data',corrected.name==='DEMO Corrected');
+ const erasure=await raiseDataRequest('CAN-008','ERASURE','Erase');await resolveDataRequest(erasure.id,'ACTIONED');
+ const [erased]=await sql`SELECT name,phone,status FROM app.candidate WHERE id='CAN-008'`;check('Erasure anonymises personal data',erased.phone==='erased-CAN-008'&&erased.status==='DELETED_BLOCKED');
+ console.log(`${passed} demo regressions passed`);
+}
+main().catch(e=>{console.error(e);process.exitCode=1}).finally(()=>sql.end());

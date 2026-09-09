@@ -1,3 +1,5 @@
+For the September 2026 demo changes and upgrade steps, see [DEMO_CHANGES.md](DEMO_CHANGES.md).
+
 # Multi-Industry Frontline Hiring Platform — Prototype
 
 Working prototype of **PRD v1.3**, Pune BFSI launch configuration.

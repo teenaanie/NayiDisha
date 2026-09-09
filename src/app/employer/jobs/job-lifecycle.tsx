@@ -53,7 +53,7 @@ export function JobLifecycle({ jobId, status, fixedRupees, variableRupees, openi
               if (res.error) return <span style={{ color: 'var(--bad)' }}>{res.error}</span>;
               if (!res.changes?.length) return 'No changes.';
               return res.material
-                ? `Material change saved. ${res.notified} interested candidate(s) notified, matches revalidated.`
+                ? 'Submitted for operations approval. Candidate interest must be reconfirmed after approval.'
                 : 'Minor change saved. No notification sent.';
             },
           )}>Save</button>

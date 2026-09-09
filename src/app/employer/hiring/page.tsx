@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -9,7 +10,8 @@ import { InterviewPanel, OfferPanel, DocumentReview, ReminderButton } from './hi
 export const dynamic = 'force-dynamic';
 
 export default async function HiringPage() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
 
   const interviews = await interviewsForEmployer(employerId);
   const cases = await onboardingCasesForEmployer(employerId);
@@ -22,7 +24,7 @@ export default async function HiringPage() {
     application_id: string; candidate_id: string; name: string; job_id: string;
     title: string; status: string; has_interview: boolean; has_case: boolean;
   }[]>`
-    SELECT u.application_id, u.candidate_id, c.name, u.job_id, j.title, a.status,
+    SELECT u.application_id, u.candidate_id, CASE WHEN EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.name ELSE 'Access withdrawn' END AS name, u.job_id, j.title, a.status,
            EXISTS (SELECT 1 FROM app.interview i WHERE i.application_id = u.application_id) AS has_interview,
            EXISTS (SELECT 1 FROM app.onboarding_case o WHERE o.application_id = u.application_id) AS has_case
       FROM app.qualified_lead_unlock u

@@ -117,7 +117,7 @@ export function NewPartnerForm({ localities, roles }: {
         </div>
 
         <div className="btnrow mt">
-          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {
+          <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {try{
             const r = await actCreatePartner({
               name: f.name, partnerType: f.partnerType, isBusiness: f.isBusiness,
               capabilities: caps, localityKey: f.localityKey, languages: langs,
@@ -126,7 +126,7 @@ export function NewPartnerForm({ localities, roles }: {
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Failed: {r.error}</span>); return; }
             setMsg(<>Created <strong>{r.partnerId}</strong>, site {r.siteId}, printable code <strong className="mono">{r.partnerCode}</strong>. Approve it on the Operations console, then open its QR from the Partner console.</>);
             setTimeout(() => router.push('/ops'), 1800);
-          })}>Create partner</button>
+          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Create partner</button>
           <button className="btn" onClick={() => router.push('/ops')}>Cancel</button>
         </div>
         {msg && <div className="note mt small">{msg}</div>}

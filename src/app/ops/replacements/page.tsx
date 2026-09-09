@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause, Money } from '../../ui';
@@ -7,6 +8,7 @@ import { OpsActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function ReplacementsPage() {
+  const viewer=await scopePage('ops');
   const rows = await sql<{
     id: string; unlock_id: string; reason_code: string; evidence: string; decision: string;
     raised_at: Date; window_ends_at: Date; decided_at: Date | null; decided_by: string | null;
@@ -23,7 +25,7 @@ export default async function ReplacementsPage() {
       <SubNav tabs={OPS_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Invalid-lead replacements</h1>
+          <h1>Invalid-lead replacements</h1><p className="note">An employer creates a claim from an unlocked profile. Operations checks the evidence. Approval restores one credit and reverses the reward once. Already-paid rewards create a recovery balance offset against future earnings; no money is pulled from a partner.</p>
           <div className="sub">
             Approval restores the employer credit and reverses the partner reward through linked
             correction rows. &ldquo;Did not pass our interview&rdquo; is not a valid reason.

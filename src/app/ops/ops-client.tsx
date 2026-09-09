@@ -33,7 +33,7 @@ export function OpsActions({ kind, id, status }: { kind: string; id: string; sta
           ? <button className="btn btn-sm" disabled={pending}
               onClick={run(() => actSetPartnerStatus(id, 'SUSPENDED', 'Suspected referral abuse — demo'))}>Suspend</button>
           : <button className="btn btn-sm btn-primary" disabled={pending}
-              onClick={run(() => actSetPartnerStatus(id, 'VERIFIED', 'Reinstated after review'))}>Reinstate</button>}
+              onClick={run(() => actSetPartnerStatus(id, 'VERIFIED', status === 'PENDING_REVIEW' ? 'Initial approval' : 'Reinstated after review'))}>{status === 'PENDING_REVIEW' ? 'Approve new partner' : 'Reinstate'}</button>}
       </div>
     );
   }
@@ -207,18 +207,8 @@ export function SandboxEditor({ configs }: { configs: Cfg[] }) {
   );
 }
 
-export function DataRequestActions({ id }: { id: string }) {
-  const [pending, start] = useTransition();
-  return (
-    <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
-      <button className="btn btn-sm btn-primary" disabled={pending}
-              onClick={() => start(async () => { await actResolveDataRequest(id, 'ACTIONED'); })}>
-        Mark actioned
-      </button>
-      <button className="btn btn-sm" disabled={pending}
-              onClick={() => start(async () => { await actResolveDataRequest(id, 'REFUSED'); })}>
-        Refuse
-      </button>
-    </div>
-  );
+export function DataRequestActions({id}:{id:string}){
+ const [pending,start]=useTransition(),[field,setField]=useState('name'),[value,setValue]=useState(''),[reason,setReason]=useState(''),[message,setMessage]=useState('');
+ const run=(status:'ACTIONED'|'REFUSED')=>start(async()=>{try{await actResolveDataRequest(id,status,{field,value,reason});setMessage('Request processed.');}catch(e){setMessage(e instanceof Error?e.message:'Failed');}});
+ return <div><select value={field} onChange={e=>setField(e.target.value)}><option value="name">Name correction</option><option value="locality_key">Locality correction</option></select><input aria-label="Corrected value" value={value} onChange={e=>setValue(e.target.value)} placeholder="Value (only for correction)"/><input aria-label="Decision reason" value={reason} onChange={e=>setReason(e.target.value)} placeholder="Decision reason"/><button disabled={pending} onClick={()=>run('ACTIONED')}>Execute request</button><button disabled={pending} onClick={()=>run('REFUSED')}>Refuse with reason</button><p role="status">{message}</p></div>;
 }

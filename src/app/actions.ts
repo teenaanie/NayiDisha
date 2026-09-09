@@ -1,4 +1,5 @@
 'use server';
+import {authorizeAction,auditAction} from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
 import { now, advanceClock, setClock, SEED_INSTANT } from '@/lib/clock';
@@ -33,20 +34,20 @@ const touchAll = () => {
 };
 
 // ---- demo controls ---------------------------------------------------------
-export async function actAdvanceClock(hours: number) {
+async function impl_actAdvanceClock(hours: number) {
   await advanceClock(hours);
   await releaseMaturedHolds();
   await expireStaleJobs();
   touchAll();
 }
 
-export async function actResetClock() {
+async function impl_actResetClock() {
   await setClock(SEED_INSTANT);
   touchAll();
 }
 
 /** §15 stale-job row — auto-expire at 30 days, stop alerts and applications. */
-export async function expireStaleJobs() {
+async function impl_expireStaleJobs() {
   const at = await now();
   await sql`
     UPDATE app.job SET status = 'EXPIRED'
@@ -55,18 +56,18 @@ export async function expireStaleJobs() {
 }
 
 // ---- operations ------------------------------------------------------------
-export async function actPublishConfig(configId: string) {
+async function impl_actPublishConfig(configId: string) {
   const at = await now();
   await publishRoleConfig(configId, 'OPS-001', at);
   touchAll();
 }
 
-export async function actValidateConfig(configId: string) {
+async function impl_actValidateConfig(configId: string) {
   return validateRoleConfig(configId);
 }
 
 /** CFG-09 — change a sandbox configuration without deployment or migration. */
-export async function actUpdateSandboxWeights(configId: string, weights: Record<string, number>) {
+async function impl_actUpdateSandboxWeights(configId: string, weights: Record<string, number>) {
   await sql`
     UPDATE app.role_configuration SET scoring_weights = ${sql.json(weights as never)}
      WHERE id = ${configId} AND status IN ('SANDBOX','DRAFT')
@@ -74,7 +75,7 @@ export async function actUpdateSandboxWeights(configId: string, weights: Record<
   touchAll();
 }
 
-export async function actUpdateSandboxThreshold(configId: string, threshold: number) {
+async function impl_actUpdateSandboxThreshold(configId: string, threshold: number) {
   await sql`
     UPDATE app.role_configuration
        SET assessment_threshold = ${threshold},
@@ -84,7 +85,7 @@ export async function actUpdateSandboxThreshold(configId: string, threshold: num
   touchAll();
 }
 
-export async function actApproveEmployer(employerId: string) {
+async function impl_actApproveEmployer(employerId: string) {
   const at = await now();
   await sql`
     UPDATE app.employer_organisation SET status = 'VERIFIED', status_at = ${at} WHERE id = ${employerId}
@@ -97,7 +98,7 @@ export async function actApproveEmployer(employerId: string) {
   touchAll();
 }
 
-export async function actSuspendEmployer(employerId: string, reason: string) {
+async function impl_actSuspendEmployer(employerId: string, reason: string) {
   const at = await now();
   await sql`
     UPDATE app.employer_organisation SET status='SUSPENDED', status_reason=${reason}, status_at=${at}
@@ -108,66 +109,58 @@ export async function actSuspendEmployer(employerId: string, reason: string) {
   touchAll();
 }
 
-export async function actApproveJob(jobId: string) {
-  const at = await now();
-  const [policy] = await sql<{ job_expiry_days: number }[]>`
-    SELECT job_expiry_days FROM app.commercial_policy WHERE active = TRUE
-  `;
-  const expires = new Date(at.getTime() + policy.job_expiry_days * 86400_000);
-  await sql`
-    UPDATE app.job SET status='LIVE', published_at=${at}, expires_at=${expires}
-     WHERE id=${jobId} AND status='PENDING_APPROVAL'
-  `;
-  const entId = `ENT-${jobId.slice(4)}`;
-  const [existing] = await sql<{ id: string }[]>`SELECT id FROM app.posting_entitlement WHERE job_id=${jobId}`;
-  if (!existing) {
-    const [p] = await sql<{
-      posting_fee_paise: string; included_unlock_credits: number;
-      max_distinct_unlocks_per_job: number; credit_expiry_days: number;
-    }[]>`SELECT * FROM app.commercial_policy WHERE active = TRUE`;
-    const [loc] = await sql<{ location_id: string }[]>`SELECT location_id FROM app.job WHERE id=${jobId}`;
-    await sql`
-      INSERT INTO app.posting_entitlement
-        (id, job_id, location_id, posting_fee_paise, credits_included, max_distinct_unlocks,
-         starts_at, ends_at, credit_expiry_at, created_at)
-      VALUES (${entId}, ${jobId}, ${loc.location_id}, ${p.posting_fee_paise}, ${p.included_unlock_credits},
-              ${p.max_distinct_unlocks_per_job}, ${at}, ${expires},
-              ${new Date(at.getTime() + p.credit_expiry_days * 86400_000)}, ${at})
-    `;
-    await sql`
-      INSERT INTO app.credit_ledger (id, entitlement_id, entry_type, credit_delta, amount_paise, note, created_at)
-      VALUES (${await nextId('CRD')}, ${entId}, 'INCLUDED_GRANT', ${p.included_unlock_credits},
-              ${p.posting_fee_paise}, 'Included with posting entitlement', ${at})
-    `;
-  }
-  // ALT-01 — publishing is what triggers alerts to eligible candidates and
-  // relevant partners. Nothing is broadcast before approval.
-  await dispatchJobAlerts(jobId);
-  touchAll();
+async function impl_actApproveJob(jobId:string){
+ const at=await now();
+ const changed=await sql.begin(async tx=>{
+ const [job]=await tx`SELECT * FROM app.job WHERE id=${jobId} FOR UPDATE`;
+ if(!job||job.status!=='PENDING_APPROVAL')throw new Error('Job is not awaiting approval.');
+ const [employer]=await tx`SELECT status FROM app.employer_organisation WHERE id=${job.employer_id}`;
+ if(employer.status!=='VERIFIED')throw new Error('Employer must be verified.');
+ const [p]=await tx`SELECT * FROM app.commercial_policy WHERE active=true`;
+ const expires=job.expires_at||new Date(at.getTime()+p.job_expiry_days*86400000);
+ if(job.pending_changes){
+ const columns:Record<string,string>={fixedPayPaise:'fixed_pay_paise',variableMaxPaise:'variable_max_paise',locationId:'location_id',shift:'shift',weeklyOff:'weekly_off',minExperienceMonths:'min_experience_mo',languages:'languages',criticalSkills:'critical_skills',openings:'openings',title:'title'};
+ for(const [key,value] of Object.entries(job.pending_changes))if(columns[key]){
+ await tx`UPDATE app.job SET ${tx.unsafe(columns[key])}=${Array.isArray(value)?tx.json(value):value as string|number} WHERE id=${jobId}`;
+ await tx`INSERT INTO app.job_change(id,job_id,field,old_value,new_value,material,actor,notified_count,created_at) VALUES(${await nextId('JC',tx)},${jobId},${columns[key]},${JSON.stringify(job[columns[key]])},${JSON.stringify(value)},true,'OPERATIONS',0,${at})`;
+ }
+ }
+ await tx`UPDATE app.job SET status='LIVE',pending_changes=NULL,published_at=COALESCE(published_at,${at}),expires_at=${expires},last_material_change_at=CASE WHEN ${!!job.pending_changes} THEN ${at} ELSE last_material_change_at END WHERE id=${jobId}`;
+ const [existing]=await tx`SELECT id FROM app.posting_entitlement WHERE job_id=${jobId}`;
+ if(!existing){
+ const entId='ENT-'+jobId.slice(4);
+ await tx`INSERT INTO app.posting_entitlement(id,job_id,location_id,posting_fee_paise,credits_included,max_distinct_unlocks,starts_at,ends_at,credit_expiry_at,created_at) VALUES(${entId},${jobId},${job.pending_changes?.locationId||job.location_id},${p.posting_fee_paise},${p.included_unlock_credits},${p.max_distinct_unlocks_per_job},${at},${expires},${new Date(at.getTime()+p.credit_expiry_days*86400000)},${at})`;
+ await tx`INSERT INTO app.credit_ledger(id,entitlement_id,entry_type,credit_delta,amount_paise,note,created_at) VALUES(${await nextId('CRD',tx)},${entId},'INCLUDED_GRANT',${p.included_unlock_credits},${p.posting_fee_paise},'Included posting credits',${at})`;
+ }
+ return !!job.pending_changes;
+ });
+ if(changed){for(const a of await sql`SELECT candidate_id FROM app.application WHERE job_id=${jobId} AND status NOT IN ('WITHDRAWN','REJECTED')`)await sendTemplate(a.candidate_id,'job_changed',{title:jobId,change:'Updated terms approved; please reconfirm interest.'});}
+ await dispatchJobAlerts(jobId);touchAll();
 }
 
-export async function actRotateQr(siteId: string) {
+async function impl_actRotateQr(siteId: string) {
   const [site] = await sql<{ partner_code: string }[]>`
     SELECT partner_code FROM app.partner_site WHERE id=${siteId}
   `;
   await sql`
-    UPDATE app.partner_site SET qr_token = ${'qr_' + site.partner_code + '_' + Math.random().toString(36).slice(2, 7).toUpperCase()}
+    UPDATE app.partner_site SET qr_token = ${'qr_' + randomToken(24)}
      WHERE id = ${siteId}
   `;
   touchAll();
 }
 
-export async function actSetPartnerStatus(partnerId: string, status: 'VERIFIED' | 'SUSPENDED', reason: string) {
+async function impl_actSetPartnerStatus(partnerId: string, status: 'VERIFIED' | 'SUSPENDED', reason: string) {
   const at = await now();
   await sql`
     UPDATE app.partner SET status=${status}, status_reason=${reason}, status_at=${at} WHERE id=${partnerId}
   `;
   if (status === 'SUSPENDED') {
-    await sql`UPDATE app.partner_site SET status='SUSPENDED' WHERE partner_id=${partnerId}`;
+    await sql`UPDATE app.partner_site SET status='SUSPENDED',suspended_by_partner=true WHERE partner_id=${partnerId} AND status='ACTIVE'`;
     // PART-10 — hold rewards with an auditable reason.
-    await sql`UPDATE app.reward_ledger SET status='DISPUTED' WHERE partner_id=${partnerId} AND status IN ('IN_HOLD','ELIGIBLE')`;
+    await sql`UPDATE app.reward_ledger SET status_before_suspension=status,status='DISPUTED' WHERE partner_id=${partnerId} AND status IN ('IN_HOLD','ELIGIBLE','APPROVED')`;
   } else {
-    await sql`UPDATE app.partner_site SET status='ACTIVE' WHERE partner_id=${partnerId}`;
+    await sql`UPDATE app.reward_ledger SET status=status_before_suspension,status_before_suspension=NULL WHERE partner_id=${partnerId} AND status='DISPUTED' AND status_before_suspension IS NOT NULL`;
+    await sql`UPDATE app.partner_site SET status='ACTIVE',suspended_by_partner=false WHERE partner_id=${partnerId} AND suspended_by_partner=true`;
   }
   await sql`
     INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, created_at)
@@ -177,7 +170,7 @@ export async function actSetPartnerStatus(partnerId: string, status: 'VERIFIED' 
   touchAll();
 }
 
-export async function actResolveAttribution(attributionId: string, decision: 'ACTIVE' | 'VOID') {
+async function impl_actResolveAttribution(attributionId: string, decision: 'ACTIVE' | 'VOID') {
   await sql`
     UPDATE app.attribution SET status=${decision}, status_reason='Resolved by operations' WHERE id=${attributionId}
   `;
@@ -189,7 +182,7 @@ export async function actResolveAttribution(attributionId: string, decision: 'AC
 }
 
 // ---- employer --------------------------------------------------------------
-export async function actUnlock(employerId: string, jobId: string, candidateId: string) {
+async function impl_actUnlock(employerId: string, jobId: string, candidateId: string) {
   const r = await unlockQualifiedProfile(employerId, jobId, candidateId, 'EU-001');
   if (r.status === 'CREATED') {
     // CAN-09 — the candidate is told their profile went to an employer.
@@ -202,7 +195,7 @@ export async function actUnlock(employerId: string, jobId: string, candidateId: 
   return r;
 }
 
-export async function actRecordOutcome(applicationId: string, outcome: string) {
+async function impl_actRecordOutcome(applicationId: string, outcome: string) {
   const at = await now();
   await sql`
     INSERT INTO app.optional_outcome_event (id, application_id, outcome, actor, source, created_at)
@@ -218,7 +211,7 @@ export async function actRecordOutcome(applicationId: string, outcome: string) {
   touchAll();
 }
 
-export async function actRaiseReplacement(unlockId: string, reason: string, evidence: string) {
+async function impl_actRaiseReplacement(unlockId: string, reason: string, evidence: string) {
   const r = await raiseReplacement(
     unlockId, reason as 'INVALID_CONTACT' | 'NEVER_APPLIED' | 'DUPLICATE_PROFILE', evidence,
   );
@@ -226,8 +219,9 @@ export async function actRaiseReplacement(unlockId: string, reason: string, evid
   return r;
 }
 
-export async function actBuyCredits(jobId: string, count: number) {
+async function impl_actBuyCredits(jobId: string, count: number) {
   const at = await now();
+  if(!Number.isSafeInteger(count)||count<1||count>100)throw new Error('Buy between 1 and 100 credits.');
   const [ent] = await sql<{ id: string }[]>`SELECT id FROM app.posting_entitlement WHERE job_id=${jobId}`;
   const [p] = await sql<{ additional_credit_paise: string }[]>`
     SELECT additional_credit_paise FROM app.commercial_policy WHERE active=TRUE
@@ -241,20 +235,20 @@ export async function actBuyCredits(jobId: string, count: number) {
 }
 
 // ---- operations: replacement decisions -------------------------------------
-export async function actDecideReplacement(caseId: string, decision: 'APPROVED' | 'REJECTED') {
+async function impl_actDecideReplacement(caseId: string, decision: 'APPROVED' | 'REJECTED') {
   await decideReplacement(caseId, decision, 'OPS-001');
   touchAll();
 }
 
 // ---- finance ---------------------------------------------------------------
-export async function actReleaseHolds() { await releaseMaturedHolds(); touchAll(); }
-export async function actBuildBatch() { const r = await buildPayoutBatch('FIN-001'); touchAll(); return r; }
-export async function actApprovePayout(payoutId: string) {
+async function impl_actReleaseHolds() { await releaseMaturedHolds(); touchAll(); }
+async function impl_actBuildBatch() { const r = await buildPayoutBatch('FIN-001'); touchAll(); return r; }
+async function impl_actApprovePayout(payoutId: string) {
   const r = await approveAndExecutePayout(payoutId, 'FIN-001'); touchAll(); return r;
 }
 
 // ---- candidate / WhatsApp simulator ----------------------------------------
-export async function actWaStart(phone: string, language: 'mr'|'hi'|'en', siteCode: string | null) {
+async function impl_actWaStart(phone: string, language: 'mr'|'hi'|'en', siteCode: string | null) {
   const reg = await startRegistration({
     phone, language, siteCode,
     method: siteCode ? (siteCode.startsWith('qr_') ? 'QR' : 'PARTNER_CODE') : 'DIRECT',
@@ -264,35 +258,28 @@ export async function actWaStart(phone: string, language: 'mr'|'hi'|'en', siteCo
   return reg;
 }
 
-export async function actWaVerify(candidateId: string, pending: { siteId: string|null; partnerId: string|null; method: 'QR'|'PARTNER_CODE'|'DIRECT'; valid: boolean } | null) {
+async function impl_actWaVerify(candidateId: string, pending: { siteId: string|null; partnerId: string|null; method: 'QR'|'PARTNER_CODE'|'DIRECT'; valid: boolean } | null) {
   await verifyAndBind(candidateId, pending);
-  await grantConsent(candidateId, 'PROCESSING');
-  await grantConsent(candidateId, 'JOB_ALERTS');
-  if (pending?.partnerId) {
-    await grantConsent(candidateId, 'PARTNER_ASSISTANCE');
-    const [p] = await sql<{ name: string }[]>`SELECT name FROM app.partner WHERE id=${pending.partnerId}`;
-    await sendTemplate(candidateId, 'source_confirm', { partner: p?.name ?? 'your local partner' });
-  }
-  await sendTemplate(candidateId, 'consent_notice');
+  // Consent is recorded only through the explicit consent form.
   touchAll();
 }
 
-export async function actWaProfile(candidateId: string, form: {
+async function impl_actWaProfile(candidateId: string, form: {
   name: string; localityKey: string; experienceMonths: number; experienceTags: string[];
-  languages: string[]; expectedPay: number; currentPay: number | null; maxCommuteMin: number;
+  languages: string[]; expectedPay: number; currentPay: number | null; maxCommuteMin: number; age18:boolean; shifts:string[]; workAuthorised:boolean;
 }) {
   await completeProfile(candidateId, {
-    name: form.name, localityKey: form.localityKey, age18: true,
+    name: form.name, localityKey: form.localityKey, age18: form.age18, workAuthorised:form.workAuthorised,
     experienceMonths: form.experienceMonths, experienceTags: form.experienceTags,
     languages: form.languages,
     currentPayPaise: form.currentPay === null ? null : form.currentPay * 100,
     expectedPayPaise: form.expectedPay * 100,
-    maxCommuteMin: form.maxCommuteMin, shiftAvailability: ['ANY'],
+    maxCommuteMin: form.maxCommuteMin, shiftAvailability: form.shifts,
   });
   touchAll();
 }
 
-export async function actWaAssessment(candidateId: string, templateId: string, answers: Record<string, string>) {
+async function impl_actWaAssessment(candidateId: string, templateId: string, answers: Record<string, string>) {
   const r = await recordAssessment(candidateId, templateId, answers);
   touchAll();
   return r;
@@ -303,14 +290,14 @@ export async function actWaAssessment(candidateId: string, templateId: string, a
  * on their own no-login page at /endorse/<token>, after verifying a channel.
  * The link is returned here only so the demo can open it in another tab.
  */
-export async function actWaEndorse(candidateId: string, endorserName: string, contact: string, relationship: string) {
+async function impl_actWaEndorse(candidateId: string, endorserName: string, contact: string, relationship: string) {
   const inv = await createEndorsementInvite(candidateId, endorserName, contact, relationship);
   touchAll();
   return { id: inv.id, token: inv.token, link: `/endorse/${inv.token}` };
 }
 
-export async function actWaApply(candidateId: string, jobId: string) {
-  const r = await applyAndEvaluate(candidateId, jobId);
+async function impl_actWaApply(candidateId: string, jobId: string) {
+  const r = await applyAndEvaluate(candidateId, jobId, false);
   const [job] = await sql<{ employer_id: string }[]>`SELECT employer_id FROM app.job WHERE id=${jobId}`;
   const [emp] = await sql<{ brand_name: string }[]>`
     SELECT brand_name FROM app.employer_organisation WHERE id=${job.employer_id}
@@ -320,13 +307,13 @@ export async function actWaApply(candidateId: string, jobId: string) {
   return { qualified: r.computation.qualified, score: r.computation.score, gaps: r.computation.gaps };
 }
 
-export async function actWaWithdraw(candidateId: string) {
+async function impl_actWaWithdraw(candidateId: string) {
   await withdrawConsent(candidateId, 'PROCESSING');
   await sendTemplate(candidateId, 'opt_out');
   touchAll();
 }
 
-export async function actRecomputeMatches(jobId: string) {
+async function impl_actRecomputeMatches(jobId: string) {
   const apps = await sql<{ id: string; candidate_id: string }[]>`
     SELECT id, candidate_id FROM app.application WHERE job_id = ${jobId}
   `;
@@ -352,7 +339,7 @@ export interface NewEmployerInput {
  * Created as PENDING_REVIEW: verification is a separate, auditable act, and
  * OPS-EMP-04 only lets verified direct employers post jobs.
  */
-export async function actCreateEmployer(input: NewEmployerInput) {
+async function impl_actCreateEmployer(input: NewEmployerInput) {
   const at = await now();
   return sql.begin(async (tx) => {
     const empId = await nextId('EMP', tx);
@@ -398,7 +385,7 @@ export interface NewPartnerInput {
 }
 
 /** PART-01/04/05 — create a partner with its first verified site, QR and code. */
-export async function actCreatePartner(input: NewPartnerInput) {
+async function impl_actCreatePartner(input: NewPartnerInput) {
   const at = await now();
   const parId = await nextId('PAR');
   const siteId = await nextId('SITE');
@@ -460,7 +447,7 @@ export interface NewJobInput {
  * during the pilot. Approving it (Operations console) is what publishes it and
  * creates the posting entitlement with its included credits.
  */
-export async function actCreateJob(input: NewJobInput) {
+async function impl_actCreateJob(input: NewJobInput) {
   const at = await now();
 
   const [emp] = await sql<{ status: string }[]>`
@@ -480,6 +467,17 @@ export async function actCreateJob(input: NewJobInput) {
   if (input.fixedPayRupees <= 0) return { error: 'FIXED_PAY_REQUIRED' };
   if (input.openings <= 0) return { error: 'OPENINGS_REQUIRED' };
 
+  const [location]=await sql`SELECT id FROM app.employer_location WHERE id=${input.locationId} AND employer_id=${input.employerId}`;
+  if(!location)return {error:'LOCATION_OUTSIDE_ORGANISATION'};
+  if(!input.title.trim()||!input.shift.trim()||!input.languages.length||input.languages.some(l=>!['en','hi','mr'].includes(l)))return {error:'COMPLETE_REQUIRED_JOB_DETAILS'};
+  if(![input.openings,input.minExperienceMonths].every(n=>Number.isSafeInteger(n)&&n>=0)||![input.fixedPayRupees,input.variableMaxRupees].every(n=>Number.isFinite(n)&&n>=0))return {error:'INVALID_NUMBER'};
+  const [configuration]=await sql`SELECT job_attributes FROM app.role_configuration WHERE id=${input.roleConfigId}`;
+  for(const field of configuration.job_attributes){
+   const val=input.attributes[field.key];
+   if(field.required&&(val===undefined||val===null||val===''))return {error:'REQUIRED_FIELD_'+field.key};
+   const [def]=await sql`SELECT data_type,allowed_values FROM app.attribute_definition WHERE key=${field.key}`;
+   if(val!==undefined && def && ((def.data_type==='ENUM'&&!def.allowed_values.includes(val))||(def.data_type==='INT'&&!Number.isSafeInteger(Number(val)))||(def.data_type==='BOOL'&&!['true','false',true,false].includes(val as any))))return {error:'INVALID_FIELD_'+field.key};
+  }
   const jobId = await nextId('JOB');
   await sql`
     INSERT INTO app.job
@@ -503,7 +501,7 @@ export async function actCreateJob(input: NewJobInput) {
 }
 
 /** Add a further location to an existing employer, so jobs can be posted for it. */
-export async function actCreateLocation(
+async function impl_actCreateLocation(
   employerId: string, name: string, localityKey: string, hours: string,
 ) {
   const at = await now();
@@ -525,45 +523,45 @@ export async function actCreateLocation(
 // ---------------------------------------------------------------------------
 // Alerts and nudges (§8.6)
 // ---------------------------------------------------------------------------
-export async function actDispatchAlerts(jobId: string) {
+async function impl_actDispatchAlerts(jobId: string) {
   const r = await dispatchJobAlerts(jobId); touchAll(); return r;
 }
-export async function actRespondToAlert(alertId: string, response: string) {
+async function impl_actRespondToAlert(alertId: string, response: string) {
   await respondToAlert(alertId, response as 'VIEW' | 'APPLY' | 'NOT_INTERESTED' | 'STOP_ALERTS' | 'CHANGE_PREFERENCES');
   touchAll();
 }
-export async function actSendNudge(partnerId: string, candidateId: string, jobId: string) {
+async function impl_actSendNudge(partnerId: string, candidateId: string, jobId: string) {
   const r = await sendNudge(partnerId, candidateId, jobId); touchAll(); return r;
 }
 
 // ---------------------------------------------------------------------------
 // Interviews (§8.9)
 // ---------------------------------------------------------------------------
-export async function actProposeInterview(
+async function impl_actProposeInterview(
   applicationId: string, whenIso: string, format: string, locationNote: string, safetyNote: string,
 ) {
   const r = await proposeInterview(applicationId, new Date(whenIso), format, locationNote, safetyNote);
   touchAll(); return r;
 }
-export async function actRespondInterview(interviewId: string, confirmed: boolean) {
+async function impl_actRespondInterview(interviewId: string, confirmed: boolean) {
   const r = await respondToInterview(interviewId, confirmed); touchAll(); return r;
 }
-export async function actRescheduleInterview(interviewId: string, whenIso: string) {
+async function impl_actRescheduleInterview(interviewId: string, whenIso: string) {
   const r = await rescheduleInterview(interviewId, new Date(whenIso)); touchAll(); return r;
 }
-export async function actInterviewOutcome(interviewId: string, outcome: string, note?: string) {
+async function impl_actInterviewOutcome(interviewId: string, outcome: string, note?: string) {
   const r = await recordInterviewOutcome(
     interviewId, outcome as 'ATTENDED' | 'NO_SHOW_CANDIDATE' | 'NO_SHOW_EMPLOYER' | 'CANCELLED', note);
   touchAll(); return r;
 }
-export async function actSendInterviewReminders() {
+async function impl_actSendInterviewReminders() {
   const n = await sendDueInterviewReminders(); touchAll(); return { sent: n };
 }
 
 // ---------------------------------------------------------------------------
 // Selection and onboarding (§8.10)
 // ---------------------------------------------------------------------------
-export async function actMakeOffer(input: {
+async function impl_actMakeOffer(input: {
   applicationId: string; roleTitle: string; locationId: string;
   fixedRupees: number; variableRupees: number; joiningDate: string; offerValidHours: number;
 }) {
@@ -575,68 +573,126 @@ export async function actMakeOffer(input: {
   });
   touchAll(); return r;
 }
-export async function actRespondOffer(caseId: string, accepted: boolean) {
+async function impl_actRespondOffer(caseId: string, accepted: boolean) {
   const r = await respondToOffer(caseId, accepted); touchAll(); return r;
 }
-export async function actUploadDocument(documentId: string) {
+async function impl_actUploadDocument(documentId: string) {
   const r = await uploadDocument(documentId); touchAll(); return r;
 }
-export async function actReviewDocument(documentId: string, decision: 'APPROVED' | 'REJECTED', reason?: string) {
+async function impl_actReviewDocument(documentId: string, decision: 'APPROVED' | 'REJECTED', reason?: string) {
   const r = await reviewDocument(documentId, decision, reason); touchAll(); return r;
 }
-export async function actMarkJoined(caseId: string) {
+async function impl_actMarkJoined(caseId: string) {
   const r = await markJoined(caseId); touchAll(); return r;
 }
 
 // ---------------------------------------------------------------------------
 // Job lifecycle (JOB-01/04/05)
 // ---------------------------------------------------------------------------
-export async function actEditJob(jobId: string, edit: JobEdit) {
+async function impl_actEditJob(jobId: string, edit: JobEdit) {
   const r = await editJob(jobId, edit, 'EU-001'); touchAll(); return r;
 }
-export async function actSetJobState(jobId: string, state: string, reason: string) {
+async function impl_actSetJobState(jobId: string, state: string, reason: string) {
   const r = await setJobState(
     jobId, state as 'LIVE' | 'PAUSED' | 'FILLED' | 'CLOSED' | 'ARCHIVED', reason, 'EU-001');
   touchAll(); return r;
 }
-export async function actDuplicateJob(jobId: string) {
+async function impl_actDuplicateJob(jobId: string) {
   const r = await duplicateJob(jobId, 'EU-001'); touchAll(); return r;
 }
 
 // ---------------------------------------------------------------------------
 // Endorsements (END-02/03/09) and candidate self-service (CAN-02/04/06)
 // ---------------------------------------------------------------------------
-export async function actCreateEndorsementInvite(
+async function impl_actCreateEndorsementInvite(
   candidateId: string, name: string, contact: string, relationship: string,
 ) {
   const r = await createEndorsementInvite(candidateId, name, contact, relationship);
   touchAll(); return r;
 }
-export async function actSubmitEndorsement(token: string, input: {
+async function impl_actSubmitEndorsement(token: string, input: {
   relationship: string; periodKnown: string; competencies: string[];
   comment: string; displayConsent: boolean; otp: string;
 }) {
   const r = await submitEndorsement(token, input); touchAll(); return r;
 }
-export async function actWithdrawEndorsement(withdrawToken: string) {
+async function impl_actWithdrawEndorsement(withdrawToken: string) {
   const r = await withdrawEndorsement(withdrawToken); touchAll(); return r;
 }
-export async function actHideEndorsement(endorsementId: string, hidden: boolean) {
+async function impl_actHideEndorsement(endorsementId: string, hidden: boolean) {
   const r = await setEndorsementHidden(endorsementId, hidden); touchAll(); return r;
 }
-export async function actUpdatePreferences(candidateId: string, prefs: {
+async function impl_actUpdatePreferences(candidateId: string, prefs: {
   language?: 'mr' | 'hi' | 'en'; maxCommuteMin?: number; expectedPayPaise?: number;
   alertQuietFrom?: number; alertQuietTo?: number; alertMaxPerWeek?: number;
 }) {
   const r = await updatePreferences(candidateId, prefs); touchAll(); return r;
 }
-export async function actRaiseDataRequest(candidateId: string, kind: string, detail: string) {
+async function impl_actRaiseDataRequest(candidateId: string, kind: string, detail: string) {
   const r = await raiseDataRequest(candidateId, kind as 'ACCESS' | 'CORRECTION' | 'ERASURE', detail);
   touchAll(); return r;
 }
-export async function actResolveDataRequest(id: string, status: 'ACTIONED' | 'REFUSED') {
-  const r = await resolveDataRequest(id, status); touchAll(); return r;
+async function impl_actResolveDataRequest(id: string, status: 'ACTIONED' | 'REFUSED', correction?:{field:string;value:string;reason:string}) {
+  const r = await resolveDataRequest(id, status, correction); touchAll(); return r;
 }
-export async function actAcceptConduct(partnerId: string) {
+async function impl_actAcceptConduct(partnerId: string) {
   const r = await acceptConduct(partnerId); touchAll(); return r;
 }
+
+export async function actAdvanceClock(...args:Parameters<typeof impl_actAdvanceClock>){await authorizeAction('actAdvanceClock',args);const result=await impl_actAdvanceClock(...args);await auditAction('actAdvanceClock',args);return result;}
+export async function actResetClock(...args:Parameters<typeof impl_actResetClock>){await authorizeAction('actResetClock',args);const result=await impl_actResetClock(...args);await auditAction('actResetClock',args);return result;}
+export async function expireStaleJobs(...args:Parameters<typeof impl_expireStaleJobs>){await authorizeAction('expireStaleJobs',args);const result=await impl_expireStaleJobs(...args);await auditAction('expireStaleJobs',args);return result;}
+export async function actPublishConfig(...args:Parameters<typeof impl_actPublishConfig>){await authorizeAction('actPublishConfig',args);const result=await impl_actPublishConfig(...args);await auditAction('actPublishConfig',args);return result;}
+export async function actValidateConfig(...args:Parameters<typeof impl_actValidateConfig>){await authorizeAction('actValidateConfig',args);const result=await impl_actValidateConfig(...args);await auditAction('actValidateConfig',args);return result;}
+export async function actUpdateSandboxWeights(...args:Parameters<typeof impl_actUpdateSandboxWeights>){await authorizeAction('actUpdateSandboxWeights',args);const result=await impl_actUpdateSandboxWeights(...args);await auditAction('actUpdateSandboxWeights',args);return result;}
+export async function actUpdateSandboxThreshold(...args:Parameters<typeof impl_actUpdateSandboxThreshold>){await authorizeAction('actUpdateSandboxThreshold',args);const result=await impl_actUpdateSandboxThreshold(...args);await auditAction('actUpdateSandboxThreshold',args);return result;}
+export async function actApproveEmployer(...args:Parameters<typeof impl_actApproveEmployer>){await authorizeAction('actApproveEmployer',args);const result=await impl_actApproveEmployer(...args);await auditAction('actApproveEmployer',args);return result;}
+export async function actSuspendEmployer(...args:Parameters<typeof impl_actSuspendEmployer>){await authorizeAction('actSuspendEmployer',args);const result=await impl_actSuspendEmployer(...args);await auditAction('actSuspendEmployer',args);return result;}
+export async function actApproveJob(...args:Parameters<typeof impl_actApproveJob>){await authorizeAction('actApproveJob',args);const result=await impl_actApproveJob(...args);await auditAction('actApproveJob',args);return result;}
+export async function actRotateQr(...args:Parameters<typeof impl_actRotateQr>){await authorizeAction('actRotateQr',args);const result=await impl_actRotateQr(...args);await auditAction('actRotateQr',args);return result;}
+export async function actSetPartnerStatus(...args:Parameters<typeof impl_actSetPartnerStatus>){await authorizeAction('actSetPartnerStatus',args);const result=await impl_actSetPartnerStatus(...args);await auditAction('actSetPartnerStatus',args);return result;}
+export async function actResolveAttribution(...args:Parameters<typeof impl_actResolveAttribution>){await authorizeAction('actResolveAttribution',args);const result=await impl_actResolveAttribution(...args);await auditAction('actResolveAttribution',args);return result;}
+export async function actUnlock(...args:Parameters<typeof impl_actUnlock>){await authorizeAction('actUnlock',args);const result=await impl_actUnlock(...args);await auditAction('actUnlock',args);return result;}
+export async function actRecordOutcome(...args:Parameters<typeof impl_actRecordOutcome>){await authorizeAction('actRecordOutcome',args);const result=await impl_actRecordOutcome(...args);await auditAction('actRecordOutcome',args);return result;}
+export async function actRaiseReplacement(...args:Parameters<typeof impl_actRaiseReplacement>){await authorizeAction('actRaiseReplacement',args);const result=await impl_actRaiseReplacement(...args);await auditAction('actRaiseReplacement',args);return result;}
+export async function actBuyCredits(...args:Parameters<typeof impl_actBuyCredits>){await authorizeAction('actBuyCredits',args);const result=await impl_actBuyCredits(...args);await auditAction('actBuyCredits',args);return result;}
+export async function actDecideReplacement(...args:Parameters<typeof impl_actDecideReplacement>){await authorizeAction('actDecideReplacement',args);const result=await impl_actDecideReplacement(...args);await auditAction('actDecideReplacement',args);return result;}
+export async function actReleaseHolds(...args:Parameters<typeof impl_actReleaseHolds>){await authorizeAction('actReleaseHolds',args);const result=await impl_actReleaseHolds(...args);await auditAction('actReleaseHolds',args);return result;}
+export async function actBuildBatch(...args:Parameters<typeof impl_actBuildBatch>){await authorizeAction('actBuildBatch',args);const result=await impl_actBuildBatch(...args);await auditAction('actBuildBatch',args);return result;}
+export async function actApprovePayout(...args:Parameters<typeof impl_actApprovePayout>){await authorizeAction('actApprovePayout',args);const result=await impl_actApprovePayout(...args);await auditAction('actApprovePayout',args);return result;}
+export async function actWaStart(...args:Parameters<typeof impl_actWaStart>){await authorizeAction('actWaStart',args);const result=await impl_actWaStart(...args);await auditAction('actWaStart',args);return result;}
+export async function actWaVerify(...args:Parameters<typeof impl_actWaVerify>){await authorizeAction('actWaVerify',args);const result=await impl_actWaVerify(...args);await auditAction('actWaVerify',args);return result;}
+export async function actWaProfile(...args:Parameters<typeof impl_actWaProfile>){await authorizeAction('actWaProfile',args);const result=await impl_actWaProfile(...args);await auditAction('actWaProfile',args);return result;}
+export async function actWaAssessment(...args:Parameters<typeof impl_actWaAssessment>){await authorizeAction('actWaAssessment',args);const result=await impl_actWaAssessment(...args);await auditAction('actWaAssessment',args);return result;}
+export async function actWaEndorse(...args:Parameters<typeof impl_actWaEndorse>){await authorizeAction('actWaEndorse',args);const result=await impl_actWaEndorse(...args);await auditAction('actWaEndorse',args);return result;}
+export async function actWaApply(...args:Parameters<typeof impl_actWaApply>){await authorizeAction('actWaApply',args);const result=await impl_actWaApply(...args);await auditAction('actWaApply',args);return result;}
+export async function actWaWithdraw(...args:Parameters<typeof impl_actWaWithdraw>){await authorizeAction('actWaWithdraw',args);const result=await impl_actWaWithdraw(...args);await auditAction('actWaWithdraw',args);return result;}
+export async function actRecomputeMatches(...args:Parameters<typeof impl_actRecomputeMatches>){await authorizeAction('actRecomputeMatches',args);const result=await impl_actRecomputeMatches(...args);await auditAction('actRecomputeMatches',args);return result;}
+export async function actCreateEmployer(...args:Parameters<typeof impl_actCreateEmployer>){await authorizeAction('actCreateEmployer',args);const result=await impl_actCreateEmployer(...args);await auditAction('actCreateEmployer',args);return result;}
+export async function actCreatePartner(...args:Parameters<typeof impl_actCreatePartner>){await authorizeAction('actCreatePartner',args);const result=await impl_actCreatePartner(...args);await auditAction('actCreatePartner',args);return result;}
+export async function actCreateJob(...args:Parameters<typeof impl_actCreateJob>){await authorizeAction('actCreateJob',args);const result=await impl_actCreateJob(...args);await auditAction('actCreateJob',args);return result;}
+export async function actCreateLocation(...args:Parameters<typeof impl_actCreateLocation>){await authorizeAction('actCreateLocation',args);const result=await impl_actCreateLocation(...args);await auditAction('actCreateLocation',args);return result;}
+export async function actDispatchAlerts(...args:Parameters<typeof impl_actDispatchAlerts>){await authorizeAction('actDispatchAlerts',args);const result=await impl_actDispatchAlerts(...args);await auditAction('actDispatchAlerts',args);return result;}
+export async function actRespondToAlert(...args:Parameters<typeof impl_actRespondToAlert>){await authorizeAction('actRespondToAlert',args);const result=await impl_actRespondToAlert(...args);await auditAction('actRespondToAlert',args);return result;}
+export async function actSendNudge(...args:Parameters<typeof impl_actSendNudge>){await authorizeAction('actSendNudge',args);const result=await impl_actSendNudge(...args);await auditAction('actSendNudge',args);return result;}
+export async function actProposeInterview(...args:Parameters<typeof impl_actProposeInterview>){await authorizeAction('actProposeInterview',args);const result=await impl_actProposeInterview(...args);await auditAction('actProposeInterview',args);return result;}
+export async function actRespondInterview(...args:Parameters<typeof impl_actRespondInterview>){await authorizeAction('actRespondInterview',args);const result=await impl_actRespondInterview(...args);await auditAction('actRespondInterview',args);return result;}
+export async function actRescheduleInterview(...args:Parameters<typeof impl_actRescheduleInterview>){await authorizeAction('actRescheduleInterview',args);const result=await impl_actRescheduleInterview(...args);await auditAction('actRescheduleInterview',args);return result;}
+export async function actInterviewOutcome(...args:Parameters<typeof impl_actInterviewOutcome>){await authorizeAction('actInterviewOutcome',args);const result=await impl_actInterviewOutcome(...args);await auditAction('actInterviewOutcome',args);return result;}
+export async function actSendInterviewReminders(...args:Parameters<typeof impl_actSendInterviewReminders>){await authorizeAction('actSendInterviewReminders',args);const result=await impl_actSendInterviewReminders(...args);await auditAction('actSendInterviewReminders',args);return result;}
+export async function actMakeOffer(...args:Parameters<typeof impl_actMakeOffer>){await authorizeAction('actMakeOffer',args);const result=await impl_actMakeOffer(...args);await auditAction('actMakeOffer',args);return result;}
+export async function actRespondOffer(...args:Parameters<typeof impl_actRespondOffer>){await authorizeAction('actRespondOffer',args);const result=await impl_actRespondOffer(...args);await auditAction('actRespondOffer',args);return result;}
+export async function actUploadDocument(...args:Parameters<typeof impl_actUploadDocument>){await authorizeAction('actUploadDocument',args);const result=await impl_actUploadDocument(...args);await auditAction('actUploadDocument',args);return result;}
+export async function actReviewDocument(...args:Parameters<typeof impl_actReviewDocument>){await authorizeAction('actReviewDocument',args);const result=await impl_actReviewDocument(...args);await auditAction('actReviewDocument',args);return result;}
+export async function actMarkJoined(...args:Parameters<typeof impl_actMarkJoined>){await authorizeAction('actMarkJoined',args);const result=await impl_actMarkJoined(...args);await auditAction('actMarkJoined',args);return result;}
+export async function actEditJob(...args:Parameters<typeof impl_actEditJob>){await authorizeAction('actEditJob',args);const result=await impl_actEditJob(...args);await auditAction('actEditJob',args);return result;}
+export async function actSetJobState(...args:Parameters<typeof impl_actSetJobState>){await authorizeAction('actSetJobState',args);const result=await impl_actSetJobState(...args);await auditAction('actSetJobState',args);return result;}
+export async function actDuplicateJob(...args:Parameters<typeof impl_actDuplicateJob>){await authorizeAction('actDuplicateJob',args);const result=await impl_actDuplicateJob(...args);await auditAction('actDuplicateJob',args);return result;}
+export async function actCreateEndorsementInvite(...args:Parameters<typeof impl_actCreateEndorsementInvite>){await authorizeAction('actCreateEndorsementInvite',args);const result=await impl_actCreateEndorsementInvite(...args);await auditAction('actCreateEndorsementInvite',args);return result;}
+export async function actSubmitEndorsement(...args:Parameters<typeof impl_actSubmitEndorsement>){const result=await impl_actSubmitEndorsement(...args);await auditAction('actSubmitEndorsement',args);return result;}
+export async function actWithdrawEndorsement(...args:Parameters<typeof impl_actWithdrawEndorsement>){const result=await impl_actWithdrawEndorsement(...args);await auditAction('actWithdrawEndorsement',args);return result;}
+export async function actHideEndorsement(...args:Parameters<typeof impl_actHideEndorsement>){await authorizeAction('actHideEndorsement',args);const result=await impl_actHideEndorsement(...args);await auditAction('actHideEndorsement',args);return result;}
+export async function actUpdatePreferences(...args:Parameters<typeof impl_actUpdatePreferences>){await authorizeAction('actUpdatePreferences',args);const result=await impl_actUpdatePreferences(...args);await auditAction('actUpdatePreferences',args);return result;}
+export async function actRaiseDataRequest(...args:Parameters<typeof impl_actRaiseDataRequest>){await authorizeAction('actRaiseDataRequest',args);const result=await impl_actRaiseDataRequest(...args);await auditAction('actRaiseDataRequest',args);return result;}
+export async function actResolveDataRequest(...args:Parameters<typeof impl_actResolveDataRequest>){await authorizeAction('actResolveDataRequest',args);const result=await impl_actResolveDataRequest(...args);await auditAction('actResolveDataRequest',args);return result;}
+export async function actAcceptConduct(...args:Parameters<typeof impl_actAcceptConduct>){await authorizeAction('actAcceptConduct',args);const result=await impl_actAcceptConduct(...args);await auditAction('actAcceptConduct',args);return result;}

@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { partnerRewardSummary } from '@/modules/commercial';
@@ -10,8 +11,9 @@ export const dynamic = 'force-dynamic';
 export default async function PartnerRewardsPage({
   searchParams,
 }: { searchParams: Promise<{ p?: string }> }) {
+  const viewer=await scopePage('partner');
   const { p } = await searchParams;
-  const partnerId = p ?? 'PAR-001';
+  const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
   const policy = await activeCommercialPolicy();
   const [s] = await partnerRewardSummary(partnerId);
 
@@ -35,7 +37,7 @@ export default async function PartnerRewardsPage({
       <SubNav tabs={PARTNER_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Rewards</h1>
+          <h1>Rewards</h1><a className="btn" href="/finance/statement">Download statement</a>
           <div className="sub">
             Earned on a valid attributed unlock — never on a scan, a registration or an application
             {' '}<Clause>REF-03 / REF-05 / REF-08</Clause>

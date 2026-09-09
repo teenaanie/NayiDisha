@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { Clause, StatusPill } from '../../ui';
@@ -9,11 +10,12 @@ export const dynamic = 'force-dynamic';
 export default async function RightsPage({
   searchParams,
 }: { searchParams: Promise<{ c?: string }> }) {
+  const viewer=await scopePage('wa');
   const { c } = await searchParams;
-  const candidateId = c ?? 'CAN-001';
+  const candidateId = viewer.role==='ADMIN' ? (c ?? 'CAN-001') : viewer.id;
 
   const all = await sql<{ id: string; name: string | null }[]>`
-    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' ORDER BY id`;
+    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`;
 
   const consents = await sql<{
     purpose: string; notice_version: string; channel: string;
@@ -122,7 +124,7 @@ export default async function RightsPage({
                     <td className="small">{r.detail}</td>
                     <td className="small muted">{fmtDateTime(r.created_at)}</td>
                     <td className="small muted">{fmtDateTime(r.due_at)}</td>
-                    <td><StatusPill status={r.status} /></td>
+                    <td><StatusPill status={r.status} />{r.status==='ACTIONED'&&r.kind==='ACCESS'&&<a href={'/wa/export/'+r.id}>Download my data</a>}</td>
                   </tr>
                 ))}</tbody>
               </table>

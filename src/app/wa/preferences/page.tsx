@@ -1,3 +1,5 @@
+import {Extras} from '../extras';
+import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { Clause } from '../../ui';
 import { SubNav, CANDIDATE_TABS } from '../../subnav';
@@ -9,11 +11,12 @@ export const dynamic = 'force-dynamic';
 export default async function PreferencesPage({
   searchParams,
 }: { searchParams: Promise<{ c?: string }> }) {
+  const viewer=await scopePage('wa');
   const { c } = await searchParams;
-  const candidateId = c ?? 'CAN-001';
+  const candidateId = viewer.role==='ADMIN' ? (c ?? 'CAN-001') : viewer.id;
 
   const all = await sql<{ id: string; name: string | null }[]>`
-    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' ORDER BY id`;
+    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`;
 
   const [cand] = await sql<{
     id: string; name: string | null; language: 'mr' | 'hi' | 'en'; locality_key: string | null;
@@ -30,10 +33,11 @@ export default async function PreferencesPage({
 
   const resume = await resumePoint(candidateId);
 
+  const achievements=await sql`SELECT category,description,verified FROM app.achievement WHERE candidate_id=${candidateId} ORDER BY created_at DESC`;
   return (
     <>
       <SubNav tabs={CANDIDATE_TABS} />
-      <main className="page">
+      <main className="page"><section className="card card-body"><h2>My achievements</h2>{achievements.map((a,i)=><p key={i}>{a.description} · {a.verified?'Verified':'Candidate provided'}</p>)}</section>
         <div className="page-head">
           <div className="flexb">
             <div>
@@ -53,7 +57,7 @@ export default async function PreferencesPage({
           <Clause>CAN-02</Clause>
         </div>
 
-        <PreferencesForm
+        {viewer.role==='CANDIDATE'&&<Extras/>}<PreferencesForm
           candidateId={candidateId}
           initial={{
             language: cand.language,

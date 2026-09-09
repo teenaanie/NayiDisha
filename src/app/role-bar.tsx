@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 
 /** Role switcher required by §21.2 — one browser, every persona. */
 const ROLES = [
+  { href: '/demo', label: 'Demo identities' },
   { href: '/', label: 'Overview' },
   { href: '/ops', label: 'Operations' },
   { href: '/employer', label: 'Employer' },

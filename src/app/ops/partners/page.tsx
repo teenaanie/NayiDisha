@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
@@ -8,6 +9,7 @@ import { OpsActions } from '../ops-client';
 export const dynamic = 'force-dynamic';
 
 export default async function PartnersPage() {
+  const viewer=await scopePage('ops');
   const partners = await sql<{
     id: string; name: string; partner_type: string; status: string; pan: string | null;
     payout_upi: string | null; capabilities: string[]; service_localities: string[];
@@ -31,7 +33,7 @@ export default async function PartnersPage() {
                 Verification, conduct rules, QR rotation and reward holds <Clause>§8.2 PART-01..10</Clause>
               </div>
             </div>
-            <Link className="btn btn-primary" href="/ops/new-partner">+ Add partner</Link>
+            <Link className="btn btn-primary" href="/ops/new-partner">+ Add partner</Link><Link className="btn" href="/ops/manage#partners">Edit partners / add sites</Link>
           </div>
         </div>
 

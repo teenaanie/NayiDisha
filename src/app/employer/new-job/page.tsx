@@ -1,3 +1,4 @@
+import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { Clause } from '../../ui';
@@ -6,7 +7,8 @@ import { NewJobForm } from './form';
 export const dynamic = 'force-dynamic';
 
 export default async function NewJobPage() {
-  const employerId = 'EMP-001';
+  const viewer=await scopePage('employer');
+  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
 
   const locations = await sql<{ id: string; name: string; locality_key: string }[]>`
     SELECT id, name, locality_key FROM app.employer_location
