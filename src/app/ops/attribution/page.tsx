@@ -29,7 +29,7 @@ export default async function AttributionPage() {
       <SubNav tabs={OPS_TABS} />
       <main className="page">
         <div className="page-head">
-          <h1>Attribution</h1><p className="note">Attribution records who sourced a candidate. Method is QR, typed partner code or direct entry. It is created at verification; later scans never overwrite a valid source. Allow approves the reviewed source; Void removes reward eligibility.</p>
+          <h1>Candidate referrals</h1><p className="note">This screen shows which partner referred each candidate. Referral method is QR, typed partner code or direct entry. It is created at verification; later scans never overwrite a valid source. Allow approves the reviewed source; Void removes reward eligibility.</p>
           <div className="sub">
             One acquisition partner per candidate, bound at first verified registration and never
             overwritten by a later scan <Clause>§8.11 REF-01 / REF-02</Clause>
@@ -38,7 +38,7 @@ export default async function AttributionPage() {
         <div className="card"><div className="card-body tight"><div className="tblwrap">
           <table>
             <thead><tr>
-              <th>Candidate</th><th>Partner</th><th>Method</th><th>Bound</th><th>Window ends</th>
+              <th>Candidate</th><th>Partner</th><th>Referral method</th><th>Registered</th><th>Reward window ends</th>
               <th className="num">Unlocks</th><th>Status</th><th className="right">Action</th>
             </tr></thead>
             <tbody>

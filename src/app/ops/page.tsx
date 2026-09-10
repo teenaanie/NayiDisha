@@ -43,7 +43,7 @@ export default async function OpsDashboard() {
     { n: c.emp_pending, k: 'Employers awaiting verification', href: '/ops/employers', d: `${c.emp_total} total` },
     { n: c.par_pending, k: 'Partners awaiting verification', href: '/ops/partners', d: `${c.par_total} total` },
     { n: c.job_pending, k: 'Jobs awaiting approval', href: '/ops/jobs', d: `${c.job_live} live` },
-    { n: c.attr_review, k: 'Attribution disputes', href: '/ops/attribution', d: 'first valid source wins' },
+    { n: c.attr_review, k: 'Referral disputes', href: '/ops/attribution', d: 'first valid source wins' },
     { n: c.repl_pending, k: 'Replacement claims', href: '/ops/replacements', d: '72-hour window' },
     { n: c.fraud_open, k: 'Open fraud cases', href: '/ops/fraud', d: 'self-endorsement, suspended sites' },
     { n: c.dr_open, k: 'Data requests open', href: '/ops/data-requests', d: `${c.dr_due_soon} due within 30 days` },

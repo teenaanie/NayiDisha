@@ -60,7 +60,7 @@ export default async function PartnerCandidatesPage({
                 <thead><tr>
                   <th>Candidate</th><th>Locality</th><th>Assist</th><th className="num">Apps</th>
                   <th className="num">Qualified</th><th className="num">Unlocked</th>
-                  <th>Attribution</th><th className="right">Nudge</th>
+                  <th>Referral status</th><th className="right">Nudge</th>
                 </tr></thead>
                 <tbody>
                   {rows.map((r) => (

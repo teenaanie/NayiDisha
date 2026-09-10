@@ -41,7 +41,7 @@ export const OPS_TABS: SubTab[] = [
   { href: '/ops/employers', label: 'Employers', hint: '§8.1' },
   { href: '/ops/partners', label: 'Partners', hint: '§8.2' },
   { href: '/ops/jobs', label: 'Job moderation', hint: 'JOB-02' },
-  { href: '/ops/attribution', label: 'Attribution', hint: '§8.11' },
+  { href: '/ops/attribution', label: 'Candidate referrals', hint: '§8.11' },
   { href: '/ops/replacements', label: 'Replacements', hint: 'LEAD-08' },
   { href: '/ops/fraud', label: 'Fraud', hint: 'REF-07' },
   { href: '/ops/data-requests', label: 'Data requests', hint: 'CAN-06' },
