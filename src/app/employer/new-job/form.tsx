@@ -26,7 +26,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
   const cfg = configs.find((c) => c.id === configId);
 
   const [f, setF] = useState({
-    title: 'Relationship Executive',
+    description:'',preferredSkills:'',workMode:'ONSITE',qualification:'',closingDate:'',draft:false,title: 'Relationship Executive',
     locationId: locations[0]?.id ?? '',
     openings: 4,
     fixedPay: 19000,
@@ -186,6 +186,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
           </>
         )}
 
+        <h3>Job details</h3>{[['description','Description'],['preferredSkills','Preferred skills'],['qualification','Qualification']].map(([key,label])=><label className="field" key={key}>{label}<textarea value={String(f[key as keyof typeof f])} onChange={e=>setF({...f,[key]:e.target.value})}/></label>)}<label>Work mode<select value={f.workMode} onChange={e=>setF({...f,workMode:e.target.value})}><option>ONSITE</option><option>HYBRID</option><option>REMOTE</option></select></label><label>Closing date<input type="date" value={f.closingDate} onChange={e=>setF({...f,closingDate:e.target.value})}/></label><label><input type="checkbox" checked={f.draft} onChange={e=>setF({...f,draft:e.target.checked})}/> Save as draft without submitting</label>
         <div className="note warn small mt">
           Submitted as <strong>pending approval</strong> — JOB-02 requires operations to approve
           during the pilot. Approving it is what publishes the job, starts its 30-day clock and
@@ -195,7 +196,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
         <div className="btnrow mt">
           <button className="btn btn-primary" disabled={pending || !valid} onClick={() => start(async () => {try{
             const r = await actCreateJob({
-              employerId, locationId: f.locationId, roleConfigId: configId,
+              description:f.description,preferredSkills:f.preferredSkills,workMode:f.workMode,qualification:f.qualification,closingDate:f.closingDate,draft:f.draft,employerId, locationId: f.locationId, roleConfigId: configId,
               title: f.title, openings: f.openings,
               fixedPayRupees: f.fixedPay, variableMaxRupees: f.variableMax,
               shift: f.shift, weeklyOff: f.weeklyOff, languages: langs,
@@ -204,7 +205,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
             if ('error' in r) { setMsg(<span style={{ color: 'var(--bad)' }}>Rejected: {r.error}</span>); return; }
             setMsg(<>Submitted <strong>{r.jobId}</strong>. Approve it on the Operations console to publish it and issue its credits.</>);
             router.push('/employer/jobs');
-          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>Submit for approval</button>
+          }catch(error){setMsg(error instanceof Error?error.message:'Could not save. Please try again.');}})}>{f.draft?'Save draft':'Submit for approval'}</button>
           <button className="btn" onClick={() => router.push('/employer')}>Cancel</button>
         </div>
         {msg && <div className="note mt small">{msg}</div>}

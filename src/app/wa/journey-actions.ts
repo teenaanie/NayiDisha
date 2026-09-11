@@ -1,4 +1,6 @@
  'use server';
+import {after} from 'next/server';
+import {safelyRefreshCandidate} from '@/modules/discovery';
 import {sql} from '@/lib/db';
 import {identity,setIdentity,requireRole,auditAction} from '@/lib/auth';
 import {startRegistration,verifyAndBind,grantConsent,withdrawConsent,completeProfile,apply,reconfirmInterest,recordAssessment,sendTemplate} from '@/modules/candidate';
@@ -18,7 +20,7 @@ export async function start(phone:string,language:'en'|'hi'|'mr',code:string){
 }
 export async function verify(code:string){
  const actor=await requireRole(['REGISTRATION']);
- if(code!=='123456')throw new Error('The demo verification code is 123456.');
+ if(code!=='123456'){await sql`INSERT INTO app.workflow_issue(id,candidate_id,kind,detail) VALUES(${await nextId('ISS')},${actor.id},'OTP_FAILED','Incorrect simulated verification code')`;throw new Error('The demo verification code is 123456.');}
  const [c]=await sql`SELECT pending_source FROM app.candidate WHERE id=${actor.id}`;
  await verifyAndBind(actor.id,c.pending_source?.siteId?c.pending_source:null);
  await setIdentity(actor.id,'CANDIDATE');
@@ -29,7 +31,7 @@ export async function saveConsent(processing:boolean,alerts:boolean,assistance:b
  for(const [purpose,selected] of [['PROCESSING',processing],['JOB_ALERTS',alerts],['PARTNER_ASSISTANCE',assistance]] as const){if(selected)await grantConsent(c.id,purpose);else await withdrawConsent(c.id,purpose);}
  await auditAction('CONSENT_CHOICES_SAVED',[c.id]);
 }
-export async function saveProfile(input:{name:string;locality:string;age18:boolean;work:boolean;months:number;tags:string;languages:string[];pay:number;commute:number;shifts:string[];config:string;attributes:Record<string,string>}){
+export async function saveProfile(input:{education?:string;name:string;locality:string;age18:boolean;work:boolean;months:number;tags:string;languages:string[];pay:number;commute:number;shifts:string[];config:string;attributes:Record<string,string>}){
  const c=await candidate();
  if(!input.age18){await sql`UPDATE app.candidate SET name=NULL,locality_key=NULL,experience_tags='[]',languages='[]',current_pay_paise=NULL,expected_pay_paise=NULL,status='DELETED_BLOCKED' WHERE id=${c.id}`;throw new Error('This demo is for people aged 18 or above. Unnecessary profile details have been removed.');}
  const cfg=await getRoleConfig(input.config);if(cfg.status!=='PUBLISHED')throw new Error('Select a published role.');
@@ -38,11 +40,11 @@ export async function saveProfile(input:{name:string;locality:string;age18:boole
  integer(input.months,'Experience',0,900);integer(input.pay,'Expected pay',0,1000000);integer(input.commute,'Commute',1,240);
  if(!input.shifts.length||!input.languages.length)throw new Error('Choose languages and availability.');
  await completeProfile(c.id,{name:text(input.name,'Name'),localityKey:input.locality,age18:input.age18,workAuthorised:input.work,experienceMonths:input.months,experienceTags:input.tags.split(',').map(s=>s.trim()).filter(Boolean),languages:input.languages,currentPayPaise:null,expectedPayPaise:input.pay*100,maxCommuteMin:input.commute,shiftAvailability:input.shifts});
- await sql`UPDATE app.candidate SET role_config_id=${cfg.id} WHERE id=${c.id}`;
+ await sql`UPDATE app.candidate SET education=${input.education||''},role_config_id=${cfg.id} WHERE id=${c.id}`;
  const at=await now();for(const d of defs){const v=input.attributes[d.key];if(!v)continue;
  await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_text,value_bool,value_int,collected_at) VALUES(${await nextId('ATV')},${c.id},${d.key},${cfg.id},${['BOOL','INT'].includes(d.data_type)?null:v},${d.data_type==='BOOL'?v==='true':null},${d.data_type==='INT'?Number(v):null},${at}) ON CONFLICT(candidate_id,attribute_key) DO UPDATE SET role_config_id=EXCLUDED.role_config_id,value_text=EXCLUDED.value_text,value_bool=EXCLUDED.value_bool,value_int=EXCLUDED.value_int,collected_at=EXCLUDED.collected_at`;
  }
- await auditAction('PROFILE_SAVED',[c.id]);
+ await auditAction('PROFILE_SAVED',[c.id]);after(()=>safelyRefreshCandidate(c.id));
 }
 export async function beginTest(){
  const c=await candidate();const [profile]=await sql`SELECT role_config_id,language FROM app.candidate WHERE id=${c.id}`;
@@ -70,7 +72,7 @@ export async function submitTest(id:string,answers:Record<string,string>){
  if(attempts.length>=template.max_attempts||(attempts[0]&&new Date(attempts[0].completed_at).getTime()+template.retake_hours*3600000>demoAt.getTime()))throw new Error('Attempt limit or retake waiting period reached.');
  const result=await recordAssessment(c.id,session.template_id,answers,tx);
  await tx`UPDATE app.assessment_attempt SET started_at=${session.started_at} WHERE id=${result.id}`;
- return result;});
+ after(()=>safelyRefreshCandidate(c.id));return result;});
 }
 export async function applyJob(jobId:string){const c=await candidate();const result=await apply(c.id,jobId);await sendTemplate(c.id,'reconfirm_interest',{employer:'the employer',title:jobId});return result;}
 export async function confirm(applicationId:string){const c=await candidate();const [app]=await sql`SELECT job_id FROM app.application WHERE id=${applicationId} AND candidate_id=${c.id}`;if(!app)throw new Error('Application not found.');await reconfirmInterest(applicationId,true);const result=await recordMatch(applicationId,c.id,app.job_id);return result.computation;}

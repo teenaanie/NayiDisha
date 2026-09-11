@@ -1,3 +1,5 @@
+import {PlacementSummary} from './placement-summary';
+import {Suspense} from 'react';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -61,7 +63,7 @@ export default async function OpsDashboard() {
           </div>
         </div>
 
-        <div className="tilegrid mb">
+        <Suspense fallback={<p>Loading placement totals…</p>}><PlacementSummary/></Suspense><div className="tilegrid mb">
           {queue.map((q) => (
             <Link key={q.href + q.k} href={q.href} className={`tile ${Number(q.n) > 0 ? 'attn' : ''}`}>
               <div className="k">{q.k}</div>

@@ -4,6 +4,7 @@ import { actUnlock, actRecordOutcome, actRaiseReplacement } from '../../../actio
 import { formatINR } from '@/lib/money';
 
 interface Props {
+ selectionOnly?:boolean;
   employerId: string; jobId: string; candidateId: string;
   alreadyUnlocked?: boolean; pricePaise?: number; creditsAvailable?: number;
   mode?: 'preview' | 'post'; unlockId?: string; applicationId?: string; disabled?: boolean;
@@ -24,20 +25,21 @@ export function UnlockPanel(props: Props) {
       <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
         {!claiming ? (
           <>
+            <button className="btn btn-primary" disabled={props.disabled||pending} onClick={()=>start(async()=>{try{await actRecordOutcome(props.applicationId!,'SELECTED');setResult('Selected for this job.');}catch(e){setResult(e instanceof Error?e.message:'Selection failed.');}})}>Select for this job</button>
             <select aria-label="Record outcome" style={{ width: 150 }} disabled={props.disabled || pending}
               onChange={(e) => {
                 const v = e.target.value; if (!v) return;
                 start(async () => { await actRecordOutcome(props.applicationId!, v); setResult('Outcome recorded.'); });
               }}>
               <option value="">Record outcome…</option>
-              <option value="CONTACTED">Contacted</option>
+              <option value="SHORTLISTED">Shortlisted</option><option value="CONTACTED">Contacted</option>
               <option value="INTERVIEW_SCHEDULED">Interview scheduled</option>
               <option value="REJECTED">Rejected</option>
               <option value="SELECTED">Selected</option>
               <option value="JOINED">Joined</option>
             </select>
-            <button className="btn btn-sm" disabled={props.disabled || pending}
-                    onClick={() => setClaiming(true)}>Claim replacement</button>
+            {!props.selectionOnly&&<button className="btn btn-sm" disabled={props.disabled || pending}
+                    onClick={() => setClaiming(true)}>Claim replacement</button>}
           </>
         ) : (
           <div style={{ textAlign: 'left', minWidth: 260 }}>
@@ -66,7 +68,7 @@ export function UnlockPanel(props: Props) {
     );
   }
 
-  if (props.alreadyUnlocked) return <span className="pill p-ok">unlocked</span>;
+  if (props.alreadyUnlocked) return <a className="btn" href="#unlocked-profiles">Unlocked — view / select</a>;
 
   if (!confirming) {
     return (

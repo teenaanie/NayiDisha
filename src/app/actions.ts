@@ -1,4 +1,6 @@
 'use server';
+import {after} from 'next/server';
+import {safelyRefreshCandidate} from '@/modules/discovery';
 import {authorizeAction,auditAction} from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { sql } from '@/lib/db';
@@ -36,6 +38,7 @@ async function impl_actAdvanceClock(hours: number) {
   await advanceClock(hours);
   await releaseMaturedHolds();
   await expireStaleJobs();
+  await (await import('./workflow-actions')).deliverDueReminders();
   touchAll();
 }
 
@@ -115,6 +118,7 @@ async function impl_actApproveJob(jobId:string){
  const [employer]=await tx`SELECT status FROM app.employer_organisation WHERE id=${job.employer_id}`;
  if(employer.status!=='VERIFIED')throw new Error('Employer must be verified.');
  const [p]=await tx`SELECT * FROM app.commercial_policy WHERE active=true`;
+ if(job.expires_at&&job.expires_at<=at)throw new Error('Update the closing date before approval.');
  const expires=job.expires_at||new Date(at.getTime()+p.job_expiry_days*86400000);
  if(job.pending_changes){
  const columns:Record<string,string>={fixedPayPaise:'fixed_pay_paise',variableMaxPaise:'variable_max_paise',locationId:'location_id',shift:'shift',weeklyOff:'weekly_off',minExperienceMonths:'min_experience_mo',languages:'languages',criticalSkills:'critical_skills',openings:'openings',title:'title'};
@@ -133,7 +137,7 @@ async function impl_actApproveJob(jobId:string){
  return !!job.pending_changes;
  });
  if(changed){for(const a of await sql`SELECT candidate_id FROM app.application WHERE job_id=${jobId} AND status NOT IN ('WITHDRAWN','REJECTED')`)await sendTemplate(a.candidate_id,'job_changed',{title:jobId,change:'Updated terms approved; please reconfirm interest.'});}
- await dispatchJobAlerts(jobId);touchAll();
+ after(async()=>{await (await import('@/modules/discovery')).refreshJobCandidates(jobId);});touchAll();
 }
 
 async function impl_actRotateQr(siteId: string) {
@@ -195,12 +199,13 @@ async function impl_actUnlock(employerId: string, jobId: string, candidateId: st
 
 async function impl_actRecordOutcome(applicationId: string, outcome: string) {
   const at = await now();
+  if(!['SHORTLISTED','CONTACTED','INTERVIEW_SCHEDULED','INTERVIEW_ATTENDED','REJECTED','SELECTED','JOINED'].includes(outcome))throw new Error('Invalid recruitment stage.');const [allowed]=await sql`SELECT 1 FROM app.qualified_lead_unlock WHERE application_id=${applicationId} AND status='CONFIRMED'`;if(!allowed)throw new Error('Unlock this candidate first.');
   await sql`
     INSERT INTO app.optional_outcome_event (id, application_id, outcome, actor, source, created_at)
     VALUES (${await nextId('OUT')}, ${applicationId}, ${outcome}, 'EU-001', 'EMPLOYER_PORTAL', ${at})
   `;
   const statusMap: Record<string, string> = {
-    CONTACTED: 'CONTACTED', INTERVIEW_SCHEDULED: 'INTERVIEW', INTERVIEW_ATTENDED: 'INTERVIEW',
+    SHORTLISTED:'SHORTLISTED',CONTACTED: 'CONTACTED', INTERVIEW_SCHEDULED: 'INTERVIEW', INTERVIEW_ATTENDED: 'INTERVIEW',
     REJECTED: 'REJECTED', SELECTED: 'SELECTED', JOINED: 'JOINED',
   };
   if (statusMap[outcome]) {
@@ -435,7 +440,7 @@ export interface NewJobInput {
   fixedPayRupees: number; variableMaxRupees: number;
   shift: string; weeklyOff: string; languages: string[];
   minExperienceMonths: number; criticalSkills: string[];
-  attributes: Record<string, string>;
+  attributes: Record<string, string>; description?:string;preferredSkills?:string;workMode?:string;qualification?:string;closingDate?:string;draft?:boolean;
 }
 
 /**
@@ -476,18 +481,19 @@ async function impl_actCreateJob(input: NewJobInput) {
    const [def]=await sql`SELECT data_type,allowed_values FROM app.attribute_definition WHERE key=${field.key}`;
    if(val!==undefined && def && ((def.data_type==='ENUM'&&!def.allowed_values.includes(val))||(def.data_type==='INT'&&!Number.isSafeInteger(Number(val)))||(def.data_type==='BOOL'&&!['true','false',true,false].includes(val as any))))return {error:'INVALID_FIELD_'+field.key};
   }
+  const closing=input.closingDate?new Date(input.closingDate):null;if(closing&&(!Number.isFinite(closing.getTime())||closing<=at))return {error:'CLOSING_DATE_MUST_BE_IN_FUTURE'};if(input.workMode&&!['ONSITE','HYBRID','REMOTE'].includes(input.workMode))return {error:'INVALID_WORK_MODE'};
   const jobId = await nextId('JOB');
   await sql`
     INSERT INTO app.job
       (id, employer_id, location_id, role_config_id, title, openings,
        fixed_pay_paise, variable_max_paise, shift, weekly_off, languages,
-       min_experience_mo, critical_skills, attributes, status, created_at)
+       min_experience_mo, critical_skills, attributes, status, created_at,description,preferred_skills,work_mode,qualification,expires_at)
     VALUES (${jobId}, ${input.employerId}, ${input.locationId}, ${input.roleConfigId},
             ${input.title}, ${input.openings},
             ${Math.round(input.fixedPayRupees * 100)}, ${Math.round(input.variableMaxRupees * 100)},
             ${input.shift}, ${input.weeklyOff || null}, ${sql.json(input.languages as never)},
             ${input.minExperienceMonths}, ${sql.json(input.criticalSkills as never)},
-            ${sql.json(input.attributes as never)}, 'PENDING_APPROVAL', ${at})
+            ${sql.json(input.attributes as never)}, ${input.draft?'DRAFT':'PENDING_APPROVAL'}, ${at},${input.description||''},${input.preferredSkills||''},${input.workMode||'ONSITE'},${input.qualification||''},${closing})
   `;
   await sql`
     INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)
@@ -624,7 +630,7 @@ async function impl_actUpdatePreferences(candidateId: string, prefs: {
   language?: 'mr' | 'hi' | 'en'; maxCommuteMin?: number; expectedPayPaise?: number;
   alertQuietFrom?: number; alertQuietTo?: number; alertMaxPerWeek?: number;
 }) {
-  const r = await updatePreferences(candidateId, prefs); touchAll(); return r;
+  const r = await updatePreferences(candidateId, prefs);after(()=>safelyRefreshCandidate(candidateId)); touchAll(); return r;
 }
 async function impl_actRaiseDataRequest(candidateId: string, kind: string, detail: string) {
   const r = await raiseDataRequest(candidateId, kind as 'ACCESS' | 'CORRECTION' | 'ERASURE', detail);

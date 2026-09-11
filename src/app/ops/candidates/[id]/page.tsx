@@ -1,0 +1,1 @@
+import {scopePage} from '@/lib/auth';import {CandidateRecord} from '../../../candidate-record';export default async function Candidate({params}:{params:Promise<{id:string}>}){await scopePage('ops');const {id}=await params;return <main className="page"><a href="/ops/candidates">← Candidates</a> · <a href="/ops/attribution">Candidate referrals</a><CandidateRecord id={id}/></main>;}

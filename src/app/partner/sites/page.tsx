@@ -1,3 +1,4 @@
+import {SiteShare} from './share';
 import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { Clause, StatusPill, QrBlock } from '../../ui';
@@ -7,13 +8,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function SitesPage({
   searchParams,
-}: { searchParams: Promise<{ p?: string }> }) {
+}: { searchParams: Promise<{ p?: string; site?: string }> }) {
   const viewer=await scopePage('partner');
-  const { p } = await searchParams;
+  const { p, site } = await searchParams;
   const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const sites = await sql<{
-    id: string; locality_key: string; partner_code: string; qr_token: string;
+    name:string; id: string; locality_key: string; partner_code: string; qr_token: string;
     status: string; scans: string;
   }[]>`
     SELECT s.*, (SELECT COUNT(*)::text FROM app.attribution a WHERE a.partner_site_id=s.id) AS scans
@@ -31,11 +32,11 @@ export default async function SitesPage({
           </div>
         </div>
 
-        <div className="grid g3">
-          {sites.map((s) => (
+        <table><thead><tr><th>Site</th><th>Locality</th><th>Status</th><th>QR</th></tr></thead><tbody>{sites.map(s=><tr key={s.id}><td>{s.name||s.partner_code}</td><td>{s.locality_key}</td><td>{s.status}</td><td><a className="btn" href={`/partner/sites?p=${encodeURIComponent(partnerId)}&site=${encodeURIComponent(s.id)}`}>View QR &amp; link</a></td></tr>)}</tbody></table><div className="grid g3">
+          {sites.filter(s=>s.id===site).map((s) => (
             <div className="card" key={s.id}>
               <div className="card-head">
-                <h3>{s.locality_key.replace(/_/g, ' ')}</h3>
+                <h3>{s.name||s.partner_code} · {s.locality_key.replace(/_/g, ' ')}</h3>
                 <StatusPill status={s.status} />
               </div>
               <div className="card-body">
@@ -46,7 +47,7 @@ export default async function SitesPage({
                   <div style={{ fontSize: '1.12rem', fontWeight: 800, lineHeight: 1.15, margin: '7px 0 10px' }}>
                     पास में बैंक की नौकरी?
                   </div>
-                  <QrBlock seed={s.qr_token} />
+                  <QrBlock seed={s.qr_token} /><SiteShare token={s.qr_token}/>
                   <div className="code">{s.partner_code}</div>
                   <div className="free">
                     यह सेवा नौकरी ढूँढने वालों के लिए मुफ़्त है<br />

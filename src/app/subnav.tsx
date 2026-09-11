@@ -36,6 +36,7 @@ export function SubNav({ tabs }: { tabs: SubTab[] }) {
 
 export const OPS_TABS: SubTab[] = [
   { href: '/ops', label: 'Dashboard' },
+  {href:'/ops/candidates',label:'Candidates'}, {href:'/ops/matches',label:'Job matches'}, {href:'/ops/exceptions',label:'Exceptions'}, {href:'/ops/credit-requests',label:'Credit requests'},
   { href: '/ops/manage', label: 'Manage & catalogue' },
   { href: '/ops/configurations', label: 'Configurations', hint: '§8.4A' },
   { href: '/ops/employers', label: 'Employers', hint: '§8.1' },
@@ -49,15 +50,15 @@ export const OPS_TABS: SubTab[] = [
 ];
 
 export const EMPLOYER_TABS: SubTab[] = [
-  { href: '/employer', label: 'Dashboard' },
+  { href: '/employer', label: 'Dashboard' }, {href:'/employer/profile',label:'My organisation'},
   { href: '/employer/jobs', label: 'Jobs', hint: 'JOB-01' },
   { href: '/employer/hiring', label: 'Interviews & onboarding', hint: '§8.9 · §8.10' },
-  { href: '/employer/billing', label: 'Billing & credits', hint: '§9' },
+  {href:'/employer/credit-requests',label:'Credit requests'}, { href: '/employer/billing', label: 'Billing & credits', hint: '§9' },
   { href: '/employer/outcomes', label: 'Outcomes', hint: 'LEAD-10' },
 ];
 
 export const PARTNER_TABS: SubTab[] = [
-  { href: '/partner', label: 'Dashboard' },
+  { href: '/partner', label: 'Dashboard' }, {href:'/partner/profile',label:'My organisation'},
   { href: '/partner/sites', label: 'QR sites', hint: 'PART-05/06' },
   { href: '/partner/candidates', label: 'My candidates', hint: 'PART-08/09' },
   { href: '/partner/alerts', label: 'Job alerts', hint: 'ALT-03' },
@@ -73,7 +74,7 @@ export const FINANCE_TABS: SubTab[] = [
 ];
 
 export const CANDIDATE_TABS: SubTab[] = [
-  { href: '/wa', label: 'WhatsApp journey' },
+  {href:'/wa/profile',label:'My profile'}, {href:'/wa/applications',label:'My applications'}, { href: '/wa', label: 'WhatsApp journey' },
   { href: '/wa/inbox', label: 'Alerts & messages', hint: 'ALT-04' },
   { href: '/wa/preferences', label: 'Profile & preferences', hint: 'CAN-04' },
   { href: '/wa/rights', label: 'My data', hint: 'CAN-06' },

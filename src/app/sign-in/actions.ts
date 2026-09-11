@@ -63,6 +63,6 @@ export async function candidateSignIn(f:FormData){
  let candidate:any;
  try{[candidate]=await readQuery(sql`SELECT id FROM app.candidate WHERE phone=${phone} AND mobile_verified_at IS NOT NULL AND status<>'DELETED_BLOCKED'`);}catch{return {error:'Could not load your profile. Try again.'};}
  if(!candidate)return {error:'No verified demo profile found. Start a new candidate journey below.'};
- await personalSession(candidate.id,'CANDIDATE');redirect('/wa');
+ await personalSession(candidate.id,'CANDIDATE');redirect('/wa/profile');
 }
 export async function signOut(){const c=await cookies();c.delete('nd_identity');c.delete('nd_admin');redirect('/sign-in');}

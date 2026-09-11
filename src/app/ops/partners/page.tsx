@@ -60,39 +60,13 @@ export default async function PartnersPage() {
                     ? <><span className="pill p-ok">accepted</span><div className="small muted">{fmtDateTime(p.conduct_accepted_at)}</div></>
                     : <span className="pill p-warn">not accepted</span>}</td>
                   <td><StatusPill status={p.status} /></td>
-                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit`} aria-label={`Edit ${p.name} and manage sites`}>Edit / sites</Link>{p.status==='VERIFIED'&&<InvitationButton role="PARTNER" id={p.id}/>}<OpsActions kind="partner" id={p.id} status={p.status} /></div></td>
+                  <td className="right"><div className="record-actions"><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit`} aria-label={`Edit ${p.name} and manage sites`}>Edit partner</Link><Link className="btn btn-sm" href={`/ops/partners/${p.id}/edit#sites`}>View sites ({sites.filter(s=>s.partner_id===p.id).length})</Link>{p.status==='VERIFIED'&&<InvitationButton role="PARTNER" id={p.id}/>}<OpsActions kind="partner" id={p.id} status={p.status} /></div></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div></div></div>
 
-        <div className="card">
-          <div className="card-head"><h2>Sites and QR tokens</h2><Clause>PART-05 / PART-10</Clause></div>
-          <div className="card-body tight"><div className="tblwrap">
-            <table>
-              <thead><tr><th>Site</th><th>Partner</th><th>Locality</th><th>Code</th><th>QR token</th><th>Status</th><th className="right">Action</th></tr></thead>
-              <tbody>
-                {sites.map((s) => (
-                  <tr key={s.id}>
-                    <td className="id">{s.id}</td>
-                    <td className="id">{s.partner_id}</td>
-                    <td className="small">{s.locality_key.replace(/_/g, ' ')}</td>
-                    <td className="id"><strong>{s.partner_code}</strong></td>
-                    <td className="id small">{s.qr_token}</td>
-                    <td><StatusPill status={s.status} /></td>
-                    <td className="right"><Link className="btn btn-sm" href={`/ops/partners/${s.partner_id}/edit#${s.id}`}>Edit site</Link><OpsActions kind="site" id={s.id} status={s.status} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="note small" style={{ margin: 14 }}>
-            Rotating a QR revokes the printed one immediately. The old sticker then fails safely and
-            shows the official support route rather than a dead page.
-          </div>
-          </div>
-        </div>
       </main>
     </>
   );

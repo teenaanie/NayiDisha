@@ -1,3 +1,4 @@
+import {computeMatch} from '../matching';
 import { sql } from '@/lib/db';
 import { now } from '@/lib/clock';
 import { nextId } from '@/lib/ids';
@@ -42,7 +43,7 @@ function inQuietHours(hour: number, from: number, to: number): boolean {
   return from <= to ? hour >= from && hour < to : hour >= from || hour < to;
 }
 
-export async function dispatchJobAlerts(jobId: string): Promise<AlertOutcome> {
+export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): Promise<AlertOutcome> {
   const at = await now();
   const policy = await activeCommercialPolicy();
   const suppressed: AlertOutcome['suppressed'] = [];
@@ -85,7 +86,7 @@ export async function dispatchJobAlerts(jobId: string): Promise<AlertOutcome> {
            (SELECT COUNT(*)::text FROM app.job_alert a
              WHERE a.candidate_id = c.id AND a.job_id = ${jobId}) AS already
       FROM app.candidate c
-     WHERE c.status = 'PROFILE_ACTIVE'
+     WHERE c.status = 'PROFILE_ACTIVE' AND (${onlyCandidate||null}::text IS NULL OR c.id=${onlyCandidate||null})
   `;
 
   const hour = istHour(at);
@@ -102,6 +103,8 @@ export async function dispatchJobAlerts(jobId: string): Promise<AlertOutcome> {
     if (Number(c.alerts_this_week) >= c.alert_max_per_week) {
       suppressed.push({ candidateId: c.id, reason: 'WEEKLY_CAP_REACHED' }); continue;
     }
+    const match=await computeMatch(c.id,jobId);if(!match.stageA.pass||match.stageB.reasons.some(x=>!['NO_APPLICATION','INTEREST_NOT_RECONFIRMED'].includes(x))){suppressed.push({candidateId:c.id,reason:'NOT_YET_ELIGIBLE'});continue;}
+    const [hidden]=await sql`SELECT 1 FROM app.job_suggestion WHERE candidate_id=${c.id} AND job_id=${jobId} AND hidden`;if(hidden)continue;
     // ALT-01 — eligibility filtering, so an alert is not simply a broadcast.
     if (job.languages.length && !job.languages.some((l) => c.languages.includes(l))) {
       suppressed.push({ candidateId: c.id, reason: 'NO_REQUIRED_LANGUAGE' }); continue;

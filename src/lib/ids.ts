@@ -9,6 +9,7 @@ import { sql } from './db';
 import { randomBytes } from 'node:crypto';
 
 const TABLE_FOR_PREFIX: Record<string, string> = {
+  REQ:'app.credit_request',ISS:'app.workflow_issue',
   EMP: 'app.employer_organisation',
   LOC: 'app.employer_location',
   EU: 'app.employer_user',

@@ -1,3 +1,4 @@
+import {UnlockPanel} from '../job/[id]/unlock-panel';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -78,7 +79,7 @@ export default async function HiringPage() {
                       <tr key={u.application_id}>
                         <td><strong>{u.name}</strong><div className="id">{u.candidate_id}</div></td>
                         <td className="small">{u.title}<div className="id">{u.job_id}</div></td>
-                        <td><StatusPill status={u.status} /></td>
+                        <td><StatusPill status={u.status} /><UnlockPanel mode="post" applicationId={u.application_id} employerId={employerId} jobId={u.job_id} candidateId={u.candidate_id} selectionOnly/></td>
                         <td className="right">
                           <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
                             {!u.has_interview && <InterviewPanel applicationId={u.application_id} />}

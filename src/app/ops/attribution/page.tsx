@@ -44,7 +44,7 @@ export default async function AttributionPage() {
             <tbody>
               {rows.map((a) => (
                 <tr key={a.id}>
-                  <td><span className="id">{a.candidate_id}</span><div className="small">{a.name}</div></td>
+                  <td><span className="id">{a.candidate_id}</span><div className="small"><a href={"/ops/candidates/"+a.candidate_id}>{a.name||"View candidate"}</a></div></td>
                   <td className="small">{a.partner_name ?? <span className="muted">direct</span>}
                     <div className="id">{a.partner_site_id ?? ''}</div></td>
                   <td className="small">{a.method.replace(/_/g, ' ').toLowerCase()}</td>

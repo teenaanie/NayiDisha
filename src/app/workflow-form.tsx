@@ -1,0 +1,3 @@
+'use client';
+import {useState,useTransition} from 'react';import {workflow} from './workflow-actions';
+export function WorkflowForm({kind,id,children,label='Save'}:{kind:string;id?:string;children?:React.ReactNode;label?:string}){const [pending,start]=useTransition();const [msg,setMsg]=useState('');return <form action={f=>start(async()=>{setMsg('');try{setMsg(await workflow(f));}catch(e){setMsg(e instanceof Error?e.message:'Unable to save.');}})}><input type="hidden" name="kind" value={kind}/>{id!==undefined&&<input type="hidden" name="id" value={id}/>}{children}<button className="btn btn-primary" disabled={pending}>{pending?'Saving…':label}</button><p role="status">{msg}</p></form>;}

@@ -1,0 +1,21 @@
+const fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript'),assert=require('node:assert/strict');
+const {sql}=require('../src/lib/db.ts');const {now}=require('../src/lib/clock.ts');let actor={id:'OPS-001',role:'OPERATIONS'};
+const mocks={'@/lib/db':{sql},'@/lib/auth':{requireRole:async roles=>{if(!roles.includes(actor.role))throw new Error('Forbidden');return actor;}},'@/lib/clock':require('../src/lib/clock.ts'),'@/lib/ids':require('../src/lib/ids.ts'),'next/cache':{revalidatePath(){}},'@/modules/discovery':require('../src/modules/discovery.ts'),'@/modules/adapters/messaging':require('../src/modules/adapters/messaging.ts')};
+const exportsObject={};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/app/workflow-actions.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,{exports:exportsObject,require:n=>mocks[n]||require(n),Date,Intl,Number,String,Error,Promise});const {workflow,deliverDueReminders}=exportsObject;
+const f=o=>{const f=new FormData();for(const [k,v]of Object.entries(o))f.set(k,String(v));return f;};
+(async()=>{
+ actor={id:'PAR-001',role:'PARTNER'};await assert.rejects(()=>workflow(f({kind:'recompute',id:'CAN-001'})),/Forbidden/);
+ actor={id:'EMP-002',role:'EMPLOYER'};await assert.rejects(()=>workflow(f({kind:'request_credits',id:'JOB-001',quantity:5,reason:'test'})),/outside/);
+ actor={id:'EMP-001',role:'EMPLOYER'};await workflow(f({kind:'request_credits',id:'JOB-001',quantity:3,reason:'Workflow test'}));
+ const [q]=await sql`SELECT id FROM app.credit_request WHERE reason='Workflow test' AND status='PENDING' ORDER BY created_at DESC LIMIT 1`;
+ actor={id:'OPS-001',role:'OPERATIONS'};await workflow(f({kind:'decide_credit',id:q.id,decision:'APPROVED',reason:'Approved test'}));await assert.rejects(()=>workflow(f({kind:'decide_credit',id:q.id,decision:'APPROVED',reason:'Repeat'})),/already decided/);
+ const [n]=await sql`SELECT count(*) n FROM app.credit_ledger WHERE note=${'Approved demo request '+q.id}`;assert.equal(Number(n.n),1);
+ const [app]=await sql`SELECT id,candidate_id FROM app.application WHERE status NOT IN ('JOINED','WITHDRAWN','REJECTED') LIMIT 1`;
+ actor={id:'CAN-NOTOWNER',role:'CANDIDATE'};await assert.rejects(()=>workflow(f({kind:'withdraw',id:app.id})),/cannot be withdrawn/);
+ actor={id:app.candidate_id,role:'CANDIDATE'};await workflow(f({kind:'withdraw',id:app.id}));const [a]=await sql`SELECT status FROM app.application WHERE id=${app.id}`;assert.equal(a.status,'WITHDRAWN');
+ await workflow(f({kind:'remind',id:'JOB-001'}));const [r]=await sql`SELECT due_at FROM app.candidate_reminder WHERE candidate_id=${actor.id} AND job_id='JOB-001'`;assert(r.due_at>await now());await assert.rejects(()=>deliverDueReminders(),/Forbidden/);
+ const before=await sql`SELECT count(*) n FROM app.application WHERE candidate_id='CAN-002'`;
+ await require('../src/modules/discovery.ts').refreshCandidate('CAN-002');const after=await sql`SELECT count(*) n FROM app.application WHERE candidate_id='CAN-002'`;assert.equal(before[0].n,after[0].n);
+ const suggestions=await sql`SELECT * FROM app.job_suggestion WHERE candidate_id='CAN-002'`;assert(suggestions.length>0);
+ console.log('PASS: role isolation, employer ownership, exactly-once credit approval, candidate ownership/withdrawal, reminder scheduling, worker authorization, discovery without auto-application.');
+})().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>sql.end());

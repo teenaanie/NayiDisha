@@ -1,4 +1,5 @@
 'use client';
+import {WorkflowForm} from '../../../workflow-form';
 import { useState, useTransition } from 'react';
 import { actBuyCredits, actRecomputeMatches } from '../../../actions';
 import { formatINR } from '@/lib/money';
@@ -19,11 +20,9 @@ export function JobTools({ jobId, creditPricePaise }: { jobId: string; creditPri
         setMsg(`10 credits purchased at ${formatINR(creditPricePaise)} each — the ledger records the purchase as a separate entry.`);
       })}>Buy 10 more credits</button>
 
-      <button className="btn btn-sm" disabled={pending} onClick={() => start(async () => {
-        await actRecomputeMatches(jobId);
-        setMsg('Matching re-run against the current configuration. Scores and explanations reflect the published weights as of now; the previous results stay in audit history.');
-      })}>Re-run matching</button>
 
+
+<WorkflowForm kind="request_credits" id={jobId} label="Request credits"><input type="number" name="quantity" min="1" max="100" defaultValue="10"/><input name="reason" required placeholder="Why credits are needed"/></WorkflowForm>
       {msg && <span className="small muted" style={{ flexBasis: '100%', marginTop: 6 }}>{msg}</span>}
     </div>
   );

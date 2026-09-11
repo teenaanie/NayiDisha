@@ -235,7 +235,7 @@ export async function computeMatch(
     Math.min(cfg.endorsementCap, policy.endorsementCap),
   );
 
-  const score = qualified ? Math.min(100, Math.round(base + endorsementPoints)) : null;
+  const score = (qualified || (stageA.pass && stageB.reasons.every(r=>['NO_APPLICATION','INTEREST_NOT_RECONFIRMED'].includes(r)))) ? Math.min(100, Math.round(base + endorsementPoints)) : null;
 
   // ---- Explanation (MATCH-03/10) ------------------------------------------
   const explanation: string[] = [];

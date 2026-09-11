@@ -1,0 +1,3 @@
+'use client';
+import QRCode from 'qrcode';import {useState} from 'react';
+export function SiteShare({token}:{token:string}){const [msg,setMsg]=useState('');const url=()=>new URL('/j/'+encodeURIComponent(token),location.origin).href;return <div><button className="btn" onClick={async()=>{try{await navigator.clipboard.writeText(url());setMsg('Link copied');}catch{setMsg('Copy the candidate journey link below.');}}}>Copy link</button><button className="btn" onClick={async()=>{try{const a=document.createElement('a');a.href=await QRCode.toDataURL(url(),{width:600});a.download='nayidisha-site-qr.png';a.click();}catch{setMsg('QR download failed. Try again.');}}}>Download QR</button><p role="status">{msg}</p></div>;}

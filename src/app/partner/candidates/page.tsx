@@ -16,11 +16,11 @@ export default async function PartnerCandidatesPage({
   const partnerId = viewer.role==='ADMIN' ? (p ?? 'PAR-001') : viewer.id;
 
   const rows = await sql<{
-    candidate_id: string; name: string | null; locality_key: string | null; status: string;
+    assessment_score:number|null;candidate_id: string; name: string | null; locality_key: string | null; status: string;
     assisted: boolean; attr_status: string; bound_at: Date;
     applications: string; qualified: string; unlocked: string; nudges_week: string;
   }[]>`
-    SELECT c.id AS candidate_id, c.name, c.locality_key, c.status, a.status AS attr_status, a.bound_at,
+    SELECT (SELECT score FROM app.assessment_attempt aa WHERE aa.candidate_id=c.id ORDER BY completed_at DESC LIMIT 1) assessment_score,c.id AS candidate_id, c.name, c.locality_key, c.status, a.status AS attr_status, a.bound_at,
       COALESCE((SELECT cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL FROM app.consent_record cr
                  WHERE cr.candidate_id=c.id AND cr.purpose='PARTNER_ASSISTANCE'), FALSE) AS assisted,
       (SELECT COUNT(*)::text FROM app.application ap WHERE ap.candidate_id=c.id) AS applications,
@@ -60,7 +60,7 @@ export default async function PartnerCandidatesPage({
                 <thead><tr>
                   <th>Candidate</th><th>Locality</th><th>Assist</th><th className="num">Apps</th>
                   <th className="num">Qualified</th><th className="num">Unlocked</th>
-                  <th>Referral status</th><th className="right">Nudge</th>
+                  <th>Assessment / next step</th><th>Referral status</th><th className="right">Nudge</th>
                 </tr></thead>
                 <tbody>
                   {rows.map((r) => (
@@ -74,7 +74,7 @@ export default async function PartnerCandidatesPage({
                       <td className="num">{r.applications}</td>
                       <td className="num">{r.qualified}</td>
                       <td className="num">{r.unlocked}</td>
-                      <td><StatusPill status={r.attr_status} />
+                      <td>{r.assessment_score===null?'Awaiting assessment':r.assessment_score+'%'}<p>{r.status!=='PROFILE_ACTIVE'?'Complete profile':r.assessment_score===null?'Complete assessment':Number(r.applications)===0?'Review suggested jobs':'Application in progress'}</p></td><td><StatusPill status={r.attr_status} />
                         <div className="small muted">{fmtDateTime(r.bound_at)}</div></td>
                       <td className="right">
                         <NudgeButton partnerId={partnerId} candidateId={r.candidate_id}

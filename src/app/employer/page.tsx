@@ -44,11 +44,8 @@ export default async function EmployerDashboard() {
         JOIN app.job j ON j.id=a.job_id WHERE j.employer_id=${employerId})::text AS contacted
   `;
 
-  const ents = await sql<{ id: string }[]>`
-    SELECT e.id FROM app.posting_entitlement e JOIN app.job j ON j.id=e.job_id
-     WHERE j.employer_id=${employerId}`;
-  let credits = 0;
-  for (const e of ents) credits += (await creditBalance(e.id)).available;
+  const [creditRow]=await sql`SELECT COALESCE(sum(l.credit_delta),0) available FROM app.credit_ledger l JOIN app.posting_entitlement e ON e.id=l.entitlement_id JOIN app.job j ON j.id=e.job_id WHERE j.employer_id=${employerId} AND l.entry_type IN ('INCLUDED_GRANT','PURCHASE','UNLOCK_CONSUME','REPLACEMENT_RESTORE','EXPIRY')`;
+  const credits=Number(creditRow.available);
 
   const tiles = [
     { k: 'Live vacancies', v: c.live, d: `${c.pending} awaiting approval`, href: '/employer/jobs' },
@@ -66,7 +63,7 @@ export default async function EmployerDashboard() {
         <div className="page-head">
           <h1>{emp.brand_name}</h1>
           <div className="sub">
-            DEMO Asha Kulkarni · Company administrator <Clause>§10.3</Clause>
+            Your organisation account <Clause>§10.3</Clause>
           </div>
         </div>
         <div className="tilegrid">

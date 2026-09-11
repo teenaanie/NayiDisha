@@ -1,3 +1,4 @@
+import {WorkflowForm} from '../../workflow-form';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -81,14 +82,14 @@ export default async function EmployerJobsPage() {
                   <td className="num">{j.alerts}</td>
                   <td className="num">{balances.has(j.id) ? balances.get(j.id) : '—'}</td>
                   <td className="small muted">{fmtDateTime(j.expires_at)}</td>
-                  <td><StatusPill status={j.status} />
+                  <td><StatusPill status={j.status} /><p>{j.status_reason}</p>
                     {j.status_reason && <div className="small muted">{j.status_reason}</div>}</td>
                   <td className="right">
                     <div className="btnrow" style={{ justifyContent: 'flex-end' }}>
                       {j.status === 'LIVE' && (
                         <Link className="btn btn-sm btn-primary" href={`/employer/job/${j.id}`}>Shortlist</Link>
                       )}
-                      <JobLifecycle jobId={j.id} status={j.status}
+                      <a className="btn btn-sm" href={"/employer/jobs/"+j.id+"/edit"}>Edit details</a>{j.status==='DRAFT'&&<WorkflowForm kind="submit_job" id={j.id} label="Submit for approval"/>}<JobLifecycle jobId={j.id} status={j.status}
                                     fixedRupees={Number(j.fixed_pay_paise) / 100}
                                     variableRupees={Number(j.variable_max_paise) / 100}
                                     openings={j.openings} title={j.title} />

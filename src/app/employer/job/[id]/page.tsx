@@ -45,11 +45,11 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
   const detail = new Map(matchDetail.map((m) => [m.candidate_id, m]));
 
   const unlocks = await sql<{
-    id: string; candidate_id: string; unlocked_at: Date; status: string;
+    application_status:string;id: string; candidate_id: string; unlocked_at: Date; status: string;
     revealed_fields: string[]; attributed_partner_id: string | null; application_id: string;
     name: string; phone: string; locality_key: string; expected_pay_paise: string;
   }[]>`
-    SELECT u.*, CASE WHEN u.revealed_fields ? 'name' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.name ELSE 'Access withdrawn' END AS name,
+    SELECT u.*, (SELECT status FROM app.application WHERE id=u.application_id) application_status, CASE WHEN u.revealed_fields ? 'name' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.name ELSE 'Access withdrawn' END AS name,
       CASE WHEN u.revealed_fields ? 'phone' AND EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL) THEN c.phone ELSE 'Access withdrawn' END AS phone,
       CASE WHEN u.revealed_fields ? 'locality' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.locality_key ELSE NULL END AS locality_key, CASE WHEN u.revealed_fields ? 'expectedPayPaise' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL THEN c.expected_pay_paise ELSE NULL END AS expected_pay_paise
       FROM app.qualified_lead_unlock u JOIN app.candidate c ON c.id=u.candidate_id LEFT JOIN app.consent_record cr ON cr.candidate_id=c.id AND cr.purpose='PROCESSING'
@@ -198,7 +198,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
 
       {unlocks.length > 0 && (
         <div className="card">
-          <div className="card-head"><h2>Unlocked profiles</h2><Clause>LEAD-05/08</Clause></div>
+          <div className="card-head"><h2 id="unlocked-profiles">Unlocked profiles</h2><Clause>LEAD-05/08</Clause></div>
           <div className="card-body tight">
             <div className="tblwrap">
               <table>
@@ -210,7 +210,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
                       <td>{u.name}<div className="small muted">{u.locality_key?.replace(/_/g, ' ')}</div></td>
                       <td className="mono small">{u.status === 'CONFIRMED' ? u.phone : <span className="muted">revoked</span>}</td>
                       <td className="small muted">{fmtDateTime(u.unlocked_at)}</td>
-                      <td><StatusPill status={u.status} /></td>
+                      <td><StatusPill status={u.application_status} /></td>
                       <td className="right">
                         <UnlockPanel mode="post" unlockId={u.id} applicationId={u.application_id}
                                      employerId={job.employer_id} jobId={jobId} candidateId={u.candidate_id}
