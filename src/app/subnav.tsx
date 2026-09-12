@@ -36,11 +36,12 @@ export function SubNav({ tabs }: { tabs: SubTab[] }) {
 
 export const OPS_TABS: SubTab[] = [
   { href: '/ops', label: 'Dashboard' },
-  {href:'/ops/candidates',label:'Candidates'}, {href:'/ops/matches',label:'Job matches'}, {href:'/ops/exceptions',label:'Exceptions'}, {href:'/ops/credit-requests',label:'Credit requests'},
-  { href: '/ops/manage', label: 'Manage & catalogue' },
-  { href: '/ops/configurations', label: 'Configurations', hint: '§8.4A' },
   { href: '/ops/employers', label: 'Employers', hint: '§8.1' },
   { href: '/ops/partners', label: 'Partners', hint: '§8.2' },
+  {href:'/ops/candidates',label:'Candidates'}, {href:'/ops/matches',label:'Job matches'},
+  {href:'/ops/exceptions',label:'Exceptions'}, {href:'/ops/credit-requests',label:'Credit requests'},
+  { href: '/ops/manage', label: 'Manage & catalogue' },
+  { href: '/ops/configurations', label: 'Configurations', hint: '§8.4A' },
   { href: '/ops/jobs', label: 'Job moderation', hint: 'JOB-02' },
   { href: '/ops/attribution', label: 'Candidate referrals', hint: '§8.11' },
   { href: '/ops/replacements', label: 'Replacements', hint: 'LEAD-08' },
