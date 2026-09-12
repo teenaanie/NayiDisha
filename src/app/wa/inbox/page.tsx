@@ -19,7 +19,7 @@ async function InboxContent({
 
   const [all,pendingApplications,alerts,interviews,offers,docs,messages]=await Promise.all([
 readQuery(sql<{ id: string; name: string | null }[]>`
-    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`),
+    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id DESC LIMIT 30`),
 readQuery(sql`SELECT a.id,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${candidateId} AND a.reconfirmed_at IS NULL AND a.status NOT IN ('WITHDRAWN','REJECTED','JOINED')`),
 readQuery(sql<{
     id: string; job_id: string; title: string; brand: string; loc: string;

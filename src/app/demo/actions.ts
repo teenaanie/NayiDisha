@@ -16,3 +16,17 @@ export async function switchPersona(f:FormData){
  if(tables[role]&&!(await sql.unsafe('SELECT id FROM app.'+tables[role]+' WHERE id=$1',[id])).length)throw new Error('Unknown identity.');
  await setIdentity(id,role as any);redirect(destination[role]);
 }
+
+/**
+ * Candidates are self-service and unbounded (every completed WhatsApp journey
+ * adds one), so — unlike the small, curated employer/partner/operations lists
+ * above — they are looked up by id or phone rather than offered as a list.
+ */
+export async function findCandidate(f:FormData){
+ const admin=await identity('nd_admin');if(admin?.role!=='ADMIN')throw new Error('Only the demo administrator can switch identities.');
+ const query=String(f.get('candidate')||'').trim();
+ if(!query)redirect('/demo?error='+encodeURIComponent('Enter a candidate ID or phone number.'));
+ const [row]=await sql<{id:string}[]>`SELECT id FROM app.candidate WHERE id=${query} OR phone=${query} LIMIT 1`;
+ if(!row)redirect('/demo?error='+encodeURIComponent('No candidate found for "'+query+'".'));
+ await setIdentity(row.id,'CANDIDATE');redirect('/wa/inbox');
+}
