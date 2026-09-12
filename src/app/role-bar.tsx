@@ -18,7 +18,7 @@ export function RoleBar() {
   const path = usePathname();
   return (
     <nav className="rolebar" aria-label="Role switcher">
-      <span className="brand">Frontline Hiring · Pune BFSI</span>
+      <span className="brand">NayiDisha</span>
       {ROLES.map((r) => {
         const active = r.href === '/' ? path === '/' : path.startsWith(r.href);
         return (

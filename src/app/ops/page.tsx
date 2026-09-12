@@ -63,15 +63,27 @@ export default async function OpsDashboard() {
           </div>
         </div>
 
-        <Suspense fallback={<p>Loading placement totals…</p>}><PlacementSummary/></Suspense><div className="tilegrid mb">
-          {queue.map((q) => (
-            <Link key={q.href + q.k} href={q.href} className={`tile ${Number(q.n) > 0 ? 'attn' : ''}`}>
-              <div className="k">{q.k}</div>
-              <div className="v">{q.n}</div>
-              <div className="d">{q.d}</div>
-              <span className="go">Open →</span>
-            </Link>
-          ))}
+        <div className="card">
+          <div className="card-head"><h2>Placement overview</h2></div>
+          <div className="card-body">
+            <Suspense fallback={<p>Loading placement totals…</p>}><PlacementSummary/></Suspense>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-head"><h2>Needs attention</h2></div>
+          <div className="card-body">
+            <div className="tilegrid">
+              {queue.map((q) => (
+                <Link key={q.href + q.k} href={q.href} className={`tile ${Number(q.n) > 0 ? 'attn' : ''}`}>
+                  <div className="k">{q.k}</div>
+                  <div className="v">{q.n}</div>
+                  <div className="d">{q.d}</div>
+                  <span className="go">Open →</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="card">
