@@ -1,4 +1,4 @@
-import {computeMatch} from '../matching';
+import {computeMatch, MatchComputation} from '../matching';
 import { sql } from '@/lib/db';
 import { now } from '@/lib/clock';
 import { nextId } from '@/lib/ids';
@@ -6,6 +6,7 @@ import { activeCommercialPolicy } from '@/modules/configuration';
 import { messagingProvider } from '@/modules/adapters/messaging';
 import { travelProvider } from '@/modules/adapters/travel';
 import { formatINR } from '@/lib/money';
+import { mapWithConcurrency } from '@/lib/concurrency';
 
 /**
  * Job alerts and partner activation (§8.6).
@@ -43,7 +44,13 @@ function inQuietHours(hour: number, from: number, to: number): boolean {
   return from <= to ? hour >= from && hour < to : hour >= from || hour < to;
 }
 
-export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): Promise<AlertOutcome> {
+/**
+ * `precomputedMatch` lets a caller that already ran `computeMatch` for this
+ * job/candidate pair (e.g. `refreshCandidate`, which always passes
+ * `onlyCandidate`) skip recomputing it here. Only used when `onlyCandidate`
+ * is set, since it applies to a single candidate.
+ */
+export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string, precomputedMatch?:MatchComputation): Promise<AlertOutcome> {
   const at = await now();
   const policy = await activeCommercialPolicy();
   const suppressed: AlertOutcome['suppressed'] = [];
@@ -94,27 +101,30 @@ export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): P
   const travel = travelProvider();
   let candidatesAlerted = 0;
 
-  for (const c of candidates) {
-    if (Number(c.already) > 0) { suppressed.push({ candidateId: c.id, reason: 'ALREADY_ALERTED' }); continue; }
-    if (!c.alerts_consent) { suppressed.push({ candidateId: c.id, reason: 'NO_ALERT_CONSENT' }); continue; }
+  // Independent per-candidate: eligibility check + send + insert for one
+  // candidate never depends on another, so run them with bounded concurrency
+  // instead of one at a time.
+  await mapWithConcurrency(candidates, async (c) => {
+    if (Number(c.already) > 0) { suppressed.push({ candidateId: c.id, reason: 'ALREADY_ALERTED' }); return; }
+    if (!c.alerts_consent) { suppressed.push({ candidateId: c.id, reason: 'NO_ALERT_CONSENT' }); return; }
     if (inQuietHours(hour, c.alert_quiet_from, c.alert_quiet_to)) {
-      suppressed.push({ candidateId: c.id, reason: 'QUIET_HOURS' }); continue;
+      suppressed.push({ candidateId: c.id, reason: 'QUIET_HOURS' }); return;
     }
     if (Number(c.alerts_this_week) >= c.alert_max_per_week) {
-      suppressed.push({ candidateId: c.id, reason: 'WEEKLY_CAP_REACHED' }); continue;
+      suppressed.push({ candidateId: c.id, reason: 'WEEKLY_CAP_REACHED' }); return;
     }
-    const match=await computeMatch(c.id,jobId);if(!match.stageA.pass||match.stageB.reasons.some(x=>!['NO_APPLICATION','INTEREST_NOT_RECONFIRMED'].includes(x))){suppressed.push({candidateId:c.id,reason:'NOT_YET_ELIGIBLE'});continue;}
-    const [hidden]=await sql`SELECT 1 FROM app.job_suggestion WHERE candidate_id=${c.id} AND job_id=${jobId} AND hidden`;if(hidden)continue;
+    const match=(onlyCandidate && precomputedMatch) ? precomputedMatch : await computeMatch(c.id,jobId);if(!match.stageA.pass||match.stageB.reasons.some(x=>!['NO_APPLICATION','INTEREST_NOT_RECONFIRMED'].includes(x))){suppressed.push({candidateId:c.id,reason:'NOT_YET_ELIGIBLE'});return;}
+    const [hidden]=await sql`SELECT 1 FROM app.job_suggestion WHERE candidate_id=${c.id} AND job_id=${jobId} AND hidden`;if(hidden)return;
     // ALT-01 — eligibility filtering, so an alert is not simply a broadcast.
     if (job.languages.length && !job.languages.some((l) => c.languages.includes(l))) {
-      suppressed.push({ candidateId: c.id, reason: 'NO_REQUIRED_LANGUAGE' }); continue;
+      suppressed.push({ candidateId: c.id, reason: 'NO_REQUIRED_LANGUAGE' }); return;
     }
     let minutes = 0;
     if (c.locality_key) {
       const est = await travel.between(c.locality_key, job.lat, job.lng);
       minutes = est.minutes;
       if (minutes > c.max_commute_min) {
-        suppressed.push({ candidateId: c.id, reason: 'BEYOND_COMMUTE_LIMIT' }); continue;
+        suppressed.push({ candidateId: c.id, reason: 'BEYOND_COMMUTE_LIMIT' }); return;
       }
     }
 
@@ -131,7 +141,7 @@ export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): P
       ON CONFLICT (job_id, candidate_id) DO NOTHING
     `;
     candidatesAlerted++;
-  }
+  });
 
   // ---- partners (ALT-03) --------------------------------------------------
   const capability = `${job.industry_key}/${job.role_family_key}`;
@@ -143,7 +153,7 @@ export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): P
                     WHERE s.partner_id = p.id AND s.status = 'ACTIVE')
   `;
   let partnersAlerted = 0;
-  for (const p of partners) {
+  await mapWithConcurrency(partners, async (p) => {
     const r = await sql`
       INSERT INTO app.partner_job_alert (id, job_id, partner_id, bounty_paise, sent_at)
       VALUES (${await nextId('PJA')}, ${jobId}, ${p.id}, ${policy.partnerRewardPaise}, ${at})
@@ -151,7 +161,7 @@ export async function dispatchJobAlerts(jobId: string, onlyCandidate?:string): P
       RETURNING id
     `;
     if (r.length) partnersAlerted++;
-  }
+  });
 
   await sql`
     INSERT INTO app.audit_log (id, actor, actor_role, event, entity_type, entity_id, reason, detail, created_at)

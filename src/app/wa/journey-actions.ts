@@ -7,7 +7,8 @@ import {startRegistration,verifyAndBind,grantConsent,withdrawConsent,completePro
 import {resumePoint,raiseDataRequest} from '@/modules/lifecycle';
 import {getRoleConfig} from '@/modules/configuration';
 import {recordMatch} from '@/modules/matching';
-import {nextId,randomToken} from '@/lib/ids';
+import {nextId,randomToken,shuffle} from '@/lib/ids';
+import {mapWithConcurrency} from '@/lib/concurrency';
 import {now} from '@/lib/clock';
 import {text,integer,choice} from '@/lib/validation';
 async function candidate(){return requireRole(['CANDIDATE']);}
@@ -41,9 +42,10 @@ export async function saveProfile(input:{education?:string;name:string;locality:
  if(!input.shifts.length||!input.languages.length)throw new Error('Choose languages and availability.');
  await completeProfile(c.id,{name:text(input.name,'Name'),localityKey:input.locality,age18:input.age18,workAuthorised:input.work,experienceMonths:input.months,experienceTags:input.tags.split(',').map(s=>s.trim()).filter(Boolean),languages:input.languages,currentPayPaise:null,expectedPayPaise:input.pay*100,maxCommuteMin:input.commute,shiftAvailability:input.shifts});
  await sql`UPDATE app.candidate SET education=${input.education||''},role_config_id=${cfg.id} WHERE id=${c.id}`;
- const at=await now();for(const d of defs){const v=input.attributes[d.key];if(!v)continue;
+ const at=await now();
+ await mapWithConcurrency(defs.filter(d=>input.attributes[d.key]),async d=>{const v=input.attributes[d.key];
  await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_text,value_bool,value_int,collected_at) VALUES(${await nextId('ATV')},${c.id},${d.key},${cfg.id},${['BOOL','INT'].includes(d.data_type)?null:v},${d.data_type==='BOOL'?v==='true':null},${d.data_type==='INT'?Number(v):null},${at}) ON CONFLICT(candidate_id,attribute_key) DO UPDATE SET role_config_id=EXCLUDED.role_config_id,value_text=EXCLUDED.value_text,value_bool=EXCLUDED.value_bool,value_int=EXCLUDED.value_int,collected_at=EXCLUDED.collected_at`;
- }
+ });
  await auditAction('PROFILE_SAVED',[c.id]);after(()=>safelyRefreshCandidate(c.id));
 }
 export async function beginTest(){
@@ -53,9 +55,8 @@ export async function beginTest(){
  const at=new Date();const demoAt=await now();const attempts=await sql`SELECT completed_at FROM app.assessment_attempt WHERE candidate_id=${c.id} AND template_id=${tpl.id} ORDER BY completed_at DESC`;
  if(attempts.length>=tpl.max_attempts)throw new Error('Attempt limit reached. Contact Operations.');
  if(attempts[0]&&new Date(attempts[0].completed_at).getTime()+tpl.retake_hours*3600000>demoAt.getTime())throw new Error('Please wait '+tpl.retake_hours+' hours before retaking this test.');
- const questions=[...tpl.questions].sort((a,b)=>a.id.localeCompare(b.id));
  // Session-bound shuffled order; answer keys never leave the server.
- const salt=randomToken(12);questions.sort((a,b)=>(a.id+salt).split('').reduce((n,x)=>n+x.charCodeAt(0),0)%7-(b.id+salt).split('').reduce((n,x)=>n+x.charCodeAt(0),0)%7);
+ const questions=shuffle(tpl.questions as any[]);
  const id=randomToken(24),expires=new Date(at.getTime()+(tpl.time_limit_sec||900)*1000);
  await sql`INSERT INTO app.assessment_session(id,candidate_id,template_id,template_version,language,question_ids,started_at,expires_at) VALUES(${id},${c.id},${tpl.id},${tpl.version},${profile.language},${sql.json(questions.map(q=>q.id))},${at},${expires})`;
  return {id,minutes:(tpl.time_limit_sec||900)/60,questions:questions.map(q=>({id:q.id,prompt:q.translations?.[profile.language]||q.prompt,options:q.options.map((value:string,i:number)=>({value,label:q.optionTranslations?.[profile.language]?.[i]||value}))}))};

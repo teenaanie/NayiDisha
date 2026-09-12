@@ -39,7 +39,7 @@ const serverless = !!process.env.VERCEL || !!process.env.NETLIFY;
 // PG_POOL_MAX exists so the acceptance suite can run the whole application
 // against a one-connection pool — the condition that turns a mis-threaded
 // transaction into a hang. See `npm run test:serverless`.
-const poolMax = Number(process.env.PG_POOL_MAX) || (serverless ? 3 : 10);
+export const poolMax = Number(process.env.PG_POOL_MAX) || (serverless ? 3 : 10);
 
 export const sql =
   global.__sql ??

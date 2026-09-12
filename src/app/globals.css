@@ -141,6 +141,16 @@ input, select, textarea {
 label { display:block; font-size:.76rem; font-weight:650; color: var(--muted); margin-bottom:4px; }
 .field { margin-bottom: 11px; }
 
+/* Styled replacement for the browser's default grooved fieldset/legend box. */
+fieldset.field-group {
+  border: 1px solid var(--line); border-radius: var(--radius); margin: 0 0 11px; padding: 10px 12px;
+}
+fieldset.field-group legend {
+  font-size:.76rem; font-weight:650; color: var(--muted); padding: 0 4px;
+}
+fieldset.field-group label { display:inline-flex; align-items:center; gap:5px; font-weight:500; color: var(--ink); margin: 3px 10px 3px 0; }
+fieldset.field-group input[type="checkbox"] { width:auto; }
+
 .stat { padding: 13px 16px; }
 .stat .k { font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700; }
 .stat .v { font-size: 1.5rem; font-weight:700; font-variant-numeric: tabular-nums; margin-top:3px; }
@@ -195,6 +205,13 @@ label { display:block; font-size:.76rem; font-weight:650; color: var(--muted); m
 .wa-meta { font-size:.63rem; opacity:.6; margin-top:3px; font-family: var(--mono); }
 .wa-actions { padding: 11px 14px; border-top: 1px solid var(--line); background: var(--surface); }
 .wa-actions .btnrow { gap:6px; }
+
+/* Inside the WhatsApp simulator, lean on WhatsApp's own teal for the primary
+   action instead of the ops-tool navy accent — this surface is a chat, not a
+   dashboard, and should read as one. */
+.wa-shell .btn-primary { background:#128C7E; border-color:#128C7E; }
+.wa-shell .btn-primary:hover { background:#0F7268; border-color:#0F7268; filter:none; }
+.wa-shell .btn:focus-visible { outline-color:#128C7E; }
 
 .qr-card {
   background: var(--accent); color: var(--accent-ink); border-radius: 10px; padding: 18px;

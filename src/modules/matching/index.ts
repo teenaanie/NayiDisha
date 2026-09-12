@@ -46,7 +46,7 @@ interface CandidateRow {
   age_confirmed_18: boolean; experience_months: number; experience_tags: string[];
   languages: string[]; expected_pay_paise: string | null; current_pay_paise: string | null;
   max_commute_min: number; shift_availability: string[]; status: string;
-  mobile_verified_at: Date | null;
+  mobile_verified_at: Date | null; work_authorised: boolean;
 }
 
 interface JobRow {
@@ -113,49 +113,55 @@ function scoreJobPreference(tags:string[],direct:string[],adjacent:string[]):num
 export async function computeMatch(
   candidateId: string, jobId: string,
 ): Promise<MatchComputation> {
-  const [cand] = await sql<CandidateRow[]>`
-    SELECT * FROM app.candidate WHERE id = ${candidateId}
-  `;
-  const [job] = await sql<JobRow[]>`
-    SELECT j.*, l.lat, l.lng, l.locality_key AS loc_locality, l.name AS loc_name
-      FROM app.job j JOIN app.employer_location l ON l.id = j.location_id
-     WHERE j.id = ${jobId}
-  `;
+  // Everything here depends only on candidateId/jobId, not on each other's
+  // results, so they run concurrently instead of as ~8 sequential round trips.
+  const [[cand], [job], policy, at, [app], [consent], endorsements, attributes] = await Promise.all([
+    sql<CandidateRow[]>`SELECT * FROM app.candidate WHERE id = ${candidateId}`,
+    sql<JobRow[]>`
+      SELECT j.*, l.lat, l.lng, l.locality_key AS loc_locality, l.name AS loc_name
+        FROM app.job j JOIN app.employer_location l ON l.id = j.location_id
+       WHERE j.id = ${jobId}
+    `,
+    activeCommercialPolicy(),
+    now(),
+    sql<{ status: string; reconfirmed_at: Date | null }[]>`
+      SELECT status, reconfirmed_at FROM app.application
+       WHERE candidate_id = ${candidateId} AND job_id = ${jobId}
+    `,
+    sql<{ granted_at: Date | null; withdrawn_at: Date | null }[]>`
+      SELECT granted_at, withdrawn_at FROM app.consent_record
+       WHERE candidate_id = ${candidateId} AND purpose = 'PROCESSING'
+    `,
+    sql<{ raw_points: number; status: string }[]>`
+      SELECT raw_points, status FROM app.endorsement
+       WHERE candidate_id = ${candidateId} AND status = 'VERIFIED_CONTACT'
+       ORDER BY raw_points DESC LIMIT 2
+    `,
+    sql`SELECT d.key,d.freshness_days,v.value_text,v.value_bool,v.value_int,v.collected_at FROM app.attribute_definition d LEFT JOIN app.candidate_attribute_value v ON v.attribute_key=d.key AND v.candidate_id=${candidateId} WHERE d.scope='CANDIDATE_ROLE'`,
+  ]);
   if (!cand || !job) throw new Error(`Cannot match ${candidateId} against ${jobId}`);
 
-  const cfg: RoleConfig = await getRoleConfig(job.role_config_id);
-  const [family]=await sql`SELECT direct_tags,transferable,skill_mapping FROM app.role_family WHERE key=${cfg.roleFamilyKey} AND industry_key=${cfg.industryKey}`;
+  // cfg needs job.role_config_id; travel needs cand/job — both only need phase 1.
+  const [cfg, travel] = await Promise.all([
+    getRoleConfig(job.role_config_id),
+    cand.locality_key ? travelProvider().between(cand.locality_key, job.lat, job.lng) : Promise.resolve(null),
+  ]);
   const rules = cfg.qualificationRules;
-  const policy = await activeCommercialPolicy();
-  const at = await now();
 
-  const [app] = await sql<{ status: string; reconfirmed_at: Date | null }[]>`
-    SELECT status, reconfirmed_at FROM app.application
-     WHERE candidate_id = ${candidateId} AND job_id = ${jobId}
-  `;
-  const [consent] = await sql<{ granted_at: Date | null; withdrawn_at: Date | null }[]>`
-    SELECT granted_at, withdrawn_at FROM app.consent_record
-     WHERE candidate_id = ${candidateId} AND purpose = 'PROCESSING'
-  `;
-  const [attempt] = await sql<{ score: number; template_version: string }[]>`
-    SELECT score, template_version FROM app.assessment_attempt
-     WHERE candidate_id = ${candidateId}
-     AND template_id=${cfg.assessmentTemplateId}
-     ORDER BY completed_at DESC, id DESC LIMIT 1
-  `;
-  const endorsements = await sql<{ raw_points: number; status: string }[]>`
-    SELECT raw_points, status FROM app.endorsement
-     WHERE candidate_id = ${candidateId} AND status = 'VERIFIED_CONTACT'
-     ORDER BY raw_points DESC LIMIT 2
-  `;
+  // family needs cfg.roleFamilyKey/industryKey; attempt needs cfg.assessmentTemplateId.
+  const [[family], [attempt]] = await Promise.all([
+    sql`SELECT direct_tags,transferable,skill_mapping FROM app.role_family WHERE key=${cfg.roleFamilyKey} AND industry_key=${cfg.industryKey}`,
+    sql<{ score: number; template_version: string }[]>`
+      SELECT score, template_version FROM app.assessment_attempt
+       WHERE candidate_id = ${candidateId}
+       AND template_id=${cfg.assessmentTemplateId}
+       ORDER BY completed_at DESC, id DESC LIMIT 1
+    `,
+  ]);
 
   const fixed = Number(job.fixed_pay_paise);
   const variableMax = Number(job.variable_max_paise);
   const expected = cand.expected_pay_paise === null ? null : Number(cand.expected_pay_paise);
-
-  const travel = cand.locality_key
-    ? await travelProvider().between(cand.locality_key, job.lat, job.lng)
-    : null;
 
   // ---- Stage A: hard eligibility ------------------------------------------
   const aReasons: string[] = [];
@@ -194,9 +200,7 @@ export async function computeMatch(
       bReasons.push(`ASSESSMENT_BELOW_${rules.minAssessmentScore}`);
     }
   }
-  const [declaration]=await sql`SELECT work_authorised FROM app.candidate WHERE id=${candidateId}`;
-  if(rules.requireWorkAuthDeclaration && !declaration?.work_authorised) bReasons.push('WORK_AUTHORISATION_REQUIRED');
-  const attributes=await sql`SELECT d.key,d.freshness_days,v.value_text,v.value_bool,v.value_int,v.collected_at FROM app.attribute_definition d LEFT JOIN app.candidate_attribute_value v ON v.attribute_key=d.key AND v.candidate_id=${candidateId} WHERE d.scope='CANDIDATE_ROLE'`;
+  if(rules.requireWorkAuthDeclaration && !cand.work_authorised) bReasons.push('WORK_AUTHORISATION_REQUIRED');
   for(const required of cfg.candidateAttributes.filter(a=>a.required)) {
     const row=attributes.find(a=>a.key===required.key);
     if(row && (row.collected_at===null || (row.value_text===null && row.value_bool===null && row.value_int===null))) bReasons.push('REQUIRED_FIELD_'+required.key);
@@ -286,11 +290,15 @@ export async function computeMatch(
   };
 }
 
-/** Compute and persist a match result, version-stamped (MATCH-06). */
+/**
+ * Compute and persist a match result, version-stamped (MATCH-06).
+ * Pass `precomputed` when the caller already ran `computeMatch` for this
+ * candidate/job pair (e.g. a refresh loop) so it isn't computed twice.
+ */
 export async function recordMatch(
-  applicationId: string, candidateId: string, jobId: string,
+  applicationId: string, candidateId: string, jobId: string, precomputed?: MatchComputation,
 ): Promise<{ id: string; computation: MatchComputation }> {
-  const c = await computeMatch(candidateId, jobId);
+  const c = precomputed ?? await computeMatch(candidateId, jobId);
   const at = await now();
   const [job] = await sql<{ role_config_id: string }[]>`
     SELECT role_config_id FROM app.job WHERE id = ${jobId}
@@ -338,11 +346,10 @@ export async function previewsForJob(jobId: string, batchSize: number) {
            EXISTS (SELECT 1 FROM app.qualified_lead_unlock u
                     WHERE u.job_id = m.job_id AND u.candidate_id = m.candidate_id
                       AND u.status = 'CONFIRMED') AS unlocked
-      FROM (SELECT DISTINCT ON (candidate_id,job_id) * FROM app.match_result ORDER BY candidate_id,job_id,computed_at DESC,id DESC) m
+      FROM (SELECT DISTINCT ON (candidate_id,job_id) * FROM app.match_result WHERE job_id = ${jobId} ORDER BY candidate_id,job_id,computed_at DESC,id DESC) m
       JOIN app.candidate c ON c.id = m.candidate_id
       JOIN app.application a ON a.id = m.application_id
-     WHERE m.job_id = ${jobId}
-       AND m.qualified = TRUE
+     WHERE m.qualified = TRUE
        AND c.status='PROFILE_ACTIVE'
        AND EXISTS(SELECT 1 FROM app.job j JOIN app.employer_organisation e ON e.id=j.employer_id WHERE j.id=m.job_id AND j.status='LIVE' AND e.status='VERIFIED' AND j.pending_changes IS NULL AND (j.expires_at IS NULL OR j.expires_at>(SELECT now_at FROM app.demo_clock WHERE id=1)))
        AND EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='PROCESSING' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL)
