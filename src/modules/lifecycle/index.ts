@@ -4,6 +4,7 @@ import { now, addDays } from '@/lib/clock';
 import { nextId, randomToken } from '@/lib/ids';
 import { messagingProvider } from '@/modules/adapters/messaging';
 import { dispatchJobAlerts } from '@/modules/alerts';
+import { mapWithConcurrency } from '@/lib/concurrency';
 
 /**
  * Job lifecycle (JOB-01/04/05) and endorsement lifecycle (END-02/03/04/09).
@@ -86,13 +87,13 @@ export async function editJob(jobId: string, edit: JobEdit, actor: string) {
     const [job] = await sql<{ title: string }[]>`SELECT title FROM app.job WHERE id = ${jobId}`;
     const summary = changes.filter((c) => c.material)
       .map((c) => c.field.replace(/_paise$/, '').replace(/_/g, ' ')).join(', ');
-    for (const i of interested) {
+    await mapWithConcurrency(interested, async (i) => {
       await messagingProvider().send({
         candidateId: i.candidate_id, templateKey: 'job_changed', language: 'en',
         variables: { title: job.title, change: summary },
       });
       notified++;
-    }
+    });
   }
 
   for (const c of changes) {
@@ -304,7 +305,7 @@ export async function setEndorsementHidden(endorsementId: string, hidden: boolea
      WHERE id = ${endorsementId} AND status IN ('VERIFIED_CONTACT','HIDDEN')
   `;
   const [e]=await sql`SELECT candidate_id FROM app.endorsement WHERE id=${endorsementId}`;
-  if(e){const {recordMatch}=await import('@/modules/matching');for(const a of await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${e.candidate_id} AND status NOT IN ('WITHDRAWN','REJECTED')`)await recordMatch(a.id,e.candidate_id,a.job_id);}
+  if(e){const {recordMatch}=await import('@/modules/matching');const apps=await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${e.candidate_id} AND status NOT IN ('WITHDRAWN','REJECTED')`;await mapWithConcurrency(apps,a=>recordMatch(a.id,e.candidate_id,a.job_id));}
   return { ok: true };
 }
 
@@ -325,7 +326,7 @@ export async function updatePreferences(candidateId: string, prefs: {
   const fields: Record<string,string>={language:'language',maxCommuteMin:'max_commute_min',expectedPayPaise:'expected_pay_paise',alertQuietFrom:'alert_quiet_from',alertQuietTo:'alert_quiet_to',alertMaxPerWeek:'alert_max_per_week'};
   for(const [key,value] of Object.entries(prefs)) if(value!==undefined && fields[key]) values[fields[key]]=value;
   if(Object.keys(values).length) await sql`UPDATE app.candidate SET ${sql(values)} WHERE id=${candidateId}`;
-  const {recordMatch}=await import('@/modules/matching');for(const a of await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${candidateId} AND status NOT IN ('WITHDRAWN','REJECTED')`)await recordMatch(a.id,candidateId,a.job_id);
+  const {recordMatch}=await import('@/modules/matching');const apps=await sql`SELECT id,job_id FROM app.application WHERE candidate_id=${candidateId} AND status NOT IN ('WITHDRAWN','REJECTED')`;await mapWithConcurrency(apps,a=>recordMatch(a.id,candidateId,a.job_id));
   return {ok:true,changed:Object.keys(values).length};
 }
 

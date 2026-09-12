@@ -56,6 +56,16 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
 export async function nextId(prefix: string, conn = sql): Promise<string> {
   const table = TABLE_FOR_PREFIX[prefix];
   if (!table) throw new Error(`Unknown id prefix: ${prefix}`);
+
+  // Once app.id_counter has a row for this prefix, bumping it is a single
+  // indexed UPDATE. Only the very first call for a prefix needs the MAX(...)
+  // scan below, to seed the counter correctly against whatever fixed-ID rows
+  // the table already has (e.g. the canonical seed data).
+  const [fast] = await conn<{ n: number }[]>`
+    UPDATE app.id_counter SET value = value + 1 WHERE prefix = ${prefix} RETURNING value AS n
+  `;
+  if (fast) return `${prefix}-${String(fast.n).padStart(3, '0')}`;
+
   // Only rows whose suffix is purely numeric participate in the series, so a
   // structured seed id such as CRD-JOB001-0 cannot break the sequence.
   const [row] = await conn<{ n: number }[]>`
@@ -77,4 +87,15 @@ export function unlockIdempotencyKey(
 
 export function randomToken(len = 24): string {
   return randomBytes(len).toString('base64url').slice(0, len);
+}
+
+/** Cryptographically-seeded Fisher-Yates shuffle — uniform, unlike a hash-mod comparator. */
+export function shuffle<T>(items: T[]): T[] {
+  const result = items.slice();
+  const bytes = randomBytes(result.length);
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = bytes[i] % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
 }
