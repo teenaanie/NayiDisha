@@ -16,7 +16,7 @@ export default async function PreferencesPage({
   const candidateId = viewer.role==='ADMIN' ? (c ?? 'CAN-001') : viewer.id;
 
   const all = await sql<{ id: string; name: string | null }[]>`
-    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id`;
+    SELECT id, name FROM app.candidate WHERE status='PROFILE_ACTIVE' AND (${viewer.role==='ADMIN'} OR id=${viewer.id}) ORDER BY id DESC LIMIT 30`;
 
   const [cand] = await sql<{
     id: string; name: string | null; language: 'mr' | 'hi' | 'en'; locality_key: string | null;

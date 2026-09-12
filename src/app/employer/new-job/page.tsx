@@ -6,9 +6,14 @@ import { NewJobForm } from './form';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewJobPage() {
+export default async function NewJobPage({
+  searchParams,
+}: { searchParams: Promise<{ employer?: string }> }) {
   const viewer=await scopePage('employer');
-  const employerId = viewer.role==='ADMIN' ? 'EMP-001' : viewer.id;
+  const { employer } = await searchParams;
+  // Operations can post on behalf of any verified employer (via a link from
+  // that employer's Ops record); a plain employer account always posts for itself.
+  const employerId = viewer.role==='ADMIN' ? (employer || 'EMP-001') : viewer.id;
 
   const locations = await sql<{ id: string; name: string; locality_key: string }[]>`
     SELECT id, name, locality_key FROM app.employer_location
@@ -50,7 +55,9 @@ export default async function NewJobPage() {
               {' '}<Clause>JOB-01 / 02 / 08 / 09</Clause>
             </div>
           </div>
-          <Link className="btn" href="/employer">← Employer</Link>
+          <Link className="btn" href={viewer.role==='ADMIN'&&employer?`/ops/employers/${employer}/edit`:'/employer'}>
+            ← {viewer.role==='ADMIN'&&employer?'Employer record':'Employer'}
+          </Link>
         </div>
       </div>
       {locations.length === 0

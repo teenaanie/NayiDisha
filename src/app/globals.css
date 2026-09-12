@@ -248,15 +248,15 @@ fieldset.field-group input[type="checkbox"] { width:auto; }
 .tilegrid{display:grid; gap:12px; grid-template-columns:1fr;}
 @media(min-width:700px){.tilegrid{grid-template-columns:1fr 1fr;}}
 @media(min-width:1000px){.tilegrid{grid-template-columns:repeat(3,1fr);}}
-a.tile{
+.tile{
   display:block; text-decoration:none; color:inherit; background:var(--surface);
   border:1px solid var(--line); border-radius:var(--radius); padding:15px 17px;
 }
 a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
-a.tile .k{font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700;}
-a.tile .v{font-size:1.65rem; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px;}
-a.tile .d{font-size:.8rem; color:var(--muted); line-height:1.4;}
-a.tile .go{font-size:.76rem; color:var(--accent); font-weight:600; margin-top:8px; display:block;}
+.tile .k{font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:700;}
+.tile .v{font-size:1.65rem; font-weight:700; font-variant-numeric:tabular-nums; margin:4px 0 2px;}
+.tile .d{font-size:.8rem; color:var(--muted); line-height:1.4;}
+.tile .go{font-size:.76rem; color:var(--accent); font-weight:600; margin-top:8px; display:block;}
 .attn{border-left:3px solid var(--warn);}
 .attn .v{color:var(--warn);}
 

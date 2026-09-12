@@ -10,14 +10,24 @@ export function CandidatePicker({ candidates, current, base }: {
   candidates: { id: string; name: string | null }[]; current: string; base: string;
 }) {
   const router = useRouter();
+  const [query, setQuery] = useState('');
+  // Candidates are created continuously through the WhatsApp demo, so `candidates`
+  // is only the most recent handful (capped by the caller) — a text jump lets an
+  // admin reach any other one by id instead of needing an ever-growing list.
   return (
     <div style={{ minWidth: 250 }}>
-      <label htmlFor="cand-pick">Viewing as candidate</label>
+      <label htmlFor="cand-pick">Viewing as candidate (recent)</label>
       <select id="cand-pick" value={current} onChange={(e) => router.push(`${base}?c=${e.target.value}`)}>
         {candidates.map((c) => (
           <option key={c.id} value={c.id}>{c.id} — {c.name?.replace(/^DEMO /, '')}</option>
         ))}
       </select>
+      <div className="btnrow mt" style={{ gap: 6 }}>
+        <input placeholder="Candidate ID, e.g. CAN-001" value={query}
+               onChange={(e) => setQuery(e.target.value)} style={{ minWidth: 0 }} />
+        <button type="button" className="btn btn-sm" disabled={!query.trim()}
+                onClick={() => router.push(`${base}?c=${encodeURIComponent(query.trim())}`)}>Go</button>
+      </div>
     </div>
   );
 }

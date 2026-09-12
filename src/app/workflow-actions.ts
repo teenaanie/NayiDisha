@@ -1,5 +1,6 @@
 'use server';
-import {sql} from '@/lib/db';import {requireRole} from '@/lib/auth';import {now} from '@/lib/clock';import {nextId} from '@/lib/ids';import {revalidatePath} from 'next/cache';import {refreshCandidate} from '@/modules/discovery';import {messagingProvider} from '@/modules/adapters/messaging';
+import {after} from 'next/server';
+import {sql} from '@/lib/db';import {requireRole} from '@/lib/auth';import {now} from '@/lib/clock';import {nextId} from '@/lib/ids';import {revalidatePath} from 'next/cache';import {refreshCandidate,safelyRefreshCandidate} from '@/modules/discovery';import {messagingProvider} from '@/modules/adapters/messaging';
 export async function workflow(f:FormData){const kind=String(f.get('kind')),id=String(f.get('id')),reason=String(f.get('reason')||'').trim();const at=await now();let actor;
 if(['remind','withdraw','decline_suggestion'].includes(kind)){
  actor=await requireRole(['CANDIDATE']);
@@ -15,17 +16,25 @@ if(['remind','withdraw','decline_suggestion'].includes(kind)){
  actor=await requireRole(['ADMIN','OPERATIONS']);
  if(['return_job','hide_match','restore_match','manual_match','decide_credit'].includes(kind)&&!reason)throw new Error('A reason is required.');
  if(kind==='return_job'){const rows=await sql`UPDATE app.job SET status='DRAFT',status_reason=${reason} WHERE id=${id} AND status='PENDING_APPROVAL' RETURNING id`;if(!rows.length)throw new Error('Job is not awaiting approval.');}
- else if(kind==='recompute'){await refreshCandidate(id);}
- else if(kind==='manual_match'){await refreshCandidate(id);const job=String(f.get('job'));const [s]=await sql`SELECT eligible FROM app.job_suggestion WHERE candidate_id=${id} AND job_id=${job}`;if(!s)throw new Error('Select a live job.');if(!s.eligible)throw new Error('Candidate does not meet eligibility. Manual review cannot bypass requirements.');await sql`UPDATE app.job_suggestion SET hidden=false,reason=${reason} WHERE candidate_id=${id} AND job_id=${job}`;}
+ else if(kind==='recompute'){
+  // Recomputing every live job for a candidate can take a while once there are
+  // many live jobs; run it after the response so this button can never time out
+  // waiting on it, matching how the candidate-facing flow already refreshes.
+  after(()=>safelyRefreshCandidate(id));
+ }
+ else if(kind==='manual_match'){const job=String(f.get('job'));if(!job)throw new Error('Select a live job.');await refreshCandidate(id,job);const [s]=await sql`SELECT eligible FROM app.job_suggestion WHERE candidate_id=${id} AND job_id=${job}`;if(!s)throw new Error('Select a live job.');if(!s.eligible)throw new Error('Candidate does not meet eligibility. Manual review cannot bypass requirements.');await sql`UPDATE app.job_suggestion SET hidden=false,reason=${reason} WHERE candidate_id=${id} AND job_id=${job}`;}
  else if(kind==='hide_match'||kind==='restore_match'){await sql`UPDATE app.job_suggestion SET hidden=${kind==='hide_match'},reason=${reason} WHERE candidate_id=${id} AND job_id=${String(f.get('job'))}`;}
  else if(kind==='decide_credit'){await sql.begin(async tx=>{const [q]=await tx`SELECT * FROM app.credit_request WHERE id=${id} AND status='PENDING' FOR UPDATE`;if(!q)throw new Error('Request already decided.');const approve=f.get('decision')==='APPROVED';if(approve){const [ent]=await tx`SELECT id FROM app.posting_entitlement WHERE job_id=${q.job_id} AND ends_at>${at}`;if(!ent)throw new Error('No active posting entitlement.');const [p]=await tx`SELECT additional_credit_paise FROM app.commercial_policy WHERE active`;await tx`INSERT INTO app.credit_ledger(id,entitlement_id,entry_type,credit_delta,amount_paise,note,created_at) VALUES(${await nextId('CRD',tx)},${ent.id},'PURCHASE',${q.quantity},${Number(p.additional_credit_paise)*q.quantity},${'Approved demo request '+id},${at})`;}
  await tx`UPDATE app.credit_request SET status=${approve?'APPROVED':'REJECTED'},decision_reason=${reason},decided_at=${at} WHERE id=${id}`;});}
  else if(kind==='retry_message'){const [m]=await sql`SELECT * FROM app.message_log WHERE id=${id} AND delivery_status='FAILED'`;if(!m)throw new Error('No failed message found.');const [flags]=await sql`SELECT messaging_failure FROM app.demo_clock WHERE id=1`;if(flags.messaging_failure)throw new Error('Turn off simulated message failure before retrying.');await sql`UPDATE app.message_log SET delivery_status='DELIVERED',failure_reason=NULL WHERE id=${id}`;}
  else if(kind==='resolve_issue'){await sql`UPDATE app.workflow_issue SET resolved_at=${at} WHERE id=${id}`;}
- else if(kind==='retry_matching'){const [issue]=await sql`SELECT candidate_id FROM app.workflow_issue WHERE id=${id} AND resolved_at IS NULL`;if(!issue)throw new Error('Issue already resolved.');await refreshCandidate(issue.candidate_id);await sql`UPDATE app.workflow_issue SET resolved_at=${at} WHERE id=${id}`;}
+ else if(kind==='retry_matching'){const [issue]=await sql`SELECT candidate_id FROM app.workflow_issue WHERE id=${id} AND resolved_at IS NULL`;if(!issue)throw new Error('Issue already resolved.');after(()=>safelyRefreshCandidate(issue.candidate_id));await sql`UPDATE app.workflow_issue SET resolved_at=${at} WHERE id=${id}`;}
  else throw new Error('Unknown action.');
 }
-await sql`INSERT INTO app.action_audit(actor,role,action,entity_id,detail) VALUES(${actor.id},${actor.role},${kind},${id},${sql.json({reason})})`;revalidatePath('/','layout');return kind==='remind'?'Reminder set for tomorrow on the demo clock.':'Saved.';
+await sql`INSERT INTO app.action_audit(actor,role,action,entity_id,detail) VALUES(${actor.id},${actor.role},${kind},${id},${sql.json({reason})})`;revalidatePath('/','layout');
+if(kind==='remind')return 'Reminder set for tomorrow on the demo clock.';
+if(kind==='recompute'||kind==='retry_matching')return 'Matching is recomputing in the background — refresh in a few seconds to see updated results.';
+return 'Saved.';
 }
 export async function deliverDueReminders(){await requireRole(['ADMIN','OPERATIONS']);const at=await now();const rows=await sql`SELECT r.*,c.language,c.alert_quiet_from,c.alert_quiet_to,c.alert_max_per_week,j.title,j.fixed_pay_paise,e.brand_name,l.name locality FROM app.candidate_reminder r JOIN app.candidate c ON c.id=r.candidate_id JOIN app.job j ON j.id=r.job_id JOIN app.employer_organisation e ON e.id=j.employer_id JOIN app.employer_location l ON l.id=j.location_id WHERE r.sent_at IS NULL AND r.due_at<=${at} AND j.status='LIVE' AND e.status='VERIFIED' AND (j.expires_at IS NULL OR j.expires_at>${at}) AND EXISTS(SELECT 1 FROM app.consent_record cr WHERE cr.candidate_id=c.id AND cr.purpose='JOB_ALERTS' AND cr.granted_at IS NOT NULL AND cr.withdrawn_at IS NULL)`;
 for(const r of rows){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',hour:'numeric',hourCycle:'h23'}).format(at));const quiet=r.alert_quiet_from<r.alert_quiet_to?hour>=r.alert_quiet_from&&hour<r.alert_quiet_to:hour>=r.alert_quiet_from||hour<r.alert_quiet_to;if(quiet)continue;const [n]=await sql`SELECT count(*) n FROM app.message_log WHERE candidate_id=${r.candidate_id} AND category='MARKETING' AND delivery_status='DELIVERED' AND created_at>${new Date(at.getTime()-7*86400000)}`;if(Number(n.n)>=r.alert_max_per_week)continue;
