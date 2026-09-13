@@ -1,7 +1,7 @@
 import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 import { ConfigPanel, SandboxEditor } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +21,7 @@ export default async function ConfigurationsPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Industry &amp; role configuration</h1>

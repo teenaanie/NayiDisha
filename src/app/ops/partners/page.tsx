@@ -5,7 +5,7 @@ import {NavigationLink} from '../../navigation-link';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export default async function PartnersPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <div className="flexb">

@@ -3,7 +3,7 @@ import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +21,7 @@ export default async function FraudPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Fraud signals</h1><p className="note">Cases appear when source validation or endorsement checks raise a signal, or a candidate requests a source correction. A signal requires review and is not proof of fraud. This demo does not claim to detect collusion or device networks.</p>

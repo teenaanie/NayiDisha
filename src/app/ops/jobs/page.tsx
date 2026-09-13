@@ -4,7 +4,7 @@ import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { formatPay } from '@/lib/money';
 import { StatusPill, Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
@@ -33,7 +33,7 @@ export default async function JobModerationPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Job moderation</h1>

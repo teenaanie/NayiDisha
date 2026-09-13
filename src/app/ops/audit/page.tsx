@@ -2,7 +2,7 @@ import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +23,7 @@ export default async function AuditPage({
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Audit explorer</h1>

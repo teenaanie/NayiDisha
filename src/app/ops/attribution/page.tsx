@@ -2,7 +2,7 @@ import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
@@ -26,7 +26,7 @@ export default async function AttributionPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Candidate referrals</h1><p className="note">This screen shows which partner referred each candidate. Referral method is QR, typed partner code or direct entry. It is created at verification; later scans never overwrite a valid source. Allow approves the reviewed source; Void removes reward eligibility.</p>

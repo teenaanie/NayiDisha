@@ -2,7 +2,7 @@ import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import { StatusPill, Clause } from '../../ui';
-import { SubNav, OPS_TABS } from '../../subnav';
+
 import { DataRequestActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +20,7 @@ export default async function DataRequestsPage() {
 
   return (
     <>
-      <SubNav tabs={OPS_TABS} />
+      
       <main className="page">
         <div className="page-head">
           <h1>Data principal requests</h1><p className="note">Candidates create requests from My data. Access produces a private export; erasure anonymises profile data while retaining necessary transaction history. Corrections require a specific field and value.</p>
