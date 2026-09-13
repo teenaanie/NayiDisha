@@ -16,6 +16,7 @@ const ROLES = [
 
 export function RoleBar() {
   const path = usePathname();
+  if (path.startsWith('/ops')) return null;
   return (
     <nav className="rolebar" aria-label="Role switcher">
       <span className="brand">NayiDisha</span>

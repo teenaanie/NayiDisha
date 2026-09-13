@@ -1,115 +1,27 @@
-import {PlacementSummary} from './placement-summary';
-import {Suspense} from 'react';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
-import { sql } from '@/lib/db';
-import { fmtDateTime } from '@/lib/clock';
-import { Clause } from '../ui';
-import { SubNav, OPS_TABS } from '../subnav';
-
-export const dynamic = 'force-dynamic';
-
-/** Operations dashboard — what needs attention, and where to go for it. */
-export default async function OpsDashboard() {
-  const viewer=await scopePage('ops');
-  const [c] = await sql<{
-    emp_pending: string; emp_total: string;
-    par_pending: string; par_total: string;
-    job_pending: string; job_live: string;
-    attr_review: string; fraud_open: string; repl_pending: string;
-    dr_open: string; dr_due_soon: string; cfg_sandbox: string; audit_today: string;
-  }[]>`
-    SELECT
-      (SELECT COUNT(*) FROM app.employer_organisation WHERE status='PENDING_REVIEW')::text AS emp_pending,
-      (SELECT COUNT(*) FROM app.employer_organisation)::text AS emp_total,
-      (SELECT COUNT(*) FROM app.partner WHERE status='PENDING_REVIEW')::text AS par_pending,
-      (SELECT COUNT(*) FROM app.partner)::text AS par_total,
-      (SELECT COUNT(*) FROM app.job WHERE status='PENDING_APPROVAL')::text AS job_pending,
-      (SELECT COUNT(*) FROM app.job WHERE status='LIVE')::text AS job_live,
-      (SELECT COUNT(*) FROM app.attribution WHERE status='UNDER_REVIEW')::text AS attr_review,
-      (SELECT COUNT(*) FROM app.fraud_case WHERE status='OPEN')::text AS fraud_open,
-      (SELECT COUNT(*) FROM app.replacement_case WHERE decision='PENDING')::text AS repl_pending,
-      (SELECT COUNT(*) FROM app.data_request WHERE status='OPEN')::text AS dr_open,
-      (SELECT COUNT(*) FROM app.data_request WHERE status='OPEN'
-        AND due_at < (SELECT now_at FROM app.demo_clock WHERE id=1) + interval '30 days')::text AS dr_due_soon,
-      (SELECT COUNT(*) FROM app.role_configuration WHERE status IN ('SANDBOX','DRAFT'))::text AS cfg_sandbox,
-      (SELECT COUNT(*) FROM app.audit_log)::text AS audit_today
-  `;
-
-  const recent = await sql<{
-    id: string; actor_role: string; event: string; entity_id: string | null; created_at: Date;
-  }[]>`SELECT id, actor_role, event, entity_id, created_at FROM app.audit_log
-        ORDER BY created_at DESC, id DESC LIMIT 8`;
-
-  const queue = [
-    { n: c.emp_pending, k: 'Employers awaiting verification', href: '/ops/employers', d: `${c.emp_total} total` },
-    { n: c.par_pending, k: 'Partners awaiting verification', href: '/ops/partners', d: `${c.par_total} total` },
-    { n: c.job_pending, k: 'Jobs awaiting approval', href: '/ops/jobs', d: `${c.job_live} live` },
-    { n: c.attr_review, k: 'Referral disputes', href: '/ops/attribution', d: 'first valid source wins' },
-    { n: c.repl_pending, k: 'Replacement claims', href: '/ops/replacements', d: '72-hour window' },
-    { n: c.fraud_open, k: 'Open fraud cases', href: '/ops/fraud', d: 'self-endorsement, suspended sites' },
-    { n: c.dr_open, k: 'Data requests open', href: '/ops/data-requests', d: `${c.dr_due_soon} due within 30 days` },
-    { n: c.cfg_sandbox, k: 'Sandbox configurations', href: '/ops/configurations', d: 'unpublished' },
-  ];
-
-  return (
-    <>
-      <SubNav tabs={OPS_TABS} />
-      <main className="page">
-        <div className="page-head">
-          <h1>Operations</h1>
-          <div className="sub">
-            Everything below needs a person. Each queue is its own screen. <Clause>§10.5</Clause>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head"><h2>Placement overview</h2></div>
-          <div className="card-body">
-            <Suspense fallback={<p>Loading placement totals…</p>}><PlacementSummary/></Suspense>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head"><h2>Needs attention</h2></div>
-          <div className="card-body">
-            <div className="tilegrid">
-              {queue.map((q) => (
-                <Link key={q.href + q.k} href={q.href} className={`tile ${Number(q.n) > 0 ? 'attn' : ''}`}>
-                  <div className="k">{q.k}</div>
-                  <div className="v">{q.n}</div>
-                  <div className="d">{q.d}</div>
-                  <span className="go">Open →</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head"><h2>Latest activity</h2><Clause>§14 Audit</Clause></div>
-          <div className="card-body tight">
-            <div className="tblwrap">
-              <table>
-                <thead><tr><th>When</th><th>Who</th><th>Event</th><th>Entity</th></tr></thead>
-                <tbody>
-                  {recent.map((a) => (
-                    <tr key={a.id}>
-                      <td className="small muted">{fmtDateTime(a.created_at)}</td>
-                      <td className="small">{a.actor_role.toLowerCase()}</td>
-                      <td className="small">{a.event.replace(/_/g, ' ').toLowerCase()}</td>
-                      <td className="id">{a.entity_id}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div style={{ padding: 12 }}>
-              <Link className="btn btn-sm" href="/ops/audit">Full audit explorer →</Link>
-            </div>
-          </div>
-        </div>
-      </main>
-    </>
-  );
+import {sql} from '@/lib/db';
+import {now,fmtDateTime} from '@/lib/clock';
+import {StatusPill,Money} from '../ui';
+import {Icon} from './dashboard-icon';
+import {dashboardData,metricDefinitions} from './dashboard-data';
+export const dynamic='force-dynamic';
+export default async function OpsDashboard(){
+ await scopePage('ops');
+ const {counts:c,jobs}=await dashboardData();
+ const date=await now();
+ const employers=await sql`SELECT e.id,e.brand_name,e.legal_name,e.gst_pan,e.status,e.created_at,(SELECT count(*) FROM app.job j WHERE j.employer_id=e.id) jobs FROM app.employer_organisation e ORDER BY e.created_at DESC,e.id LIMIT 5`;
+ const queue=[['emp_pending','Employers awaiting verification','/ops/employers','building'],['par_pending','Partners awaiting verification','/ops/partners','users'],['job_pending','Jobs awaiting approval','/ops/jobs','job'],['attr_review','Referral disputes','/ops/attribution','link'],['exceptions','Workflow exceptions','/ops/exceptions','alert'],['credit_pending','Pending credit requests','/ops/credit-requests','file'],['dr_open','Open data requests','/ops/data-requests','lock'],['repl_pending','Replacement claims','/ops/replacements','shield'],['fraud_open','Open fraud cases','/ops/fraud','alert'],['cfg_sandbox','Draft configurations','/ops/configurations','settings']];
+ const groups=[{label:'Open',color:'#45bc8a',n:0},{label:'In review',color:'#f7c64f',n:0},{label:'Closed',color:'#4388c8',n:0},{label:'On hold / draft',color:'#b8c0cf',n:0}];
+ for(const j of jobs) groups[j.status==='LIVE'?0:j.status==='PENDING_APPROVAL'?1:['CLOSED','FILLED','EXPIRED'].includes(j.status)?2:3].n+=Number(j.n);
+ const total=groups.reduce((s,g)=>s+g.n,0);let offset=0;const gradient=groups.map(g=>{const start=offset;offset+=total?g.n/total*100:0;return `${g.color} ${start}% ${offset}%`;}).join(',');
+ const stages=[['candidates','Registered','blue'],['assessed','Assessed','green'],['applied_candidates','Applied','amber'],['selected_candidates','Selected','purple'],['hired_candidates','Hired','rose']];
+ const actions=[['/ops/new-employer','Add employer','building','blue'],['/ops/new-partner','Add partner','users','green'],['/ops/jobs','Review jobs','job','amber'],['/ops/candidates','View candidates','users','purple'],['/ops/matches','Run matching','spark','rose'],['/ops/reports','Create report','chart','cyan']];
+ return <main className="page nd-dashboard"><div className="nd-greeting"><div><h1>A new day. A new direction. <span>☀</span></h1><p>Here’s what’s happening on NayiDisha today.</p></div><div className="nd-date"><Icon name="calendar"/><div><strong>{date.toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata',weekday:'long',day:'numeric',month:'short',year:'numeric'})}</strong><small>{date.toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit',hour12:false})} IST · Demo clock</small></div></div></div>
+ <section aria-label="Placement overview" className="nd-metrics">{metricDefinitions.map(([key,label,description,icon,color,href],i)=><Link href={href} className={`nd-metric tone-${color} ${i<4?'nd-primary':''}`} key={key}><span className="nd-metric-icon"><Icon name={icon}/></span><div><strong className="nd-value">{key==='referral_paise'?<Money paise={c[key]}/>:String(c[key])}</strong><h2>{label}</h2><p>{description}</p></div></Link>)}</section>
+ <div className="nd-dashboard-grid"><section className="nd-panel nd-funnel"><div className="nd-panel-head"><div><h2>Application funnel</h2><p>Unique candidates at each stage</p></div><span className="nd-period">All time</span></div><div className="nd-stages">{stages.map(([key,label,color])=>{const percentage=Number(c.candidates)?Math.round(Number(c[key])/Number(c.candidates)*100):0;return <div key={key}><div className={`nd-stage tone-${color}`}><strong>{String(c[key])}</strong><span>{label}</span></div><progress max="100" value={percentage} aria-label={`${label}: ${percentage}% of registered candidates`}/><small>{percentage}%</small></div>;})}</div><p className="nd-footnote">Candidates may apply to more than one job. Selected includes candidates who joined.</p></section>
+ <section className="nd-panel nd-job-status"><div className="nd-panel-head"><h2>Jobs by status</h2><Link href="/ops/jobs">View all →</Link></div><div className="nd-status-body"><div className="nd-donut" style={{background:total?`conic-gradient(${gradient})`:'#e8edf5'}} role="img" aria-label={`${total} jobs: ${groups.map(g=>`${g.n} ${g.label}`).join(', ')}`}><div><strong>{total}</strong><span>Total jobs</span></div></div><ul>{groups.map(g=><li key={g.label}><i style={{background:g.color}}/><span>{g.label}</span><strong>{g.n}</strong></li>)}</ul></div></section>
+ <aside className="nd-quick-column"><section className="nd-panel"><div className="nd-panel-head"><h2>Quick actions</h2></div><div className="nd-quick-actions">{actions.map(([href,label,icon,color])=><Link href={href} className={`tone-${color}`} key={href}><Icon name={icon}/><span>{label}</span></Link>)}</div></section><section className="nd-mission"><div className="nd-mission-art" aria-hidden="true"><span>☀</span><Icon name="users"/><div className="nd-art-line"/></div><h2>Creating opportunities together.</h2><p>Empower people. Enable growth.<br/>Build better futures.</p><Link href="/ops/matches">Find the next opportunity →</Link></section></aside>
+ <section className="nd-panel nd-employers"><div className="nd-panel-head"><h2>Recent employers</h2><Link href="/ops/employers">View all →</Link></div><div className="tblwrap"><table><thead><tr><th>ID</th><th>Employer</th><th>GST / PAN</th><th>Jobs</th><th>Status</th><th>Date added</th><th><span className="nd-sr-only">Actions</span></th></tr></thead><tbody>{employers.map((e,i)=><tr key={e.id}><td className="id">{e.id}</td><td><div className="nd-employer-name"><span className={`nd-letter tone-${['purple','amber','green','blue','cyan'][i]}`}>{(e.brand_name||e.legal_name).slice(0,1)}</span><strong>{e.brand_name||e.legal_name}</strong></div></td><td className="small">{e.gst_pan||'—'}</td><td>{String(e.jobs)}</td><td><StatusPill status={e.status}/></td><td className="small muted">{fmtDateTime(e.created_at).split(',')[0]}</td><td><Link href={`/ops/employers/${e.id}/edit`} aria-label={`Edit ${e.brand_name}`}>Edit</Link></td></tr>)}</tbody></table>{!employers.length&&<p className="empty">No employers yet. Add your first employer to get started.</p>}</div></section>
+ <section className="nd-panel nd-attention" id="attention"><div className="nd-panel-head"><h2>Needs attention</h2><span className="nd-period">{queue.reduce((s,[k])=>s+Number(c[k]),0)} items</span></div><div>{queue.map(([key,label,href,icon],i)=><Link className="nd-queue-row" href={href} key={key}><span className={`nd-queue-icon tone-${['blue','rose','amber','cyan','pink','green'][i%6]}`}><Icon name={icon}/></span><span>{label}</span><strong className={Number(c[key])?'nd-pending':''}>{String(c[key])}</strong><span>›</span></Link>)}</div></section></div></main>;
 }
