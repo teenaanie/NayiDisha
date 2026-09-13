@@ -5,7 +5,7 @@ import {login,switchPersona,findCandidate} from './actions';
 export default async function Demo({searchParams}:{searchParams:Promise<{error?:string}>}){
  const {error}=await searchParams;
  const admin=await identity('nd_admin');
- if(!admin)return <main className="page"><h1>Demo administrator sign-in</h1>{error&&<p className="note bad">{error}</p>}<form action={login}><label>Password<input type="password" name="password" required/></label><button className="btn btn-primary">Sign in</button></form><p><a href="/wa">Start a new candidate journey</a></p></main>;
+ if(!admin)return <main className="page" style={{maxWidth:620}}><div className="nd-auth-heading"><span className="nd-auth-emblem">☀</span><h1>Demo administrator sign-in</h1><p>Explore NayiDisha through every role and every journey.</p></div><section className="card card-body">{error&&<p className="note bad">{error}</p>}<form action={login}><label>Password<input type="password" name="password" required/></label><button className="btn btn-primary">Sign in</button></form><p><a href="/wa">Start a new candidate journey</a></p></section></main>;
  const [flags]=await sql`SELECT messaging_failure,payout_failure FROM app.demo_clock WHERE id=1`;
  // Employers/partners are curated by Operations and stay few, so a capped list
  // is still a real picker. Candidates are self-service and unbounded — every

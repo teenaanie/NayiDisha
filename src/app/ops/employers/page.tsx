@@ -1,3 +1,4 @@
+import {ListToolbar,EmptyState} from '../../workspace-components';
 import {InvitationButton} from '../invitation-button';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
@@ -10,8 +11,9 @@ import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EmployersPage() {
+export default async function EmployersPage({searchParams}:{searchParams:Promise<{q?:string}>}) {
   const viewer=await scopePage('ops');
+  const {q=''}=await searchParams;const pattern='%'+q.trim()+'%';
   const employers = await sql<{
     id: string; legal_name: string; brand_name: string; gst_pan: string | null;
     billing_contact: string | null; status: string; status_reason: string | null;
@@ -21,7 +23,7 @@ export default async function EmployersPage() {
       (SELECT COUNT(*)::text FROM app.job j WHERE j.employer_id=e.id) AS jobs,
       (SELECT COUNT(*)::text FROM app.employer_location l WHERE l.employer_id=e.id) AS locations,
       (SELECT COUNT(*)::text FROM app.employer_user u WHERE u.employer_id=e.id) AS users
-    FROM app.employer_organisation e ORDER BY e.id`;
+    FROM app.employer_organisation e WHERE (${q}='' OR e.brand_name ILIKE ${pattern} OR e.legal_name ILIKE ${pattern} OR e.id ILIKE ${pattern} OR e.gst_pan ILIKE ${pattern}) ORDER BY e.id`;
 
   return (
     <>
@@ -38,6 +40,7 @@ export default async function EmployersPage() {
             <NavigationLink className="btn btn-primary" href="/ops/new-employer">+ Add employer</NavigationLink>
           </div>
         </div>
+        <ListToolbar count={employers.length} label="employers" query={q} placeholder="Search name, employer ID or GST / PAN…" action="/ops/employers"/>
         <div className="card"><div className="card-body tight"><div className="tblwrap">
           <table>
             <thead><tr>
@@ -63,7 +66,7 @@ export default async function EmployersPage() {
               ))}
             </tbody>
           </table>
-        </div></div></div>
+        </div>{!employers.length&&<EmptyState title="No matching employers" description="Try a different name or ID, or clear your search."/>}</div></div>
       </main>
     </>
   );

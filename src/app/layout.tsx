@@ -4,10 +4,13 @@ import {Suspense} from 'react';
 import type { Metadata } from 'next';
 import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
-import { RoleBar } from './role-bar';
+import {WorkspaceShell} from './workspace-shell';
+import {identity} from '@/lib/auth';
+import './ops/operations.css';
+import './workspace.css';
 
 export const metadata: Metadata = {
-  title: 'Frontline Hiring — Pune BFSI Prototype',
+  title: 'NayiDisha — Jobs. Skills. Better Futures.',
   description: 'PRD v1.3 prototype. Demo data only.',
 };
 
@@ -27,13 +30,13 @@ async function DemoBanner() {
 
   return demoMode ? <div className="demo-banner"><span>Demo mode · fictional data · no live messaging or payouts</span><span className="clock">Demo clock: {clockLabel} IST</span></div> : null;
 }
-export default function RootLayout({children}:{children:React.ReactNode}) {
+export default async function RootLayout({children}:{children:React.ReactNode}) {
+  const viewer=await identity();
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light">
       <body>
         <Suspense fallback={<div className="demo-banner">Demo mode · loading clock…</div>}><DemoBanner /></Suspense>
-        <RoleBar />
-        {children}
+        <Suspense fallback={<main className="page">Opening your workspace…</main>}><WorkspaceShell role={viewer?.role||null}>{children}</WorkspaceShell></Suspense>
       </body>
     </html>
   );

@@ -1,0 +1,1 @@
+export function WorkspaceLoading(){return <main className="page nd-loading" role="status" aria-live="polite"><div aria-hidden="true"><div className="nd-loading-header"/><div className="nd-loading-cards"><span/><span/><span/></div></div><p>Loading your workspace…</p></main>;}

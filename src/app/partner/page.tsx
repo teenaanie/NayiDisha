@@ -1,3 +1,5 @@
+import {WorkspaceIntro,WorkspaceNextSteps} from '../workspace-components';
+import {Icon} from '../ops/dashboard-icon';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -56,7 +58,7 @@ export default async function PartnerDashboard({
         <div className="page-head">
           <div className="flexb">
             <div>
-              <h1>{partner.name}</h1>
+              <div className="nd-section-kicker">Your referral overview</div><h1>{partner.name}</h1>
               <div className="sub">
                 {partner.partner_type.replace(/_/g, ' ').toLowerCase()} · <StatusPill status={partner.status} />
                 {' '}<Clause>§10.4</Clause>
@@ -66,15 +68,16 @@ export default async function PartnerDashboard({
           </div>
         </div>
         <div className="tilegrid">
-          {tiles.map((t) => (
+          {tiles.map((t,i) => (
             <Link key={t.k} href={`${t.href}?p=${partnerId}`} className={`tile ${t.attn ? 'attn' : ''}`}>
-              <div className="k">{t.k}</div>
+              <span className="nd-tile-icon"><Icon name={["link", "users", "bell", "clock", "spark", "shield"][i]}/></span><div className="k">{t.k}</div>
               <div className="v">{t.v}</div>
               <div className="d">{t.d}</div>
               <span className="go">Open →</span>
             </Link>
           ))}
         </div>
+        <WorkspaceNextSteps items={[{href:`/partner/sites?p=${partnerId}`,label:'Share your QR',icon:'link',tone:'blue'},{href:`/partner/candidates?p=${partnerId}`,label:'Follow referrals',icon:'users',tone:'green'},{href:`/partner/rewards?p=${partnerId}`,label:'Track rewards',icon:'spark',tone:'purple'}]} title="Open doors in your community." description="Every referral is a chance to help someone take their next step. Share opportunities and see the difference you make." href={`/partner/alerts?p=${partnerId}`} label="Explore job alerts"/>
         <div className="note mt">
           You are never shown a candidate&apos;s phone number, email or documents — only that
           someone you referred progressed. <Clause>PART-08 / PART-09</Clause>

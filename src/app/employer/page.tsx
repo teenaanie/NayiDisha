@@ -1,3 +1,5 @@
+import {WorkspaceIntro,WorkspaceNextSteps} from '../workspace-components';
+import {Icon} from '../ops/dashboard-icon';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -60,22 +62,18 @@ export default async function EmployerDashboard() {
     <>
       <SubNav tabs={EMPLOYER_TABS} />
       <main className="page">
-        <div className="page-head">
-          <h1>{emp.brand_name}</h1>
-          <div className="sub">
-            Your organisation account <Clause>§10.3</Clause>
-          </div>
-        </div>
+        <WorkspaceIntro eyebrow="Your hiring overview" title={emp.brand_name} description="Great teams start with the right people. Here’s how your hiring is progressing." action={{href:'/employer/new-job',label:'Post a job'}}/>
         <div className="tilegrid">
-          {tiles.map((t) => (
+          {tiles.map((t,i) => (
             <Link key={t.k} href={t.href} className={`tile ${t.attn ? 'attn' : ''}`}>
-              <div className="k">{t.k}</div>
+              <span className="nd-tile-icon"><Icon name={["job", "users", "lock", "calendar", "file", "chart"][i]}/></span><div className="k">{t.k}</div>
               <div className="v">{t.v}</div>
               <div className="d">{t.d}</div>
               <span className="go">Open →</span>
             </Link>
           ))}
         </div>
+        <WorkspaceNextSteps items={[{href:'/employer/jobs',label:'Find your shortlist',icon:'users',tone:'blue'},{href:'/employer/hiring',label:'Manage interviews',icon:'calendar',tone:'green'},{href:'/employer/billing',label:'View your credits',icon:'lock',tone:'purple'}]} title="Your next great hire is a conversation away." description="Review qualified profiles, connect with candidates, and follow their journey from interview to joining." href="/employer/jobs" label="Explore your jobs"/>
         <div className="note mt">
           Nothing on the hiring side changes what you are charged. An unlock is billed when you open
           a profile; interviews, offers and joining are recorded because they are useful to you, not

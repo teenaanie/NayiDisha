@@ -207,7 +207,7 @@ export function DocumentReview({ caseId, status, documents }: {
 
   return (
     <div style={{ textAlign: 'left', minWidth: 320 }}>
-      <table>
+      <div className="nd-table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}><table>
         <tbody className="small">
           {documents.map((d) => (
             <tr key={d.id}>
@@ -232,7 +232,7 @@ export function DocumentReview({ caseId, status, documents }: {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       <div className="field mt">
         <label htmlFor={`rr-${caseId}`}>Rejection reason (required to reject)</label>
         <input id={`rr-${caseId}`} value={reason} onChange={(e) => setReason(e.target.value)} />

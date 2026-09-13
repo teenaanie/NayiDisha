@@ -142,7 +142,7 @@ export default async function Home() {
                 Every external provider is behind an adapter and resolves to a simulator. Nothing here
                 reaches a real recipient, and nothing costs money.
               </p>
-              <table>
+              <div className="nd-table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}><table>
                 <tbody className="small">
                   <tr><td>WhatsApp</td><td className="right"><span className="tag">simulator</span></td></tr>
                   <tr><td>OTP / SMS</td><td className="right"><span className="tag">simulator</span></td></tr>
@@ -150,7 +150,7 @@ export default async function Home() {
                   <tr><td>Payouts</td><td className="right"><span className="tag">simulator</span></td></tr>
                   <tr><td>Documents / KYC</td><td className="right"><span className="tag">out of scope</span></td></tr>
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </div>
         </div>

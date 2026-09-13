@@ -122,7 +122,7 @@ export function ConfigPanel({ configs,canAdmin=true }: { configs: Cfg[];canAdmin
         {Object.entries(result).map(([id, r]) => (
           <div key={id} className={`note ${r.ok ? '' : 'warn'}`} style={{ margin: 14 }}>
             <strong>{id} — {r.ok ? 'passes all publication gates' : 'blocked'}</strong>
-            <table style={{ marginTop: 8 }}>
+            <div className="nd-table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}><table style={{ marginTop: 8 }}>
               <tbody className="small">
                 {r.checks.map((ch) => (
                   <tr key={ch.name}>
@@ -132,7 +132,7 @@ export function ConfigPanel({ configs,canAdmin=true }: { configs: Cfg[];canAdmin
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         ))}
       </div>

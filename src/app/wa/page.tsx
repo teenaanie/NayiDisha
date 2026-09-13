@@ -1,3 +1,4 @@
+import {Icon} from '../ops/dashboard-icon';
 import {PhoneFrame} from './phone-frame';
 import {sql} from '@/lib/db';
 import {identity} from '@/lib/auth';
@@ -27,5 +28,5 @@ async function JourneyContent(props:{searchParams:Promise<{code?:string;edit?:st
  try{return await JourneyData(props);}catch{return <div className="wa-msg wa-in" role="alert"><strong>We could not connect to your profile.</strong><p>The demo database may be busy. Your saved details have not been changed.</p><a className="btn" href="/wa">Try again</a> <a href="/sign-in">Sign in again</a></div>;}
 }
 export default function Journey(props:{searchParams:Promise<{code?:string;edit?:string}>}) {
- return <><SubNav tabs={CANDIDATE_TABS}/><main className="page"><div className="page-head"><h1>Candidate WhatsApp journey</h1><p>Follow the conversation from registration to finding a job.</p></div><PhoneFrame><Suspense fallback={<div className="wa-msg wa-in" role="status">Connecting to your demo profile…<p className="small">If the database does not respond, a retry option will appear.</p></div>}><JourneyContent {...props}/></Suspense></PhoneFrame></main></>;
+ return <><SubNav tabs={CANDIDATE_TABS}/><main className="page"><div className="nd-journey-intro"><div className="nd-section-kicker">Your next chapter</div><h1>A better future starts with a hello.</h1><p>Build your profile and discover jobs through a simple conversation.</p><div className="nd-journey-features"><span><Icon name="shield"/>Free for job seekers</span><span><Icon name="lock"/>You control your details</span><span><Icon name="heart"/>At your own pace</span></div></div><PhoneFrame><Suspense fallback={<div className="wa-msg wa-in" role="status">Connecting to your demo profile…<p className="small">If the database does not respond, a retry option will appear.</p></div>}><JourneyContent {...props}/></Suspense></PhoneFrame></main></>;
 }

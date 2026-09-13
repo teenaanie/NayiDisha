@@ -1,3 +1,5 @@
+import {WorkspaceIntro,WorkspaceNextSteps} from '../workspace-components';
+import {Icon} from '../ops/dashboard-icon';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
@@ -41,23 +43,18 @@ export default async function FinanceDashboard() {
     <>
       <SubNav tabs={FINANCE_TABS} />
       <main className="page">
-        <div className="page-head">
-          <h1>Finance</h1>
-          <div className="sub">
-            DEMO Finance Operator · the internal ledger is the source of truth; a payment provider is
-            only an execution channel <Clause>§24.2 · REF-09/10</Clause>
-          </div>
-        </div>
+        <WorkspaceIntro eyebrow="Your finance overview" title="Every reward, accounted for." description="Track balances, review eligible rewards, and manage simulated partner payouts."/>
         <div className="tilegrid">
-          {tiles.map((t) => (
+          {tiles.map((t,i) => (
             <Link key={t.k} href={t.href} className={`tile ${t.attn ? 'attn' : ''}`}>
-              <div className="k">{t.k}</div>
+              <span className="nd-tile-icon"><Icon name={["chart", "clock", "lock", "file", "shield", "chart"][i]}/></span><div className="k">{t.k}</div>
               <div className="v">{t.v}</div>
               <div className="d">{t.d}</div>
               <span className="go">Open →</span>
             </Link>
           ))}
         </div>
+        <WorkspaceNextSteps items={[{href:'/finance/balances',label:'Review balances',icon:'users',tone:'blue'},{href:'/finance/payouts',label:'Manage payouts',icon:'file',tone:'green'},{href:'/finance/ledger',label:'Explore the ledger',icon:'chart',tone:'purple'}]} title="Clarity at every step." description="Follow each reward from its hold period through eligibility and payout. The ledger keeps a complete record of every movement." href="/finance/ledger" label="View reward history"/>
       </main>
     </>
   );

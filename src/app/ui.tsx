@@ -1,3 +1,4 @@
+import {Icon} from './ops/dashboard-icon';
 import {RealQr} from './qr-code';
 import { formatINR } from '@/lib/money';
 
@@ -24,7 +25,7 @@ export function StatusPill({ status }: { status: string }) {
 
 export function Stat({ k, v, d }: { k: string; v: React.ReactNode; d?: React.ReactNode }) {
   return (
-    <div className="card stat">
+    <div className="card stat"><span className="nd-tile-icon"><Icon name="chart"/></span>
       <div className="k">{k}</div>
       <div className="v">{v}</div>
       {d && <div className="d">{d}</div>}

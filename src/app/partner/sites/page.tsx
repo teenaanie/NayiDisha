@@ -32,7 +32,7 @@ export default async function SitesPage({
           </div>
         </div>
 
-        <table><thead><tr><th>Site</th><th>Locality</th><th>Status</th><th>QR</th></tr></thead><tbody>{sites.map(s=><tr key={s.id}><td>{s.name||s.partner_code}</td><td>{s.locality_key}</td><td>{s.status}</td><td><a className="btn" href={`/partner/sites?p=${encodeURIComponent(partnerId)}&site=${encodeURIComponent(s.id)}`}>View QR &amp; link</a></td></tr>)}</tbody></table><div className="grid g3">
+        <div className="nd-table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}><table><thead><tr><th>Site</th><th>Locality</th><th>Status</th><th>QR</th></tr></thead><tbody>{sites.map(s=><tr key={s.id}><td>{s.name||s.partner_code}</td><td>{s.locality_key}</td><td>{s.status}</td><td><a className="btn" href={`/partner/sites?p=${encodeURIComponent(partnerId)}&site=${encodeURIComponent(s.id)}`}>View QR &amp; link</a></td></tr>)}</tbody></table></div><div className="grid g3">
           {sites.filter(s=>s.id===site).map((s) => (
             <div className="card" key={s.id}>
               <div className="card-head">
@@ -54,13 +54,13 @@ export default async function SitesPage({
                     Free for job seekers · complaint 1800-XXX-XXXX
                   </div>
                 </div>
-                <table className="mt">
+                <div className="nd-table-scroll" role="region" aria-label="Scrollable data table" tabIndex={0}><table className="mt">
                   <tbody className="small">
                     <tr><td>Site</td><td className="right id">{s.id}</td></tr>
                     <tr><td>Registrations</td><td className="right num">{s.scans}</td></tr>
                     <tr><td>Scan target</td><td className="right id" style={{ fontSize: '.7rem' }}>/j/{s.qr_token}</td></tr>
                   </tbody>
-                </table>
+                </table></div>
                 <div className="btnrow mt">
                   <a className="btn btn-sm btn-primary" href={`/j/${s.qr_token}`}>Open the candidate journey</a>
                 </div>

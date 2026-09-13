@@ -1,3 +1,4 @@
+import {ListToolbar,EmptyState} from '../../workspace-components';
 import {InvitationButton} from '../invitation-button';
 import {scopePage} from '@/lib/auth';
 import Link from 'next/link';
@@ -10,13 +11,14 @@ import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PartnersPage() {
+export default async function PartnersPage({searchParams}:{searchParams:Promise<{q?:string}>}) {
   const viewer=await scopePage('ops');
+  const {q=''}=await searchParams;const pattern='%'+q.trim()+'%';
   const partners = await sql<{
     id: string; name: string; partner_type: string; status: string; pan: string | null;
     payout_upi: string | null; capabilities: string[]; service_localities: string[];
     conduct_accepted_at: Date | null; conduct_version: string | null;
-  }[]>`SELECT * FROM app.partner ORDER BY id`;
+  }[]>`SELECT * FROM app.partner WHERE (${q}='' OR name ILIKE ${pattern} OR id ILIKE ${pattern}) ORDER BY id`;
 
   const sites = await sql<{
     id: string; partner_id: string; locality_key: string; partner_code: string;
@@ -39,6 +41,7 @@ export default async function PartnersPage() {
           </div>
         </div>
 
+        <ListToolbar count={partners.length} label="partners" query={q} placeholder="Search name or partner ID…" action="/ops/partners"/>
         <div className="card"><div className="card-body tight"><div className="tblwrap">
           <table>
             <thead><tr>
@@ -65,7 +68,7 @@ export default async function PartnersPage() {
               ))}
             </tbody>
           </table>
-        </div></div></div>
+        </div>{!partners.length&&<EmptyState title="No matching partners" description="Try a different name or ID, or clear your search."/>}</div></div>
 
       </main>
     </>

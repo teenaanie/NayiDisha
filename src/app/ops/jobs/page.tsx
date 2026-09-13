@@ -1,3 +1,4 @@
+import {ListToolbar,EmptyState} from '../../workspace-components';
 import {WorkflowForm} from '../../workflow-form';
 import {scopePage} from '@/lib/auth';
 import { sql } from '@/lib/db';
@@ -9,8 +10,9 @@ import { OpsActions } from '../ops-client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function JobModerationPage() {
+export default async function JobModerationPage({searchParams}:{searchParams:Promise<{q?:string}>}) {
   const viewer=await scopePage('ops');
+  const {q=''}=await searchParams;const pattern='%'+q.trim()+'%';
   const jobs = await sql<{
     id: string; title: string; brand: string; loc: string; status: string; openings: number;
     fixed_pay_paise: string; variable_max_paise: string; expires_at: Date | null;
@@ -24,7 +26,7 @@ export default async function JobModerationPage() {
       FROM app.job j
       JOIN app.employer_organisation e ON e.id=j.employer_id
       JOIN app.employer_location l ON l.id=j.location_id
-     ORDER BY (j.status='PENDING_APPROVAL') DESC, j.id`;
+     WHERE (${q}='' OR j.title ILIKE ${pattern} OR e.brand_name ILIKE ${pattern} OR j.id ILIKE ${pattern}) ORDER BY (j.status='PENDING_APPROVAL') DESC, j.id`;
 
   const changes = await sql<{
     id: string; job_id: string; field: string; old_value: string | null; new_value: string | null;
@@ -43,6 +45,7 @@ export default async function JobModerationPage() {
           </div>
         </div>
 
+        <ListToolbar count={jobs.length} label="jobs" query={q} placeholder="Search job title, employer or job ID…" action="/ops/jobs"/>
         <div className="card"><div className="card-body tight"><div className="tblwrap">
           <table>
             <thead><tr>
@@ -66,7 +69,7 @@ export default async function JobModerationPage() {
               ))}
             </tbody>
           </table>
-        </div></div></div>
+        </div>{!jobs.length&&<EmptyState title="No matching jobs" description="Try a different name or ID, or clear your search."/>}</div></div>
 
         <div className="card">
           <div className="card-head"><h2>Recent job changes</h2><Clause>JOB-04</Clause></div>
