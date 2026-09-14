@@ -31,7 +31,7 @@ export function Simulator({configs,attributes,localities,jobs,existing,source,re
    <button type="button" className={'btn'+(mode==='form'?' btn-primary':'')} onClick={()=>setMode('form')}>⌨ {tr('Fill the form')}</button>
    <button type="button" className={'btn'+(mode==='voice'?' btn-primary':'')} onClick={()=>setMode('voice')}>🎤 {tr('Answer by voice')}</button>
   </div>
-  {mode==='voice'&&!voiceAnswers&&<VoiceJourney lang={lang} onComplete={a=>setVoiceAnswers(a)}/>}
+  {mode==='voice'&&!voiceAnswers&&<VoiceJourney lang={lang} onLang={setLang} onComplete={a=>setVoiceAnswers(a)}/>}
   {mode==='voice'&&voiceAnswers&&<form action={f=>run(async()=>{
     await actions.saveProfile({
      education:String(f.get('education')||''),

@@ -48,23 +48,24 @@ const UI: Record<Lang, Record<string, string>> = {
         correct:'Yes, correct', retry:'No, say again', type:'Type instead', done:'All done',
         unclear:'I did not catch that. Please say it again.', review:'Here is what I understood',
         save:'Save and continue', unsupported:'Your browser cannot record voice. You can type your answers instead.',
-        mic:'Microphone blocked. Allow microphone access, or type your answer.' },
+        mic:'Microphone blocked. Allow microphone access, or type your answer.', answerIn:'Answer in', restart:'Start over' },
   hi: { tap:'बोलने के लिए दबाएँ', listening:'सुन रहे हैं…', thinking:'NayiDisha सुन रहा है…', heard:'मैंने सुना',
         correct:'हाँ, सही है', retry:'नहीं, फिर से बोलूँ', type:'टाइप करें', done:'पूरा हुआ',
         unclear:'मैं समझ नहीं पाया। कृपया फिर से बोलिए।', review:'मैंने यह समझा',
         save:'सहेजें और आगे बढ़ें', unsupported:'आपका ब्राउज़र आवाज़ रिकॉर्ड नहीं कर सकता। आप टाइप कर सकते हैं।',
-        mic:'माइक्रोफ़ोन बंद है। अनुमति दें, या टाइप करें।' },
+        mic:'माइक्रोफ़ोन बंद है। अनुमति दें, या टाइप करें।', answerIn:'जवाब की भाषा', restart:'फिर से शुरू करें' },
   mr: { tap:'बोलण्यासाठी दाबा', listening:'ऐकत आहे…', thinking:'NayiDisha ऐकत आहे…', heard:'मी ऐकलं',
         correct:'होय, बरोबर', retry:'नाही, पुन्हा सांगतो', type:'टाइप करा', done:'पूर्ण झालं',
         unclear:'मला समजलं नाही. कृपया पुन्हा सांगा.', review:'मला हे समजलं',
         save:'जतन करा आणि पुढे जा', unsupported:'तुमचा ब्राउझर आवाज रेकॉर्ड करू शकत नाही. तुम्ही टाइप करू शकता.',
-        mic:'मायक्रोफोन बंद आहे. परवानगी द्या, किंवा टाइप करा.' },
+        mic:'मायक्रोफोन बंद आहे. परवानगी द्या, किंवा टाइप करा.', answerIn:'उत्तराची भाषा', restart:'पुन्हा सुरू करा' },
 };
 
 interface Turn { who: 'bot' | 'me'; text: string; voice?: boolean; seconds?: number }
 
-export function VoiceJourney({ lang, onComplete }: {
+export function VoiceJourney({ lang, onLang, onComplete }: {
   lang: Lang;
+  onLang: (l: Lang) => void;
   onComplete: (answers: Record<Field, unknown>) => void;
 }) {
   const t = UI[lang];
@@ -113,7 +114,8 @@ export function VoiceJourney({ lang, onComplete }: {
     } catch { /* speech synthesis is a nicety, never a blocker */ }
   }, [lang]);
 
-  // Ask each question as it comes up.
+  // Ask each question as it comes up — and re-ask in the new language if the
+  // candidate switches language partway through.
   useEffect(() => {
     if (finished) return;
     const q = step.ask[lang];
@@ -154,6 +156,11 @@ export function VoiceJourney({ lang, onComplete }: {
       onComplete(next as Record<Field, unknown>);
     }
     setIndex((i) => i + 1);
+  }
+
+  function restart() {
+    try { window.speechSynthesis?.cancel(); } catch {}
+    setPendingConfirm(null); setAnswers({}); setTurns([]); setError(''); setIndex(0);
   }
 
   function listen() {
@@ -199,6 +206,20 @@ export function VoiceJourney({ lang, onComplete }: {
 
       {!finished && (
         <div className="wa-msg wa-in wa-reply-panel" aria-busy={busy}>
+          <div className="wa-lang-row">
+            <span>{t.answerIn}</span>
+            {(['en','hi','mr'] as Lang[]).map((l) => (
+              <button key={l} type="button" disabled={busy || listening}
+                      className={`btn btn-sm${l === lang ? ' btn-primary' : ''}`}
+                      onClick={() => { setPendingConfirm(null); onLang(l); }}>
+                {l === 'en' ? 'English' : l === 'hi' ? 'हिन्दी' : 'मराठी'}
+              </button>
+            ))}
+            {index > 0 && (
+              <button type="button" className="btn btn-sm wa-restart" disabled={busy || listening}
+                      onClick={restart}>↺ {t.restart}</button>
+            )}
+          </div>
           <p role="status">{busy ? t.thinking : error}</p>
 
           {pendingConfirm ? (
@@ -243,7 +264,10 @@ export function VoiceJourney({ lang, onComplete }: {
 
       {finished && (
         <div className="wa-msg wa-in wa-reply-panel">
-          <strong>{t.done}</strong>
+          <div className="wa-lang-row">
+            <strong style={{ flex: 1 }}>{t.done}</strong>
+            <button type="button" className="btn btn-sm wa-restart" onClick={restart}>↺ {t.restart}</button>
+          </div>
           <p className="small">{t.review}:</p>
           <ul className="wa-voice-review">
             {SCRIPT.map((s) => answers[s.field] !== undefined && (
