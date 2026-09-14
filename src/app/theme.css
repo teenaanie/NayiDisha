@@ -162,20 +162,28 @@ body.nd-theme .nd-metric p { font-size: 12px; }
 body.nd-theme .nd-shell main.page :is(.nd-letter) { font-size: 20px; }
 body.nd-theme .nd-shell main.page td .btn { font-size: 12px; }
 
-/* The candidate conversation shares the palette while preserving chat structure. */
-body.nd-theme .wa-demo .wa-phone { border-color: #674d39; box-shadow: 0 16px 45px #6243271c; }
-body.nd-theme :is(.wa-top,.wa-statusbar) { background: #75553d; color: #fffaf3; }
-body.nd-theme .wa-top .avatar { background: #ecdbc4; color: #67452d; }
-body.nd-theme .wa-demo .wa-body { background-color: #f1e8db; background-image: radial-gradient(#c3a68533 1px,transparent 1px); }
-body.nd-theme .wa-demo .wa-msg.wa-in { background: #fffdf9; color: #513d2e; }
-body.nd-theme .wa-demo .wa-msg.wa-out { background: #e7d5bd; color: #513d2e; }
-body.nd-theme .wa-day { background: #fffaf2bb; color: #806b57; }
-body.nd-theme .wa-composer { background: #f5eee4; color: #8a725b; }
-body.nd-theme .wa-composer span:nth-child(2) { background: #fffdf9; }
-body.nd-theme .wa-presence { color: #fff7ec; }
-body.nd-theme .wa-reply-panel a { color: #795132; }
-body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-reply-panel button:not([class]) { color: #6b482d; background: #f2e5d3; border-color: #d5bea2; }
-body.nd-theme .wa-reply-panel .note { color: #634e3c; background: #f5ead9; border-color: #d8c5ab; }
+/* The candidate conversation deliberately does NOT take the ivory palette: it
+   is meant to read as an actual WhatsApp thread, so it keeps WhatsApp's own
+   colours. Everything around the phone frame stays on the NayiDisha theme. */
+body.nd-theme .wa-demo .wa-phone { border-color: #111b21; box-shadow: 0 16px 45px #0b141a24; }
+body.nd-theme :is(.wa-top,.wa-statusbar) { background: #008069; color: #ffffff; }
+body.nd-theme .wa-top .avatar { background: #25d366; color: #054d44; }
+body.nd-theme .wa-demo .wa-body { background-color: #efeae2; background-image: radial-gradient(#d1c7b733 1px,transparent 1px); }
+body.nd-theme .wa-demo .wa-msg.wa-in { background: #ffffff; color: #111b21; }
+body.nd-theme .wa-demo .wa-msg.wa-out { background: #d9fdd3; color: #111b21; }
+body.nd-theme .wa-day { background: #ffffffd9; color: #54656f; }
+body.nd-theme .wa-composer { background: #f0f2f5; color: #54656f; }
+body.nd-theme .wa-composer span:nth-child(2) { background: #ffffff; }
+body.nd-theme .wa-presence { color: #d7f5ec; }
+body.nd-theme .wa-reply-panel a { color: #027d69; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-reply-panel button:not([class]) { color: #075e54; background: #edf8f0; border-color: #bdd7c7; }
+body.nd-theme .wa-reply-panel .note { color: #111b21; background: #f0f7f1; border-color: #c6dfcd; }
+/* Inside the phone, the primary action is WhatsApp green rather than the
+   NayiDisha accent — the chat has to look like WhatsApp, not like the console. */
+body.nd-theme .wa-demo .btn-primary { background: #008069; border-color: #008069; color: #ffffff; }
+body.nd-theme .wa-demo .btn-primary:hover { background: #017561; border-color: #017561; }
+body.nd-theme .wa-demo .wa-reply-panel .wa-mic { background: #008069; color: #ffffff; border: none; border-radius: 50%; }
+body.nd-theme .wa-demo .wa-reply-panel .wa-mic.is-listening { background: #d33; }
 body.nd-theme .wa-meta { font-family: var(--sans); }
 @media(max-width:680px) {
   body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px; }
