@@ -8,6 +8,7 @@ import {WorkspaceShell} from './workspace-shell';
 import {identity} from '@/lib/auth';
 import './ops/operations.css';
 import './workspace.css';
+import './theme.css';
 
 export const metadata: Metadata = {
   title: 'NayiDisha — Jobs. Skills. Better Futures.',
@@ -34,7 +35,7 @@ export default async function RootLayout({children}:{children:React.ReactNode}) 
   const viewer=await identity();
   return (
     <html lang="en" data-theme="light">
-      <body>
+      <body className="nd-theme">
         <Suspense fallback={<div className="demo-banner">Demo mode · loading clock…</div>}><DemoBanner /></Suspense>
         <Suspense fallback={<main className="page">Opening your workspace…</main>}><WorkspaceShell role={viewer?.role||null}>{children}</WorkspaceShell></Suspense>
       </body>

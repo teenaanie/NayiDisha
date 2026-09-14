@@ -97,7 +97,7 @@ export function ConfigPanel({ configs,canAdmin=true }: { configs: Cfg[];canAdmin
                   <td className="id">{c.id}<br /><span className="muted">v{c.version}</span></td>
                   <td className="small">{c.industry_key}<br /><span className="muted">{c.role_family_key.replace(/_/g, ' ').toLowerCase()}</span></td>
                   <td className="num">{c.assessment_threshold ?? '—'}</td>
-                  <td className="small mono" style={{ fontSize: '.72rem' }}>
+                  <td className="small mono" >
                     {Object.entries(c.scoring_weights).map(([k, v]) => `${k.slice(0, 4)}:${v}`).join(' ')}
                     <div className="muted">total {Object.values(c.scoring_weights).reduce((a, b) => a + b, 0)}</div>
                   </td>
@@ -128,7 +128,7 @@ export function ConfigPanel({ configs,canAdmin=true }: { configs: Cfg[];canAdmin
                   <tr key={ch.name}>
                     <td style={{ width: 22 }}>{ch.ok ? '✓' : '✗'}</td>
                     <td>{ch.name}</td>
-                    <td className="muted mono" style={{ fontSize: '.72rem' }}>{ch.detail}</td>
+                    <td className="muted mono" >{ch.detail}</td>
                   </tr>
                 ))}
               </tbody>

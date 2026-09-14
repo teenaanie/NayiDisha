@@ -42,7 +42,7 @@ export default async function FraudPage() {
                       <td className="id">{f.id}</td>
                       <td className="small">{f.subject_type}<div className="id">{f.subject_id}</div></td>
                       <td className="small">{f.signal.replace(/_/g, ' ').toLowerCase()}</td>
-                      <td className="small mono" style={{ fontSize: '.72rem' }}>
+                      <td className="small mono" >
                         {JSON.stringify(f.detail)}
                       </td>
                       <td><StatusPill status={f.status} />

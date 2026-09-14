@@ -1,0 +1,194 @@
+/* NayiDisha's shared warm palette and typography, applied after layout styles. */
+:root[data-theme="light"], body.nd-theme .nd-shell {
+  --ground: #f8f5ef;
+  --surface: #fffdf9;
+  --surface-2: #f4eee5;
+  --surface-3: #eae0d3;
+  --ink: #30231c;
+  --ink-2: #655044;
+  --muted: #806b5d;
+  --line: #ece3d7;
+  --line-strong: #d6c6b4;
+  --accent: #754c34;
+  --accent-soft: #f0e6da;
+  --accent-ink: #fffdf9;
+  --ok: #52613d;
+  --ok-soft: #edf0e3;
+  --warn: #8b631d;
+  --warn-soft: #faf0d9;
+  --bad: #9b4540;
+  --bad-soft: #fae9e4;
+  --demo: #755133;
+  --demo-bg: #f1e6d3;
+  --sans: Arial, Helvetica, sans-serif;
+  --shadow: 0 3px 16px #62452a08;
+  --text-data: 13px;
+  --text-label: 13px;
+  --text-caption: 12px;
+}
+body.nd-theme { font-family: var(--sans); color: var(--ink); background: var(--ground); }
+body.nd-theme :is(input, select, textarea, button) { font-family: var(--sans); }
+body.nd-theme .nd-shell { font-family: var(--sans); background: var(--ground); }
+body.nd-theme .demo-banner { border-color: var(--line); letter-spacing: .06em; }
+body.nd-theme .demo-banner .clock { font-family: var(--sans); font-variant-numeric: tabular-nums; }
+body.nd-theme .nd-sidebar, body.nd-theme .nd-public .nd-sidebar, body.nd-theme .nd-wa .nd-sidebar {
+  background: linear-gradient(135deg, #f5f0e7, #faf7f1);
+  border-color: var(--line);
+}
+body.nd-theme .nd-brand { color: #553723; }
+body.nd-theme .nd-brand small { color: #826a58; font-size: 11px; }
+body.nd-theme .nd-sun { color: #d8a354; }
+body.nd-theme .nd-sidebar nav a { color: #624735; font-size: 13px; font-weight: 500; }
+body.nd-theme .nd-sidebar nav a:hover { background: #eee3d5; color: #50311f; }
+body.nd-theme .nd-sidebar nav a[aria-current="page"] {
+  background: linear-gradient(115deg, #80583d, #58351f);
+  color: #fffaf3;
+  box-shadow: 0 3px 10px #65432817;
+}
+body.nd-theme .nd-workspace-label, body.nd-theme .nd-wa .nd-workspace-label { color: #8c7360; }
+body.nd-theme .nd-help { color: #806951; background: #fffdf9c9; }
+body.nd-theme .nd-help-symbol { color: #785237; background: #f0e6d8; }
+body.nd-theme .nd-help .btn { background: #fffaf3; border-color: #e0d1bf; color: #754c34; }
+body.nd-theme .nd-topbar { background: #fffdf9f5; border-color: var(--line); }
+body.nd-theme .nd-search { background: #f2ede5; color: #8a6a53; border-color: #f0e8de; }
+body.nd-theme .nd-search input { color: #624735; font-family: var(--sans); font-size: 13px; }
+body.nd-theme .nd-search input::placeholder { color: #8a7565; }
+body.nd-theme .nd-search-results, body.nd-theme .nd-account-menu { background: var(--surface); border-color: var(--line); box-shadow: 0 12px 32px #65432820; }
+body.nd-theme .nd-search-results a:hover, body.nd-theme .nd-account-menu a:hover { background: var(--accent-soft); }
+body.nd-theme .nd-avatar, body.nd-theme .nd-wa .nd-avatar { background: #72503a; color: #fffaf4; }
+body.nd-theme .nd-notifications { color: #8a705d; }
+body.nd-theme .nd-breadcrumb, body.nd-theme .nd-breadcrumb a, body.nd-theme .nd-workspace-badge { color: #947b68; }
+body.nd-theme .nd-breadcrumb>span:nth-child(2) { color: #beaa94; }
+body.nd-theme .nd-shell :is(a,button,input,select,textarea,summary):focus-visible { outline-color: #a8794f; }
+body.nd-theme .nd-skip { background: var(--surface); }
+
+/* Neutral cards replace the multi-colour dashboard blocks. Status remains semantic. */
+body.nd-theme .nd-shell [class*="tone-"] { --tone: #704930; --tint: #f5eee4; --bubble: #eee3d3; }
+body.nd-theme .nd-panel, body.nd-theme .nd-date { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow); }
+body.nd-theme .nd-metric { background: #fffdf9; border: 1px solid var(--line); box-shadow: var(--shadow); }
+body.nd-theme .nd-metric-icon { background: #f3ecdf; color: #71482f; }
+body.nd-theme .nd-metric:hover { box-shadow: 0 7px 20px #65432812; }
+body.nd-theme .nd-metric p, body.nd-theme .nd-greeting p { color: var(--muted); }
+body.nd-theme .nd-greeting h1, body.nd-theme .nd-dashboard-intro h1 { color: #53321f; }
+body.nd-theme .nd-greeting h1 span { color: #d5a054; }
+body.nd-theme .nd-date svg { color: #8b7057; }
+body.nd-theme .nd-period { color: #806a58; border-color: var(--line); }
+body.nd-theme .nd-stage { background: #f5eee3; }
+body.nd-theme .nd-stage strong { color: #68442c; }
+body.nd-theme .nd-stages>div:not(:last-child) .nd-stage:after { color: #aa8b6c; }
+body.nd-theme .nd-stages progress { background: #efe5d7; accent-color: #a87a50; }
+body.nd-theme .nd-stages progress::-webkit-progress-bar { background: #efe5d7; }
+body.nd-theme .nd-stages progress::-webkit-progress-value { background: #af8459; }
+body.nd-theme .nd-donut>div { background: var(--surface); }
+body.nd-theme .nd-quick-actions a { background: #f4ede2; color: #69452e; }
+body.nd-theme .nd-quick-actions a:hover { background: #ece0cf; }
+body.nd-theme .nd-queue-row { color: #725c4c; border-color: var(--line); }
+body.nd-theme .nd-queue-row>span:last-child { color: #96775b; }
+body.nd-theme .nd-queue-row .nd-pending { color: #98672e; }
+body.nd-theme .nd-letter { color: #755039; background: #f0e5d5; }
+body.nd-theme .nd-mission { background: linear-gradient(130deg, #eee3d4, #f8f1e7); }
+body.nd-theme .nd-mission p { color: var(--muted); }
+body.nd-theme .nd-mission-art { background: radial-gradient(ellipse at bottom, #e0ceb8, transparent 70%); }
+body.nd-theme .nd-mission-art>svg { color: #8b6445; }
+body.nd-theme .nd-mission-art>span { color: #d8aa63; }
+body.nd-theme .nd-art-line { background: #c6a889; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) {
+  --tile-bg: #fffdf9;
+  --tile-ink: #70482f;
+  --tile-line: #e9ddce;
+  background: var(--tile-bg);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+body.nd-theme .nd-tile-icon { background: #f4ede1; color: #67422b; border-radius: 50%; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) .k { color: #61422e; font-size: 13px; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) .v { color: #2e2018; font-family: var(--sans); font-weight: 700; font-variant-numeric: tabular-nums; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) .d { color: var(--muted); font-size: 13px; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .tile .go { color: #795036; font-size: 13px; }
+body.nd-theme .nd-shortcut { background: #f4ede2; color: #66432e; font-size: 13px; }
+body.nd-theme .nd-guidance { position: relative; background: linear-gradient(120deg, #eee3d4, #f2e9dd); color: var(--ink-2); overflow: hidden; }
+body.nd-theme .nd-guidance>svg { color: #745036; }
+body.nd-theme .nd-guidance::after { content: ''; position: absolute; right: -30px; bottom: -45px; width: 135px; height: 135px; border: 22px solid #c7b29836; border-radius: 75% 0 75% 0; transform: rotate(-25deg); pointer-events: none; }
+body.nd-theme .nd-section-kicker { color: #88684e; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .card { border-color: var(--line); background: var(--surface); box-shadow: var(--shadow); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .card-head { border-color: var(--line); }
+body.nd-theme .nd-page-toolbar, body.nd-theme .nd-table-scroll { background: var(--surface); border-color: var(--line); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tblwrap,.nd-table-scroll) { scrollbar-color: #cebaa1 transparent; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) tbody tr:hover { background: #faf5ed; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(th,td) { border-color: var(--line); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) th, body.nd-theme .nd-employers th { background: #f6f0e7; color: #806953; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note { background: #f1e8db; color: var(--ink-2); border-color: #a57951; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note.warn { background: #faf1dc; border-color: #b0883c; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note.bad { background: #faeae3; border-color: #ad6556; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .empty { background: linear-gradient(135deg,#fffdf9,#f7f0e6); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn { border-color: #ddcebc; background: var(--surface); color: #70482f; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn:hover { background: #f2e7d8; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn-primary, body.nd-theme .btn-primary { background: #79533b; border-color: #79533b; color: #fffaf5; box-shadow: 0 2px 6px #61402916; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn-primary:hover, body.nd-theme .btn-primary:hover { background: #61402b; border-color: #61402b; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select,textarea) { background: #fffcf8; color: var(--ink); border-color: #ded0bf; box-shadow: none; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input,textarea)::placeholder { color: #9a8776; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input,select,textarea):focus-visible { border-color: #b18a62; outline-color: #b18a62; }
+body.nd-theme .nd-shell :is(input[type=checkbox],input[type=radio]) { accent-color: #805b3d; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) label, body.nd-theme .nd-shell main.page:not(.nd-dashboard) legend { color: #77604e; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) form [role=status]:not(:empty) { background: #f3eadd; color: #70543d; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) button:not([class]) { background: var(--surface); border-color: #deceba; color: #795036; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) details { background: var(--surface); border-color: var(--line); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) summary { background: #f5eee4; color: #76553b; }
+body.nd-theme .nd-auth-emblem, body.nd-theme .nd-auth-card-heading>span { background: #f0e5d5; color: #795336; }
+body.nd-theme .nd-auth-footnote { color: #806d5d !important; }
+body.nd-theme .nd-journey-features { color: #81694f; }
+body.nd-theme .nd-loading-header { background: #e9ddcd; }
+body.nd-theme .nd-loading-cards span { background: linear-gradient(110deg,#f1e6d8,#faf5ed); }
+body.nd-theme .nd-error-card>svg { color: #9c7958; }
+
+/* One data font and size: IDs and amounts must not switch to monospace. */
+body.nd-theme .nd-shell :is(.mono,.id,.num,.nd-money,.tag,.clause) { font-family: var(--sans); font-variant-numeric: tabular-nums; }
+body.nd-theme .nd-money { font-size: inherit; letter-spacing: inherit; }
+body.nd-theme .nd-shell main.page table { font-family: var(--sans); font-size: var(--text-data); line-height: 1.6; }
+body.nd-theme .nd-shell main.page :is(td,th) { font-family: var(--sans); font-size: var(--text-data); }
+body.nd-theme .nd-shell main.page td :is(.small,.mono,.muted,.id,.num,strong,span:not(.pill),div,a:not(.btn)) { font-family: var(--sans); font-size: inherit; letter-spacing: normal; }
+body.nd-theme .nd-shell main.page :is(td.num,th.num,td.id) { font-family: var(--sans); font-size: var(--text-data); font-variant-numeric: tabular-nums; }
+body.nd-theme .nd-shell main.page :is(.pill,.tag) { font-family: var(--sans); font-size: var(--text-caption); font-weight: 600; line-height: 1.5; letter-spacing: 0; text-transform: none; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(label,legend) { font-size: var(--text-label); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input,select,textarea,.btn,button:not([class])) { font-family: var(--sans); font-size: var(--text-data); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.small,.card-body>p,.nd-workflow-form>p) { font-size: var(--text-data); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .clause { font-size: 11px; }
+body.nd-theme .nd-shell main.page :is(.nd-value,.nd-stage strong,.nd-donut strong) { font-family: var(--sans); font-variant-numeric: tabular-nums; }
+body.nd-theme .nd-employers .small, body.nd-theme .nd-employers .id { font-size: var(--text-data); }
+body.nd-theme .nd-employers td { font-size: var(--text-data); }
+body.nd-theme .nd-queue-row, body.nd-theme .nd-status-body li { font-size: 12px; }
+body.nd-theme .nd-metric h2 { font-size: 13px; }
+body.nd-theme .nd-metric p { font-size: 12px; }
+body.nd-theme .nd-shell main.page :is(.nd-letter) { font-size: 20px; }
+body.nd-theme .nd-shell main.page td .btn { font-size: 12px; }
+
+/* The candidate conversation shares the palette while preserving chat structure. */
+body.nd-theme .wa-demo .wa-phone { border-color: #674d39; box-shadow: 0 16px 45px #6243271c; }
+body.nd-theme :is(.wa-top,.wa-statusbar) { background: #75553d; color: #fffaf3; }
+body.nd-theme .wa-top .avatar { background: #ecdbc4; color: #67452d; }
+body.nd-theme .wa-demo .wa-body { background-color: #f1e8db; background-image: radial-gradient(#c3a68533 1px,transparent 1px); }
+body.nd-theme .wa-demo .wa-msg.wa-in { background: #fffdf9; color: #513d2e; }
+body.nd-theme .wa-demo .wa-msg.wa-out { background: #e7d5bd; color: #513d2e; }
+body.nd-theme .wa-day { background: #fffaf2bb; color: #806b57; }
+body.nd-theme .wa-composer { background: #f5eee4; color: #8a725b; }
+body.nd-theme .wa-composer span:nth-child(2) { background: #fffdf9; }
+body.nd-theme .wa-presence { color: #fff7ec; }
+body.nd-theme .wa-reply-panel a { color: #795132; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-reply-panel button:not([class]) { color: #6b482d; background: #f2e5d3; border-color: #d5bea2; }
+body.nd-theme .wa-reply-panel .note { color: #634e3c; background: #f5ead9; border-color: #d8c5ab; }
+body.nd-theme .wa-meta { font-family: var(--sans); }
+@media(max-width:680px) {
+  body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px; }
+  body.nd-theme .nd-shell main.page :is(td,th) { font-size: 13px; }
+  body.nd-theme .nd-metric { gap: 8px; }
+  body.nd-theme .nd-metric h2 { font-size: 12px; }
+}
+
+/* Keep data values at one size even where legacy components use compact classes. */
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(td.id, td.num, th.num) { font-size: var(--text-data); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .pill { font-size: var(--text-caption); }
+body.nd-theme .nd-shell .mono { font-family: var(--sans); font-size: inherit; }
+body.nd-theme .nd-shell .field>div { font-size: var(--text-data); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat):nth-child(n) {
+  --tile-bg: #fffdf9; --tile-ink: #70482f; --tile-line: #e9ddce;
+}

@@ -133,7 +133,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
                         </td>
                         <td className="small">
                           {p.locality_key?.replace(/_/g, ' ')}
-                          <div className="muted mono" style={{ fontSize: '.72rem' }}>
+                          <div className="muted mono" >
                             {String((p.inputs_snapshot as Record<string, unknown>)?.travelProvider ?? '')}
                           </div>
                         </td>
@@ -144,7 +144,7 @@ export default async function JobShortlist({ params }: { params: Promise<{ id: s
                         <td className="small mono">
                           exp <Money paise={p.expected_pay_paise ?? 0} />
                         </td>
-                        <td className="num"><strong style={{ fontSize: '1.05rem' }}>{p.score}</strong>
+                        <td className="num"><strong>{p.score}</strong>
                           {p.endorsement_points > 0 && <div className="small" style={{ color: 'var(--ok)' }}>+{p.endorsement_points} endo</div>}
                         </td>
                         <td>

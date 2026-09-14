@@ -58,7 +58,7 @@ export default async function SitesPage({
                   <tbody className="small">
                     <tr><td>Site</td><td className="right id">{s.id}</td></tr>
                     <tr><td>Registrations</td><td className="right num">{s.scans}</td></tr>
-                    <tr><td>Scan target</td><td className="right id" style={{ fontSize: '.7rem' }}>/j/{s.qr_token}</td></tr>
+                    <tr><td>Scan target</td><td className="right id" >/j/{s.qr_token}</td></tr>
                   </tbody>
                 </table></div>
                 <div className="btnrow mt">

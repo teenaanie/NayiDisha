@@ -167,7 +167,7 @@ export function NewJobForm({ employerId, locations, configs, attrDefs }: {
                   <div className="field" key={ja.key}>
                     <label htmlFor={`a-${ja.key}`}>
                       {d.display_name}{ja.required && <span style={{ color: 'var(--bad)' }}> *</span>}
-                      <span className="muted mono" style={{ fontSize: '.68rem' }}> {d.data_type}</span>
+                      <span className="muted mono" > {d.data_type}</span>
                     </label>
                     {d.allowed_values?.length ? (
                       <select id={`a-${ja.key}`} value={attrs[ja.key] ?? ''}

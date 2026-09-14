@@ -48,7 +48,7 @@ export default async function PayoutsPage() {
                   <tr key={p.id}>
                     <td className="id">{p.id}<div className="small muted">{fmtDateTime(p.created_at)}</div></td>
                     <td className="small">{p.name}<div className="id">{p.partner_id}</div></td>
-                    <td className="small mono" style={{ fontSize: '.72rem' }}>{p.batch_key}</td>
+                    <td className="small mono" >{p.batch_key}</td>
                     <td className="num"><Money paise={p.gross_paise} /></td>
                     <td className="num"><Money paise={p.tds_paise} />
                       <div className="small muted">{(p.tds_rate_bp / 100).toFixed(0)}%</div></td>

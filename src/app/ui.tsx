@@ -34,7 +34,7 @@ export function Stat({ k, v, d }: { k: string; v: React.ReactNode; d?: React.Rea
 }
 
 export function Money({ paise, decimals }: { paise: number | string; decimals?: boolean }) {
-  return <span className="mono">{formatINR(Number(paise), { decimals })}</span>;
+  return <span className="nd-money">{formatINR(Number(paise), { decimals })}</span>;
 }
 
 export function Clause({ children }: { children: React.ReactNode }) {

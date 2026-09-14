@@ -93,7 +93,7 @@ export default async function PartnerRewardsPage({
                   <tbody>{payouts.map((x) => (
                     <tr key={x.id}>
                       <td className="id">{x.id}<div className="small muted">{x.provider_ref}</div></td>
-                      <td className="small mono" style={{ fontSize: '.72rem' }}>{x.batch_key}</td>
+                      <td className="small mono" >{x.batch_key}</td>
                       <td className="num"><Money paise={x.gross_paise} /></td>
                       <td className="num"><Money paise={x.tds_paise} /><div className="small muted">{(x.tds_rate_bp / 100).toFixed(0)}%</div></td>
                       <td className="num"><strong><Money paise={x.net_paise} /></strong></td>
