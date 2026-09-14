@@ -2,7 +2,7 @@ import {sql} from '@/lib/db';
 import {fmtDateTime} from '@/lib/clock';
 import {Pill,StatusPill} from './ui';
 export async function CandidateRecord({id}:{id:string}){
- const [profiles,tests,apps,consents,attrs]=await Promise.all([sql`SELECT c.*,p.name partner FROM app.candidate c LEFT JOIN app.attribution a ON a.candidate_id=c.id LEFT JOIN app.partner p ON p.id=a.partner_id WHERE c.id=${id}`,sql`SELECT score,completed_at FROM app.assessment_attempt WHERE candidate_id=${id} ORDER BY completed_at DESC`,sql`SELECT a.*,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${id} ORDER BY applied_at DESC`,sql`SELECT purpose,granted_at,withdrawn_at FROM app.consent_record WHERE candidate_id=${id}`,sql`SELECT d.display_name,v.value_text,v.value_bool,v.value_int FROM app.candidate_attribute_value v JOIN app.attribute_definition d ON d.key=v.attribute_key WHERE candidate_id=${id}`]);
+ const [profiles,tests,apps,consents,attrs,voice]=await Promise.all([sql`SELECT c.*,p.name partner FROM app.candidate c LEFT JOIN app.attribution a ON a.candidate_id=c.id LEFT JOIN app.partner p ON p.id=a.partner_id WHERE c.id=${id}`,sql`SELECT score,completed_at FROM app.assessment_attempt WHERE candidate_id=${id} ORDER BY completed_at DESC`,sql`SELECT a.*,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${id} ORDER BY applied_at DESC`,sql`SELECT purpose,granted_at,withdrawn_at FROM app.consent_record WHERE candidate_id=${id}`,sql`SELECT d.display_name,v.value_text,v.value_bool,v.value_int FROM app.candidate_attribute_value v JOIN app.attribute_definition d ON d.key=v.attribute_key WHERE candidate_id=${id}`,sql`SELECT field,transcript,interpreted,confidence,provider,accepted,created_at FROM app.voice_turn WHERE candidate_id=${id} ORDER BY created_at`]);
  const c=profiles[0];if(!c)return <p>Candidate not found.</p>;
  const fields=Object.entries({
   Mobile:c.phone,Locality:c.locality_key,Education:c.education,
@@ -60,6 +60,19 @@ export async function CandidateRecord({id}:{id:string}){
    </div>
   </div>
 
+  {voice.length>0&&<div className="card mb">
+   <div className="card-head"><h3>Voice answers</h3><span className="small muted">what was said vs. what was understood</span></div>
+   <div className="card-body tight"><div className="tblwrap"><table>
+    <thead><tr><th>Question</th><th>Said</th><th>Understood</th><th>Confidence</th><th>Source</th></tr></thead>
+    <tbody>{voice.map((v:any,i:number)=><tr key={i}>
+     <td className="small">{String(v.field).replace(/([A-Z])/g,' $1').toLowerCase()}</td>
+     <td className="small">“{v.transcript}”</td>
+     <td className="small">{v.interpreted?.display||'—'}{v.accepted&&<Pill tone="ok">confirmed</Pill>}</td>
+     <td className="num">{Math.round(Number(v.confidence)*100)}%</td>
+     <td className="small muted mono">{v.provider}</td>
+    </tr>)}</tbody>
+   </table></div></div>
+  </div>}
   <div className="card">
    <div className="card-head"><h3>Consent choices</h3></div>
    <div className="card-body"><div className="tags">

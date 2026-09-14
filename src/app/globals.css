@@ -196,11 +196,11 @@ fieldset.field-group input[type="checkbox"] { width:auto; }
   overflow: hidden; box-shadow: var(--shadow);
 }
 .wa-top {
-  background: #075E54; color: #fff; padding: 11px 15px; font-weight: 650; font-size: .9rem;
+  background: #008069; color: #fff; padding: 11px 15px; font-weight: 650; font-size: .9rem;
   display:flex; align-items:center; gap:9px;
 }
 .wa-top .avatar {
-  width: 30px; height:30px; border-radius:50%; background:#25D366; color:#075E54;
+  width: 30px; height:30px; border-radius:50%; background:#25D366; color:#054d44;
   display:grid; place-items:center; font-weight:800; font-size:.78rem;
 }
 .wa-body {
@@ -275,14 +275,14 @@ a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
 /* Founder demo: keep the conversation frame visible while records load. */
 .wa-demo .wa-shell {max-width:490px;}
 .wa-demo .wa-phone {border:7px solid #18312e;border-radius:32px;box-shadow:0 18px 48px #12332d26;}
-.wa-statusbar {display:flex;justify-content:space-between;background:#075e54;color:#fff;padding:8px 22px 0;font-size:12px;}
+.wa-statusbar {display:flex;justify-content:space-between;background:#008069;color:#fff;padding:8px 22px 0;font-size:12px;}
 .wa-demo .wa-top {padding:15px;gap:12px;}
 .wa-demo .avatar {width:40px;height:40px;}
 .wa-presence {font-size:11px;font-weight:400;opacity:.85;margin-top:3px;}
 .wa-menu {margin-left:auto;font-size:25px;}
-.wa-demo .wa-body {min-height:480px;max-height:68vh;background-color:#eae3d8;background-image:radial-gradient(#c8beb04d 1px,transparent 1px);background-size:18px 18px;padding:16px;gap:12px;}
-.wa-demo .wa-msg.wa-in {background:#fff;color:#213b35;box-shadow:0 1px 2px #00000012;}
-.wa-demo .wa-msg.wa-out {background:#d9fdd3;color:#213b35;}
+.wa-demo .wa-body {min-height:480px;max-height:68vh;background-color:#efeae2;background-image:radial-gradient(#d1c7b74d 1px,transparent 1px);background-size:18px 18px;padding:16px;gap:12px;}
+.wa-demo .wa-msg.wa-in {background:#fff;color:#111b21;box-shadow:0 1px 2px #00000012;}
+.wa-demo .wa-msg.wa-out {background:#d9fdd3;color:#111b21;}
 .wa-day {align-self:center;border-radius:6px;background:#fff9;padding:5px 10px;color:#52685f;font-size:10px;letter-spacing:.06em;}
 .wa-demo .wa-reply-panel {max-width:96%;width:100%;padding:15px;}
 .wa-reply-panel form {display:flex;flex-direction:column;gap:12px;}
@@ -294,7 +294,45 @@ a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
 .wa-reply-panel a {color:#086e59;}
 .wa-reply-panel .note {background:#f0f7f1;color:#213b35;border-color:#c6dfcd;}
 .wa-reply-panel p:empty {display:none;}
-.wa-composer {display:flex;align-items:center;gap:12px;padding:14px;background:#f4f6f4;color:#6a7974;font-size:12px;}
+.wa-composer {display:flex;align-items:center;gap:12px;padding:14px;background:#f0f2f5;color:#54656f;font-size:12px;}
 .wa-composer span:nth-child(2){flex:1;background:white;border-radius:22px;padding:10px;}
 .wa-disclaimer {text-align:center;font-size:12px;color:var(--ink-2);margin-top:14px;}
 @media(max-width:540px){.wa-demo .wa-phone{border-width:3px;border-radius:22px;}.wa-demo .wa-body{padding:10px;min-height:400px;}.wa-demo .wa-reply-panel{max-width:100%;}}
+
+/* ---- Voice journey -------------------------------------------------------
+   A spoken answer renders as a WhatsApp voice note (play head, waveform,
+   duration) with the transcript underneath, so the candidate can see what was
+   understood rather than trusting it silently. */
+.wa-voice { display:contents; }
+.wa-voicenote { display:flex; align-items:center; gap:9px; min-width:190px; }
+.wa-voicenote-play { font-size:15px; color:#54656f; }
+.wa-wave { flex:1; display:flex; align-items:center; gap:2px; height:22px; }
+.wa-wave i { flex:1; background:#8c9aa3; border-radius:1px; min-height:3px; }
+.wa-out .wa-wave i { background:#5c8f70; }
+.wa-voicenote-time { font-size:11px; color:#54656f; font-variant-numeric:tabular-nums; }
+.wa-voicenote-transcript { margin-top:6px; font-size:12px; font-style:italic; opacity:.8; }
+
+.wa-mic-row { display:flex; align-items:center; gap:14px; }
+.wa-mic-row > div { display:flex; flex-direction:column; gap:6px; align-items:flex-start; font-size:13px; }
+.wa-reply-panel .wa-mic, .wa-mic {
+  width:56px; height:56px; border-radius:50%; flex-shrink:0; cursor:pointer;
+  border:none; background:#008069; color:#fff; display:grid; place-items:center;
+  box-shadow:0 3px 10px #0080693d;
+}
+.wa-reply-panel .wa-mic:disabled, .wa-mic:disabled { opacity:.6; cursor:not-allowed; }
+.wa-reply-panel .wa-mic.is-listening, .wa-mic.is-listening { background:#d33; animation:wa-pulse 1.3s ease-out infinite; }
+@keyframes wa-pulse {
+  0% { box-shadow:0 0 0 0 #dd333366; }
+  70% { box-shadow:0 0 0 16px #dd333300; }
+  100% { box-shadow:0 0 0 0 #dd333300; }
+}
+@media (prefers-reduced-motion: reduce) { .wa-mic.is-listening { animation:none; } }
+
+.wa-voice-review { list-style:none; padding:0; margin:8px 0 0; font-size:12px; }
+.wa-voice-review li { display:flex; justify-content:space-between; gap:12px; padding:5px 0; border-bottom:1px solid #0000000f; }
+.wa-voice-review li:last-child { border-bottom:none; }
+.wa-voice-review span { color:#54656f; text-transform:capitalize; }
+.wa-voice-note { font-size:12px; color:#54656f; margin:0 0 8px; }
+
+.wa-mode-switch { display:flex; gap:8px; margin-bottom:12px; }
+.wa-mode-switch button { flex:1; }

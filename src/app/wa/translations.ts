@@ -1,4 +1,8 @@
 export const journeyTranslations:Record<string,[string,string]>={
+  "Fill the form": ["फ़ॉर्म भरें", "फॉर्म भरा"],
+  "Answer by voice": ["बोलकर जवाब दें", "बोलून उत्तर द्या"],
+  "Check your answers, then confirm the two declarations below.": ["अपने जवाब देखें, फिर नीचे दोनों घोषणाओं की पुष्टि करें।", "तुमची उत्तरं तपासा, मग खालील दोन्ही घोषणा निश्चित करा."],
+  "Answer again": ["फिर से जवाब दें", "पुन्हा उत्तर द्या"],
   "Name": [
     "नाम",
     "नाव"
