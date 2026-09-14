@@ -339,3 +339,4 @@ a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
 .wa-lang-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:10px; font-size:12px; }
 .wa-lang-row > span { color:#54656f; margin-right:2px; }
 .wa-lang-row .wa-restart { margin-left:auto; }
+.wa-partial { font-size:12px; font-style:italic; color:#54656f; max-width:220px; }
