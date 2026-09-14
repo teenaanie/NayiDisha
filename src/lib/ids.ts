@@ -43,6 +43,7 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
   ONB: 'app.onboarding_case',
   ENT: 'app.posting_entitlement',
   ACH: 'app.achievement',
+  VOX: 'app.voice_turn',
 };
 
 /**
