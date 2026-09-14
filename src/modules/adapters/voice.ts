@@ -50,13 +50,18 @@ function asciiDigits(s: string): string {
 /** Spoken number words people actually use for pay, months and minutes. */
 const WORD_NUMBERS: Record<string, number> = {
   zero:0, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10,
-  eleven:11, twelve:12, fifteen:15, twenty:20, thirty:30, forty:40, fortyfive:45, fifty:50, sixty:60,
+  eleven:11, twelve:12, thirteen:13, fourteen:14, fifteen:15, sixteen:16, seventeen:17,
+  eighteen:18, nineteen:19, twenty:20, twentyfive:25, thirty:30, thirtyfive:35, forty:40,
+  fortyfive:45, fifty:50, sixty:60, ninety:90,
   // Hindi / Marathi, as they commonly transcribe
   ek:1, do:2, teen:3, char:4, paanch:5, panch:5, chhah:6, chha:6, saat:7, aath:8, nau:9, das:10,
   barah:12, pandrah:15, bees:20, tees:30, chalis:40, pachas:50, saath:60,
   एक:1, दो:2, तीन:3, चार:4, पाँच:5, पांच:5, छह:6, सात:7, आठ:8, नौ:9, दस:10,
-  बारह:12, पंद्रह:15, बीस:20, तीस:30, चालीस:40, पचास:50, साठ:60,
-  दोन:2, चार_mr:4, पाच:5, सहा:6, नऊ:9, अकरा:11, पंधरा:15, वीस:20, तीस_mr:30,
+  ग्यारह:11, बारह:12, तेरह:13, चौदह:14, पंद्रह:15, सोलह:16, सत्रह:17, अठारह:18, उन्नीस:19,
+  बीस:20, पच्चीस:25, तीस:30, पैंतीस:35, चालीस:40, पैंतालीस:45, पचास:50, साठ:60,
+  athara:18, pandrah_hi:15, pachees:25, paintalis:45,
+  दोन:2, चार_mr:4, पाच:5, सहा:6, नऊ:9, अकरा:11, बारा:12, पंधरा:15, सोळा:16,
+  अठरा:18, वीस:20, पंचवीस:25, तीस_mr:30, पस्तीस:35, चाळीस:40, पंचेचाळीस:45, पन्नास:50,
 };
 
 /** "18 hazaar" / "18 हजार" / "1.5 lakh" → 18000 / 150000. */
@@ -65,46 +70,84 @@ const MULTIPLIERS: [RegExp, number][] = [
   [/\b(hazaar|hazar|thousand|हज़ार|हजार|हजार्|k)\b/i, 1000],
 ];
 
+const TENS: Record<string, number> = {
+  twenty:20, thirty:30, forty:40, fifty:50, sixty:60, seventy:70, eighty:80, ninety:90,
+  बीस:20, तीस:30, चालीस:40, पचास:50, साठ:60, सत्तर:70, अस्सी:80, नब्बे:90,
+  वीस:20, चाळीस:40, पन्नास:50, साठ_mr:60,
+};
+const UNITS: Record<string, number> = {
+  one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9,
+  एक:1, दो:2, तीन:3, चार:4, पाँच:5, पांच:5, छह:6, सात:7, आठ:8, नौ:9,
+  दोन:2, पाच:5, सहा:6, नऊ:9,
+};
+
+/**
+ * Devanagari text breaks `\b`, which JS defines over [A-Za-z0-9_] only, so a
+ * Devanagari alternative inside \b(...)\b never matches. Latin alternatives
+ * keep word boundaries; Devanagari ones are matched as plain substrings.
+ */
+function hasWord(text: string, latin: string[], devanagari: string[] = []): boolean {
+  if (latin.length && new RegExp(`\\b(${latin.join('|')})\\b`, 'i').test(text)) return true;
+  return devanagari.some((d) => text.includes(d));
+}
+
 function parseNumber(raw: string): number | null {
   const t = asciiDigits(raw.toLowerCase());
+  const multiplier = () => {
+    for (const [re, mult] of MULTIPLIERS) if (re.test(t)) return mult;
+    return 1;
+  };
 
-  // "18 thousand", "1.5 lakh"
+  // "18 thousand", "1.5 lakh" — digits carrying a multiplier.
   for (const [re, mult] of MULTIPLIERS) {
     const m = t.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${re.source}`, 'i'));
     if (m) return Math.round(parseFloat(m[1]) * mult);
   }
-  // bare digits — longest run wins ("eighteen thousand five hundred" is rare in transcripts)
+  // bare digits
   const digits = t.match(/\d+(?:\.\d+)?/g);
   if (digits) {
     const n = Math.round(parseFloat(digits.sort((a, b) => b.length - a.length)[0]));
-    // a lone "18" for pay almost always means 18 thousand
-    return n;
+    return n * (digits.join('').length <= 3 ? multiplier() : 1);
   }
-  // number words
-  for (const [word, n] of Object.entries(WORD_NUMBERS)) {
-    if (new RegExp(`(^|\\s)${word.replace('_mr','')}(\\s|$)`, 'i').test(t)) {
-      for (const [re, mult] of MULTIPLIERS) if (re.test(t)) return n * mult;
-      return n;
+  // compound words: "twenty five" = 25, and only then × any multiplier.
+  for (const [tensWord, tens] of Object.entries(TENS)) {
+    const tw = tensWord.replace('_mr', '');
+    if (!t.includes(tw)) continue;
+    const after = t.slice(t.indexOf(tw) + tw.length, t.indexOf(tw) + tw.length + 12);
+    for (const [unitWord, unit] of Object.entries(UNITS)) {
+      if (after.includes(unitWord)) return (tens + unit) * multiplier();
     }
+    return tens * multiplier();
+  }
+  // single number words
+  for (const [word, n] of Object.entries(WORD_NUMBERS)) {
+    const w = word.replace('_mr', '').replace('_hi', '');
+    const hit = /^[a-z]+$/.test(w)
+      ? new RegExp(`(^|\\s)${w}(\\s|$)`, 'i').test(t)
+      : t.includes(w);
+    if (hit) return n * multiplier();
   }
   return null;
 }
 
-const YES = /\b(yes|yeah|yep|correct|right|haan|han|ha|ji|sahi|theek|बरोबर|हाँ|हां|जी|सही|ठीक|होय)\b/i;
-const NO  = /\b(no|nope|wrong|nahi|nahin|galat|चुकीच|नहीं|नाही|गलत)\b/i;
+const YES_LATIN = ['yes','yeah','yep','correct','right','haan','han','ji','sahi','theek','hoy'];
+const YES_DEV = ['हाँ','हां','जी','सही','ठीक','बरोबर','होय','हो'];
+const NO_LATIN = ['no','nope','wrong','nahi','nahin','galat','chukiche'];
+const NO_DEV = ['नहीं','नाही','गलत','चुकीच','नको'];
 
 /** Shift words → the shift codes the seed data uses. */
 function matchShifts(t: string, available: string[]): string[] {
   const lower = t.toLowerCase();
-  const any = /\b(any|anytime|any shift|koi bhi|kabhi bhi|कोई भी|कधीही|कोणतीही)\b/i.test(lower);
+  const any = hasWord(lower, ['any','anytime','koi bhi','kabhi bhi','kuthlihi'],
+                      ['कोई भी','कधीही','कोणतीही','कोणतीहि']);
   if (any) return ['ANY'];
   const hits = available.filter((s) => lower.includes(s.toLowerCase().replace(/_/g, ' ')));
   if (hits.length) return hits;
-  if (/\b(day|morning|din|सकाळ|दिवस|सुबह)\b/i.test(lower)) {
+  if (hasWord(lower, ['day','morning','din'], ['सकाळ','दिवस','सुबह','दिन'])) {
     const day = available.find((s) => /DAY|09|10/.test(s));
     if (day) return [day];
   }
-  if (/\b(night|raat|रात|रात्र)\b/i.test(lower)) {
+  if (hasWord(lower, ['night','raat'], ['रात','रात्र'])) {
     const night = available.find((s) => /NIGHT|22|20/.test(s));
     if (night) return [night];
   }
@@ -126,8 +169,9 @@ export class RuleBasedInterpreter implements VoiceInterpreter {
 
     switch (field) {
       case 'confirm': {
-        if (YES.test(t)) return out(true, t, 0.95);
-        if (NO.test(t)) return out(false, t, 0.95);
+        // Check NO first: "नाही" contains no Latin token, and "no" is a substring risk.
+        if (hasWord(t.toLowerCase(), NO_LATIN, NO_DEV)) return out(false, t, 0.95);
+        if (hasWord(t.toLowerCase(), YES_LATIN, YES_DEV)) return out(true, t, 0.95);
         return out(null, t, 0.2);
       }
 
@@ -147,6 +191,20 @@ export class RuleBasedInterpreter implements VoiceInterpreter {
       case 'locality': {
         const list = context.localities ?? [];
         const lower = asciiDigits(t.toLowerCase());
+        // A Hindi/Marathi speaker says "औंध", but the table stores "Aundh".
+        // Aliases for the seeded Pune localities bridge that; anything not
+        // listed still resolves through the Latin matching below.
+        const ALIAS: Record<string, string> = {
+          'औंध':'aundh', 'बाणेर':'baner', 'कोथरूड':'kothrud', 'कोथरुड':'kothrud',
+          'शिवाजीनगर':'shivajinagar', 'विमान नगर':'viman_nagar', 'विमाननगर':'viman_nagar',
+          'हडपसर':'hadapsar', 'पिंपरी':'pimpri', 'डेक्कन':'deccan', 'डेक्कन जिमखाना':'deccan',
+        };
+        for (const [dev, key] of Object.entries(ALIAS)) {
+          if (t.includes(dev)) {
+            const hit = list.find((l) => l.key === key);
+            if (hit) return out(hit.key, hit.display_name, 0.92);
+          }
+        }
         // exact display-name or key hit
         const exact = list.find((l) =>
           lower.includes(l.display_name.toLowerCase()) || lower.includes(l.key.replace(/_/g, ' ')));
@@ -166,7 +224,8 @@ export class RuleBasedInterpreter implements VoiceInterpreter {
       case 'experienceMonths': {
         const n = parseNumber(t);
         if (n === null) {
-          if (/\b(fresher|no experience|none|naya|नया|नवीन|अनुभव नाही|कोई अनुभव नहीं)\b/i.test(t)) {
+          if (hasWord(t.toLowerCase(), ['fresher','no experience','none','naya'],
+                      ['नया','नवीन','अनुभव नाही','कोई अनुभव नहीं','फ्रेशर'])) {
             return out(0, 'Fresher — no experience yet', 0.9);
           }
           return out(null, t, 0.2);
