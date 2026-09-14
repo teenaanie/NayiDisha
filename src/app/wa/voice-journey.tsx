@@ -48,17 +48,17 @@ const UI: Record<Lang, Record<string, string>> = {
         correct:'Yes, correct', retry:'No, say again', type:'Type instead', done:'All done',
         unclear:'I did not catch that. Please say it again.', review:'Here is what I understood',
         save:'Save and continue', unsupported:'Your browser cannot record voice. You can type your answers instead.',
-        mic:'Microphone blocked. Allow microphone access, or type your answer.', answerIn:'Answer in', restart:'Start over' },
+        mic:'Microphone blocked. Allow microphone access, or type your answer.', answerIn:'Answer in', restart:'Start over', stop:'Tap to stop', nothing:'I did not hear anything. Tap the mic and speak.' },
   hi: { tap:'बोलने के लिए दबाएँ', listening:'सुन रहे हैं…', thinking:'NayiDisha सुन रहा है…', heard:'मैंने सुना',
         correct:'हाँ, सही है', retry:'नहीं, फिर से बोलूँ', type:'टाइप करें', done:'पूरा हुआ',
         unclear:'मैं समझ नहीं पाया। कृपया फिर से बोलिए।', review:'मैंने यह समझा',
         save:'सहेजें और आगे बढ़ें', unsupported:'आपका ब्राउज़र आवाज़ रिकॉर्ड नहीं कर सकता। आप टाइप कर सकते हैं।',
-        mic:'माइक्रोफ़ोन बंद है। अनुमति दें, या टाइप करें।', answerIn:'जवाब की भाषा', restart:'फिर से शुरू करें' },
+        mic:'माइक्रोफ़ोन बंद है। अनुमति दें, या टाइप करें।', answerIn:'जवाब की भाषा', restart:'फिर से शुरू करें', stop:'रोकने के लिए दबाएँ', nothing:'कुछ सुनाई नहीं दिया। माइक दबाकर बोलिए।' },
   mr: { tap:'बोलण्यासाठी दाबा', listening:'ऐकत आहे…', thinking:'NayiDisha ऐकत आहे…', heard:'मी ऐकलं',
         correct:'होय, बरोबर', retry:'नाही, पुन्हा सांगतो', type:'टाइप करा', done:'पूर्ण झालं',
         unclear:'मला समजलं नाही. कृपया पुन्हा सांगा.', review:'मला हे समजलं',
         save:'जतन करा आणि पुढे जा', unsupported:'तुमचा ब्राउझर आवाज रेकॉर्ड करू शकत नाही. तुम्ही टाइप करू शकता.',
-        mic:'मायक्रोफोन बंद आहे. परवानगी द्या, किंवा टाइप करा.', answerIn:'उत्तराची भाषा', restart:'पुन्हा सुरू करा' },
+        mic:'मायक्रोफोन बंद आहे. परवानगी द्या, किंवा टाइप करा.', answerIn:'उत्तराची भाषा', restart:'पुन्हा सुरू करा', stop:'थांबवण्यासाठी दाबा', nothing:'काहीच ऐकू आलं नाही. माइक दाबून बोला.' },
 };
 
 interface Turn { who: 'bot' | 'me'; text: string; voice?: boolean; seconds?: number }
@@ -78,7 +78,13 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
   const [error, setError] = useState('');
   const [typing, setTyping] = useState(false);
   const [supported, setSupported] = useState(true);
+  const [partial, setPartial] = useState('');
   const recognition = useRef<any>(null);
+  const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const maxTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const finalText = useRef(''); const interimText = useRef('');
+  /** One answer per listening session, whichever path finishes first. */
+  const submitted = useRef(false);
   const startedAt = useRef(0);
   const bottom = useRef<HTMLDivElement>(null);
 
@@ -92,7 +98,11 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
       && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
     if (!SR) { setSupported(false); setTyping(true); return; }
     const r = new SR();
-    r.continuous = false; r.interimResults = false; r.maxAlternatives = 1;
+    // Endpointing is left to us rather than the browser: on mobile the built-in
+    // end-of-speech detection is unreliable and can simply never fire, which
+    // strands the candidate mid-answer. interimResults also gives them visible
+    // proof it is hearing them.
+    r.continuous = true; r.interimResults = true; r.maxAlternatives = 1;
     recognition.current = r;
     return () => { try { r.abort(); } catch {} };
   }, []);
@@ -163,22 +173,84 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
     setPendingConfirm(null); setAnswers({}); setTurns([]); setError(''); setIndex(0);
   }
 
+  /** Stop after this much quiet once they have started speaking. */
+  const SILENCE_MS = 2500;
+  /** Longer grace before the first word, so thinking time is not cut off. */
+  const FIRST_WORD_MS = 7000;
+  /** Nothing may listen forever, whatever the speech engine does. */
+  const MAX_MS = 25000;
+
+  function clearTimers() {
+    if (silenceTimer.current) clearTimeout(silenceTimer.current);
+    if (maxTimer.current) clearTimeout(maxTimer.current);
+    silenceTimer.current = null; maxTimer.current = null;
+  }
+
+  function submitOnce(text: string) {
+    if (submitted.current) return;
+    submitted.current = true;
+    setPartial('');
+    if (text) handleTranscript(text); else setError(t.nothing);
+  }
+
+  function stopListening() {
+    clearTimers();
+    try { recognition.current?.stop(); } catch { setListening(false); return; }
+    // If the engine never fires onend — it happens — do not leave the candidate
+    // stuck on a listening button with no way out.
+    maxTimer.current = setTimeout(() => {
+      setListening(false);
+      submitOnce((finalText.current + interimText.current).trim());
+    }, 1500);
+  }
+
+  useEffect(() => () => { clearTimers(); try { recognition.current?.abort(); } catch {} }, []);
+
   function listen() {
+    // Tapping while it listens stops and submits — never a dead end.
+    if (listening) { stopListening(); return; }
+
     const r = recognition.current;
     if (!r) { setTyping(true); return; }
-    setError(''); setListening(true); startedAt.current = Date.now();
-    r.onresult = (ev: any) => {
-      const transcript = ev.results?.[0]?.[0]?.transcript ?? '';
-      setListening(false);
-      if (transcript.trim()) handleTranscript(transcript.trim());
+    finalText.current = ''; interimText.current = ''; submitted.current = false;
+    setPartial(''); setError(''); setListening(true); startedAt.current = Date.now();
+
+    const arm = (ms: number) => {
+      if (silenceTimer.current) clearTimeout(silenceTimer.current);
+      silenceTimer.current = setTimeout(stopListening, ms);
     };
+
+    r.onresult = (ev: any) => {
+      let interim = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        const res = ev.results[i];
+        if (res.isFinal) finalText.current += res[0].transcript + ' ';
+        else interim += res[0].transcript;
+      }
+      interimText.current = interim;
+      setPartial((finalText.current + interim).trim());
+      arm(SILENCE_MS);
+    };
+
     r.onerror = (ev: any) => {
-      setListening(false);
+      clearTimers(); setListening(false); setPartial(''); submitted.current = true;
+      if (ev?.error === 'no-speech' || ev?.error === 'aborted') { setError(t.nothing); return; }
       setError(ev?.error === 'not-allowed' ? t.mic : t.unclear);
       if (ev?.error === 'not-allowed') setTyping(true);
     };
-    r.onend = () => setListening(false);
-    try { r.start(); } catch { setListening(false); }
+
+    // Whether it ended by silence, by tap or by the engine itself, submit
+    // whatever was captured rather than discarding it.
+    r.onend = () => {
+      clearTimers(); setListening(false);
+      submitOnce((finalText.current + interimText.current).trim());
+    };
+
+    try {
+      r.start();
+      arm(FIRST_WORD_MS);
+      maxTimer.current = setTimeout(stopListening, MAX_MS);
+    } catch { clearTimers(); setListening(false); }
   }
 
   return (
@@ -244,8 +316,8 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
           ) : (
             <div className="wa-mic-row">
               <button type="button" className={`wa-mic ${listening ? 'is-listening' : ''}`}
-                      onClick={listen} disabled={busy || listening}
-                      aria-label={listening ? t.listening : t.tap}>
+                      onClick={listen} disabled={busy}
+                      aria-label={listening ? t.stop : t.tap}>
                 <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
                      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <rect x="9" y="3" width="6" height="11" rx="3" />
@@ -254,8 +326,11 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
                 </svg>
               </button>
               <div>
-                <strong>{listening ? t.listening : t.tap}</strong>
-                <button type="button" className="btn btn-sm" onClick={() => setTyping(true)}>{t.type}</button>
+                <strong>{listening ? (partial ? t.listening : t.stop) : t.tap}</strong>
+                {partial && <span className="wa-partial">“{partial}”</span>}
+                {!listening && (
+                  <button type="button" className="btn btn-sm" onClick={() => setTyping(true)}>{t.type}</button>
+                )}
               </div>
             </div>
           )}
