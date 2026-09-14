@@ -162,29 +162,28 @@ body.nd-theme .nd-metric p { font-size: 12px; }
 body.nd-theme .nd-shell main.page :is(.nd-letter) { font-size: 20px; }
 body.nd-theme .nd-shell main.page td .btn { font-size: 12px; }
 
-/* The candidate conversation deliberately does NOT take the ivory palette: it
-   is meant to read as an actual WhatsApp thread, so it keeps WhatsApp's own
-   colours. Everything around the phone frame stays on the NayiDisha theme. */
-body.nd-theme .wa-demo .wa-phone { border-color: #111b21; box-shadow: 0 16px 45px #0b141a24; }
-body.nd-theme :is(.wa-top,.wa-statusbar) { background: #008069; color: #ffffff; }
-body.nd-theme .wa-top .avatar { background: #25d366; color: #054d44; }
-body.nd-theme .wa-demo .wa-body { background-color: #efeae2; background-image: radial-gradient(#d1c7b733 1px,transparent 1px); }
-body.nd-theme .wa-demo .wa-msg.wa-in { background: #ffffff; color: #111b21; }
-body.nd-theme .wa-demo .wa-msg.wa-out { background: #d9fdd3; color: #111b21; }
-body.nd-theme .wa-day { background: #ffffffd9; color: #54656f; }
-body.nd-theme .wa-composer { background: #f0f2f5; color: #54656f; }
-body.nd-theme .wa-composer span:nth-child(2) { background: #ffffff; }
-body.nd-theme .wa-presence { color: #d7f5ec; }
-body.nd-theme .wa-reply-panel a { color: #027d69; }
-body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-reply-panel button:not([class]) { color: #075e54; background: #edf8f0; border-color: #bdd7c7; }
-body.nd-theme .wa-reply-panel .note { color: #111b21; background: #f0f7f1; border-color: #c6dfcd; }
-/* Inside the phone, the primary action is WhatsApp green rather than the
-   NayiDisha accent — the chat has to look like WhatsApp, not like the console. */
-body.nd-theme .wa-demo .btn-primary { background: #008069; border-color: #008069; color: #ffffff; }
-body.nd-theme .wa-demo .btn-primary:hover { background: #017561; border-color: #017561; }
-body.nd-theme .wa-demo .wa-reply-panel .wa-mic { background: #008069; color: #ffffff; border: none; border-radius: 50%; }
-body.nd-theme .wa-demo .wa-reply-panel .wa-mic.is-listening { background: #d33; }
-body.nd-theme .wa-meta { font-family: var(--sans); }
+/* WhatsApp keeps its familiar green identity inside the warm workspace. */
+body.nd-theme .wa-demo { --accent:#128c7e; --accent-soft:#e7f7ef; --ink:#213b35; --muted:#61756c; }
+body.nd-theme .wa-demo .wa-phone { border-color:#18312e; box-shadow:0 16px 45px #123c2f1c; }
+body.nd-theme .wa-demo :is(.wa-top,.wa-statusbar) { background:#075e54; color:white; }
+body.nd-theme .wa-demo .wa-top .avatar { background:#25d366; color:#075e54; }
+body.nd-theme .wa-demo .wa-body { background-color:#eae3d8; background-image:radial-gradient(#c8beb04d 1px,transparent 1px); }
+body.nd-theme .wa-demo .wa-msg.wa-in { background:white; color:#213b35; }
+body.nd-theme .wa-demo .wa-msg.wa-out { background:#d9fdd3; color:#213b35; }
+body.nd-theme .wa-demo .wa-day { background:#ffffffbb; color:#61756c; }
+body.nd-theme .wa-demo .wa-composer { background:#f0f2f5; color:#61756c; }
+body.nd-theme .wa-demo .wa-composer span:nth-child(2) { background:white; }
+body.nd-theme .wa-demo .wa-presence { color:#e1f6ed; }
+body.nd-theme .wa-demo .wa-reply-panel a { color:#08786b; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-demo button:not([class]) { color:#075e54; background:#edf8f0; border-color:#cad8d1; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-demo .btn-primary { background:#128c7e; border-color:#128c7e; color:white; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-demo .btn-primary:hover { background:#0f7268; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .wa-demo :is(input,select,textarea) { background:#f7faf8; border-color:#cad8d1; color:#213b35; accent-color:#128c7e; }
+body.nd-theme .wa-demo .wa-reply-panel .note { color:#36594a; background:#edf8f0; border-color:#cad8d1; }
+body.nd-theme .wa-demo .wa-meta { font-family:var(--sans); color:#61756c; }
+body.nd-theme .wa-demo .wa-reply-panel .wa-mic { background:var(--accent); color:white; border:none; border-radius:50%; }
+body.nd-theme .wa-demo .wa-reply-panel .wa-mic.is-listening { background:#d33; }
+
 @media(max-width:680px) {
   body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input:not([type=checkbox]):not([type=radio]),select,textarea) { font-size: 16px; }
   body.nd-theme .nd-shell main.page :is(td,th) { font-size: 13px; }
