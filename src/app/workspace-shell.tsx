@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import {usePathname,useSearchParams} from 'next/navigation';
 import {useEffect,useRef,useState} from 'react';
-import {Icon} from './ops/dashboard-icon';
+import {Icon,SeedlingArt} from './ops/dashboard-icon';
 import {OpsShell} from './ops/shell';
 import {EMPLOYER_TABS,PARTNER_TABS,FINANCE_TABS,CANDIDATE_TABS} from './subnav';
 const workspaces=[['/','Platform overview','home'],['/ops','Operations','settings'],['/employer','Employer','building'],['/partner','Partner','users'],['/finance','Finance','chart'],['/wa','Candidate journey','heart'],['/demo','Demo identities','users'],['/sign-in','Sign in / out','lock']];
@@ -28,7 +28,7 @@ export function WorkspaceShell({children,role}:{children:React.ReactNode;role:st
    <Link href={contextual(home)} className="nd-brand"><span className="nd-sun">☀</span><strong>NayiDisha</strong><small>Jobs. Skills. Better Futures.</small></Link>
    <div className="nd-workspace-label">{workspace} workspace</div>
    <nav aria-label={`${workspace} navigation`}>{links.map(([href,label,icon])=><Link prefetch={false} href={contextual(href)} key={href} aria-current={active(href)?'page':undefined} onClick={()=>setOpen(false)}><Icon name={icon}/>{label}</Link>)}</nav>
-   <div className="nd-help"><span className="nd-help-symbol"><Icon name={workspace==='Candidate'?'heart':'spark'}/></span><strong>{workspace==='Candidate'?'Your next step starts here.':'Creating opportunities together.'}</strong><p>{workspace==='Candidate'?'Build your profile and discover opportunities. Always free for job seekers.':'Connect people with opportunity, one step at a time.'}</p><Link href={workspace==='Candidate'?'/wa':'/demo'} className="btn">{workspace==='Candidate'?'Continue your journey':'Open demo guide'} →</Link></div>
+   <div className="nd-help"><SeedlingArt/><strong>{workspace==='Candidate'?'Your next step starts here.':'Creating opportunities together.'}</strong><p>{workspace==='Candidate'?'Build your profile and discover opportunities. Always free for job seekers.':'Connect people with opportunity, one step at a time.'}</p><Link href={workspace==='Candidate'?'/wa':'/demo'} className="btn">{workspace==='Candidate'?'Continue your journey':'Open demo guide'} →</Link></div>
   </aside>
   <div className="nd-workspace">
    <header className="nd-topbar">
