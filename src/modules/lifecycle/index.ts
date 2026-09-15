@@ -384,6 +384,7 @@ export async function resolveDataRequest(id:string,status:'ACTIONED'|'REFUSED',c
   await tx`UPDATE app.consent_record SET withdrawn_at=${at} WHERE candidate_id=${request.candidate_id}`;
   await tx`DELETE FROM app.candidate_attribute_value WHERE candidate_id=${request.candidate_id}`;
   await tx`DELETE FROM app.voice_turn WHERE candidate_id=${request.candidate_id}`;
+  await tx`UPDATE app.screening_call SET extracted='{}',summary=NULL,recording_ref=NULL WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.candidate_document SET object_ref=NULL WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.endorsement SET endorser_name='Removed',endorser_contact='removed',comment=NULL,raw_points=0,status='WITHDRAWN',invite_token=NULL,withdraw_token=NULL WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.data_request SET detail='Erased',response=NULL WHERE candidate_id=${request.candidate_id} AND id<>${id}`;
