@@ -21,7 +21,7 @@
   --demo: #755133;
   --demo-bg: #f1e6d3;
   --sans: Arial, Helvetica, sans-serif;
-  --shadow: 0 3px 16px #62452a08;
+  --shadow: 0 3px 16px #1e4a3808;
   --text-data: 13px;
   --text-label: 13px;
   --text-caption: 12px;
@@ -43,7 +43,7 @@ body.nd-theme .nd-sidebar nav a:hover { background: #e4efe7; color: #12412f; }
 body.nd-theme .nd-sidebar nav a[aria-current="page"] {
   background: linear-gradient(115deg, #2a7256, #154634);
   color: #ffffff;
-  box-shadow: 0 3px 10px #65432817;
+  box-shadow: 0 3px 10px #1e4a3817;
 }
 body.nd-theme .nd-workspace-label, body.nd-theme .nd-wa .nd-workspace-label { color: #7e8d84; }
 body.nd-theme .nd-help { color: #6f8177; background: #ffffffc9; }
@@ -53,7 +53,7 @@ body.nd-theme .nd-topbar { background: #fffffff5; border-color: var(--line); }
 body.nd-theme .nd-search { background: #f2ede5; color: #6f8177; border-color: #f0e8de; }
 body.nd-theme .nd-search input { color: #27614a; font-family: var(--sans); font-size: 13px; }
 body.nd-theme .nd-search input::placeholder { color: #829188; }
-body.nd-theme .nd-search-results, body.nd-theme .nd-account-menu { background: var(--surface); border-color: var(--line); box-shadow: 0 12px 32px #65432820; }
+body.nd-theme .nd-search-results, body.nd-theme .nd-account-menu { background: var(--surface); border-color: var(--line); box-shadow: 0 12px 32px #1e4a3820; }
 body.nd-theme .nd-search-results a:hover, body.nd-theme .nd-account-menu a:hover { background: var(--accent-soft); }
 body.nd-theme .nd-avatar, body.nd-theme .nd-wa .nd-avatar { background: #1d5b45; color: #ffffff; }
 body.nd-theme .nd-notifications { color: #7e8d84; }
@@ -67,11 +67,11 @@ body.nd-theme .nd-shell [class*="tone-"] { --tone: #1e5e47; --tint: #f5eee4; --b
 body.nd-theme .nd-panel, body.nd-theme .nd-date { background: var(--surface); border-color: var(--line); box-shadow: var(--shadow); }
 body.nd-theme .nd-metric { background: #ffffff; border: 1px solid var(--line); box-shadow: var(--shadow); }
 body.nd-theme .nd-metric-icon { background: #f3ecdf; color: #1e5e47; }
-body.nd-theme .nd-metric:hover { box-shadow: 0 7px 20px #65432812; }
+body.nd-theme .nd-metric:hover { box-shadow: 0 7px 20px #1e4a3812; }
 body.nd-theme .nd-metric p, body.nd-theme .nd-greeting p { color: var(--muted); }
 body.nd-theme .nd-greeting h1, body.nd-theme .nd-dashboard-intro h1 { color: #1a5340; }
 body.nd-theme .nd-greeting h1 span { color: #e0a544; }
-body.nd-theme .nd-date svg { color: #8b7057; }
+body.nd-theme .nd-date svg { color: #6f8177; }
 body.nd-theme .nd-period { color: #7b8a81; border-color: var(--line); }
 body.nd-theme .nd-stage { background: #f5eee3; }
 body.nd-theme .nd-stage strong { color: #1e5e47; }
@@ -107,8 +107,8 @@ body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) .d { color
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .tile .go { color: #1f6249; font-size: 13px; }
 body.nd-theme .nd-shortcut { background: #f4ede2; color: #1e5e47; font-size: 13px; }
 body.nd-theme .nd-guidance { position: relative; background: linear-gradient(120deg, #e4f0e8, #f2e9dd); color: var(--ink-2); overflow: hidden; }
-body.nd-theme .nd-guidance>svg { color: #745036; }
-body.nd-theme .nd-guidance::after { content: ''; position: absolute; right: -30px; bottom: -45px; width: 135px; height: 135px; border: 22px solid #c7b29836; border-radius: 75% 0 75% 0; transform: rotate(-25deg); pointer-events: none; }
+body.nd-theme .nd-guidance>svg { color: #2f7d5c; }
+body.nd-theme .nd-guidance::after { content: ''; position: absolute; right: -30px; bottom: -45px; width: 135px; height: 135px; border: 22px solid #a9cfb836; border-radius: 75% 0 75% 0; transform: rotate(-25deg); pointer-events: none; }
 body.nd-theme .nd-section-kicker { color: #55806a; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .card { border-color: var(--line); background: var(--surface); box-shadow: var(--shadow); }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .card-head { border-color: var(--line); }
@@ -116,14 +116,14 @@ body.nd-theme .nd-page-toolbar, body.nd-theme .nd-table-scroll { background: var
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tblwrap,.nd-table-scroll) { scrollbar-color: #b9c6bc transparent; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) tbody tr:hover { background: #f8f6f0; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(th,td) { border-color: var(--line); }
-body.nd-theme .nd-shell main.page:not(.nd-dashboard) th, body.nd-theme .nd-employers th { background: #f3f1e9; color: #806953; }
-body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note { background: #f1e8db; color: var(--ink-2); border-color: #a57951; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) th, body.nd-theme .nd-employers th { background: #f3f1e9; color: #6f8177; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note { background: #f1e8db; color: var(--ink-2); border-color: #4f9376; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note.warn { background: #faf1dc; border-color: #b0883c; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .note.bad { background: #faeae3; border-color: #ad6556; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .empty { background: linear-gradient(135deg,#ffffff,#f7f0e6); }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn { border-color: #d8d0c2; background: var(--surface); color: #1e5e47; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn:hover { background: #f2e7d8; }
-body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn-primary, body.nd-theme .btn-primary { background: #1f6249; border-color: #1f6249; color: #ffffff; box-shadow: 0 2px 6px #61402916; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn-primary, body.nd-theme .btn-primary { background: #1f6249; border-color: #1f6249; color: #ffffff; box-shadow: 0 2px 6px #1e4a3816; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) .btn-primary:hover, body.nd-theme .btn-primary:hover { background: #143f30; border-color: #143f30; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select,textarea) { background: #ffffff; color: var(--ink); border-color: #d8d0c2; box-shadow: none; }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(input,textarea)::placeholder { color: #8d9c93; }
@@ -135,7 +135,7 @@ body.nd-theme .nd-shell main.page:not(.nd-dashboard) button:not([class]) { backg
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) details { background: var(--surface); border-color: var(--line); }
 body.nd-theme .nd-shell main.page:not(.nd-dashboard) summary { background: #f5eee4; color: #27614a; }
 body.nd-theme .nd-auth-emblem, body.nd-theme .nd-auth-card-heading>span { background: #f0e5d5; color: #1f6249; }
-body.nd-theme .nd-auth-footnote { color: #806d5d !important; }
+body.nd-theme .nd-auth-footnote { color: #7b8a81 !important; }
 body.nd-theme .nd-journey-features { color: #6f8177; }
 body.nd-theme .nd-loading-header { background: #e9ddcd; }
 body.nd-theme .nd-loading-cards span { background: linear-gradient(110deg,#f1e6d8,#f8f6f0); }
@@ -384,3 +384,43 @@ body.nd-theme .nd-dashboard-grid { align-items: start; }
 body.nd-theme .nd-quick-actions { flex: 0 0 auto; grid-auto-rows: auto; }
 body.nd-theme .nd-dashboard .nd-quick-actions a { min-height: 74px; justify-content: center; }
 body.nd-theme .nd-dashboard .nd-footnote { margin-top: 0; padding-top: 6px; }
+
+/* ── The sunrise brand, carried across every workspace ───────────────────── */
+body.nd-theme .nd-shell {
+  --brand: #1a5340; --leaf: #2f7d5c; --leaf-soft: #e4f0e8;
+  --gold: #e0a544; --gold-soft: #fbeed3; --cream: #fdf8ef;
+}
+
+/* Stat tiles pick up the dashboard's cream surface and gold icon bubble. */
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat):nth-child(n) {
+  --tile-bg: var(--cream); --tile-ink: var(--leaf); --tile-line: #efe6d6;
+  border-color: #f0e6d4;
+}
+body.nd-theme .nd-tile-icon { background: #f6e9d1; color: #a9762a; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(.tile,.stat) .k { color: var(--brand); font-weight: 600; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .tile .go { color: var(--leaf); font-weight: 600; }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) a.tile:hover { box-shadow: 0 8px 20px #1a534014; }
+
+/* Shortcut cards read like the dashboard's quick actions. */
+body.nd-theme .nd-shortcut {
+  background: var(--cream); border: 1px solid #f0e6d4; color: var(--brand);
+  border-radius: 10px; gap: 9px;
+}
+body.nd-theme .nd-shortcut:hover { background: var(--leaf-soft); border-color: #cfe3d3; filter: none; }
+body.nd-theme .nd-shortcut svg { color: var(--leaf); }
+
+/* The guidance panel greens its mark and its decorative ring. */
+body.nd-theme .nd-guidance { background: linear-gradient(120deg, var(--leaf-soft), #f6faf7); }
+body.nd-theme .nd-guidance>svg { color: var(--leaf); }
+body.nd-theme .nd-guidance h2 { color: var(--brand); }
+body.nd-theme .nd-guidance::after { border-color: #a9cfb836; }
+
+/* Headings and section kickers carry the brand green. */
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) :is(h1,.page-head h1) { color: var(--brand); }
+body.nd-theme .nd-section-kicker { color: var(--leaf); }
+body.nd-theme .nd-auth-heading h1, body.nd-theme .nd-journey-intro h1 { color: var(--brand); }
+body.nd-theme .nd-shell main.page:not(.nd-dashboard) .card-head h2 { color: var(--brand); }
+
+/* Sidebar footer: the seedling is the brand mark in every workspace. */
+body.nd-theme .nd-help strong { color: var(--brand); margin: 2px 0 4px; }
+body.nd-theme .nd-help .btn { margin-top: 10px; font-size: 12px; }
