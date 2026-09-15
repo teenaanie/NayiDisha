@@ -44,6 +44,7 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
   ENT: 'app.posting_entitlement',
   ACH: 'app.achievement',
   VOX: 'app.voice_turn',
+  SCR: 'app.screening_call',
 };
 
 /**

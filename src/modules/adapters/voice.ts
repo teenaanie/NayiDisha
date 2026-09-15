@@ -344,8 +344,116 @@ export class ClaudeInterpreter implements VoiceInterpreter {
   }
 }
 
+
+/**
+ * Gemini interpreter — the recommended upgrade over the rule-based one.
+ *
+ * Google's free tier is a permanent rate-limited tier rather than a trial
+ * (10 requests/minute, 500/day on Flash, no card, no expiry), which comfortably
+ * covers a demo doing roughly seven interpretations per candidate. It also
+ * handles what rules cannot: unusual phrasing, code-switching mid-sentence, and
+ * the Hinglish that frontline candidates actually speak.
+ *
+ * It cannot fix a bad transcript. If speech recognition mishears the word, no
+ * interpreter downstream recovers it — that is a recognition problem, not a
+ * comprehension one.
+ */
+export class GeminiInterpreter implements VoiceInterpreter {
+  readonly name = 'gemini-2.5-flash';
+  private fallback = new RuleBasedInterpreter();
+
+  async interpret(
+    field: VoiceField, transcript: string, language: Language,
+    context: { localities?: { key: string; display_name: string }[]; shifts?: string[] } = {},
+  ): Promise<Interpretation> {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return this.fallback.interpret(field, transcript, language, context);
+
+    const expected: Record<VoiceField, string> = {
+      name: 'the person\'s name, as a string',
+      locality: `exactly one key from this list: ${(context.localities ?? []).map((l) => l.key).join(', ')}`,
+      experienceMonths: 'total work experience as an integer number of MONTHS (convert years)',
+      skills: 'an array of 1-6 UPPER_SNAKE_CASE skill tags',
+      expectedPay: 'expected MONTHLY pay as an integer number of rupees (so "18 hazaar" is 18000)',
+      commute: 'maximum one-way commute as an integer number of MINUTES',
+      shifts: `an array of shift codes from: ${(context.shifts ?? []).join(', ')}`,
+      confirm: 'true if they agreed, false if they disagreed',
+    };
+
+    const prompt =
+      'You extract one field from a spoken answer by an Indian frontline job seeker. ' +
+      'They speak English, Hindi or Marathi and often mix them. ' +
+      `Field: ${field} — ${expected[field]}. Speaker language: ${language}.\n` +
+      `Transcript: ${JSON.stringify(transcript)}\n` +
+      'Return null for value and a low confidence when the answer is unclear, off-topic or absent. ' +
+      'Never invent a value. "display" must be a short confirmation phrase in the speaker\'s own language.';
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0,
+              responseMimeType: 'application/json',
+              responseSchema: {
+                type: 'OBJECT',
+                properties: {
+                  value: { type: 'STRING', nullable: true },
+                  display: { type: 'STRING' },
+                  confidence: { type: 'NUMBER' },
+                },
+                required: ['value', 'display', 'confidence'],
+              },
+            },
+          }),
+          signal: AbortSignal.timeout(8000),
+        },
+      );
+      if (!res.ok) throw new Error(`Gemini ${res.status}`);
+      const json = await res.json();
+      const text = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const parsed = JSON.parse(text);
+      if (parsed.value === null || parsed.value === undefined || parsed.value === '') {
+        return { value: null, display: String(parsed.display ?? transcript), confidence: 0.2, provider: this.name };
+      }
+      // The schema returns a string; coerce to the shape saveProfile expects.
+      const raw = String(parsed.value);
+      let value: Interpretation['value'] = raw;
+      if (field === 'experienceMonths' || field === 'expectedPay' || field === 'commute') {
+        const n = Number(raw.replace(/[^\d.-]/g, ''));
+        if (!Number.isFinite(n)) return this.fallback.interpret(field, transcript, language, context);
+        value = Math.round(n);
+      } else if (field === 'skills' || field === 'shifts') {
+        value = raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+      } else if (field === 'confirm') {
+        value = /^(true|yes|1)$/i.test(raw);
+      }
+      return {
+        value,
+        display: String(parsed.display ?? raw),
+        confidence: Math.max(0, Math.min(1, Number(parsed.confidence) || 0)),
+        provider: this.name,
+      };
+    } catch {
+      // Rate limit, outage or a malformed reply must not strand a candidate.
+      return this.fallback.interpret(field, transcript, language, context);
+    }
+  }
+}
+
+/**
+ * Preference order: a real model if one is configured, rules otherwise. Gemini
+ * comes first because its free tier makes it the one a demo can actually turn
+ * on without a billing account.
+ */
 export function voiceInterpreter(): VoiceInterpreter {
-  return process.env.ANTHROPIC_API_KEY ? new ClaudeInterpreter() : new RuleBasedInterpreter();
+  if (process.env.GEMINI_API_KEY) return new GeminiInterpreter();
+  if (process.env.ANTHROPIC_API_KEY) return new ClaudeInterpreter();
+  return new RuleBasedInterpreter();
 }
 
 /** Context the interpreter needs to resolve localities and shift codes. */
