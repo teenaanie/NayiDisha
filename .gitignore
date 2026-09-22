@@ -3,3 +3,7 @@ node_modules/
 .env.local
 *.log
 pgdata/
+
+# build artefact
+tsconfig.tsbuildinfo
+.DS_Store

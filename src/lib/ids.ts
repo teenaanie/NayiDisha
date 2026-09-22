@@ -45,6 +45,8 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
   ACH: 'app.achievement',
   VOX: 'app.voice_turn',
   SCR: 'app.screening_call',
+  SRN: 'app.script_run',
+  SRP: 'app.script_response',
 };
 
 /**

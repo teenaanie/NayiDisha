@@ -45,6 +45,8 @@ export interface RoleConfig {
   scoringWeights: ScoringWeights;
   endorsementCap: number;
   assessmentTemplateId: string | null;
+  /** Set when this role is assessed by a conversational script instead of an MCQ. */
+  roleScriptId: string | null;
   assessmentThreshold: number | null;
   previewFields: string[];
   unlockFields: string[];
@@ -61,6 +63,7 @@ interface Row {
   scoring_weights: ScoringWeights;
   endorsement_cap: number;
   assessment_template_id: string | null;
+  role_script_id: string | null;
   assessment_threshold: number | null;
   preview_fields: string[];
   unlock_fields: string[];
@@ -80,6 +83,7 @@ const hydrate = (r: Row): RoleConfig => ({
   scoringWeights: r.scoring_weights,
   endorsementCap: r.endorsement_cap,
   assessmentTemplateId: r.assessment_template_id,
+  roleScriptId: r.role_script_id,
   assessmentThreshold: r.assessment_threshold,
   previewFields: r.preview_fields,
   unlockFields: r.unlock_fields,
@@ -137,7 +141,44 @@ export async function validateRoleConfig(id: string): Promise<ValidationResult> 
     detail: missing.length ? `undefined: ${missing.join(', ')}` : `${attrKeys.length} attributes resolved`,
   });
 
-  checks.push({name:'Assessment is configured',ok:!!cfg.assessmentTemplateId,detail:cfg.assessmentTemplateId||'Add an assessment before publishing'});
+  // A role is assessed either by a multiple-choice template or by a
+  // conversational script. Requiring the template outright would make a
+  // script-only role unpublishable.
+  checks.push({
+    name: 'Assessment is configured',
+    ok: !!cfg.assessmentTemplateId || !!cfg.roleScriptId,
+    detail: cfg.assessmentTemplateId || cfg.roleScriptId || 'Add an assessment or a role script before publishing',
+  });
+  if (cfg.roleScriptId) {
+    const [scr] = await sql<{ id: string; languages: string[]; turns: { kind: string; maxScore?: number; rubric?: { points: number }[] }[]; ask_count: number }[]>`
+      SELECT id, languages, turns, ask_count FROM app.role_script WHERE id = ${cfg.roleScriptId} AND status = 'PUBLISHED'
+    `;
+    checks.push({
+      name: 'Role script exists and is published',
+      ok: !!scr, detail: scr ? scr.id : 'not found or not published',
+    });
+    checks.push({
+      name: 'Role script available in all launch languages (mr/hi/en)',
+      ok: !!scr && ['mr', 'hi', 'en'].every((l) => scr.languages.includes(l)),
+      detail: scr ? scr.languages.join(', ') : '—',
+    });
+    const skills = scr?.turns.filter((t) => t.kind === 'SKILL') ?? [];
+    // A rubric whose parts cannot reach its own maximum can never score full
+    // marks, which would silently depress every candidate on that question.
+    const mismatched = skills.filter(
+      (t) => (t.rubric ?? []).reduce((a, c) => a + c.points, 0) !== t.maxScore,
+    );
+    checks.push({
+      name: 'Every skill rubric totals its maximum score',
+      ok: !!scr && mismatched.length === 0,
+      detail: mismatched.length ? `${mismatched.length} rubric(s) do not sum to maxScore` : `${skills.length} skill question(s) checked`,
+    });
+    checks.push({
+      name: 'Script has enough skill questions to draw from',
+      ok: !!scr && skills.length >= scr.ask_count,
+      detail: scr ? `${skills.length} available, ${scr.ask_count} asked per run` : '—',
+    });
+  }
   if (cfg.assessmentTemplateId) {
     const [tpl] = await sql<{ id: string; languages: string[] }[]>`
       SELECT id, languages FROM app.assessment_template WHERE id = ${cfg.assessmentTemplateId}

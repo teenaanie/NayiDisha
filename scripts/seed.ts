@@ -68,36 +68,45 @@ async function main() {
   // --- industries and role families -----------------------------------------
   await sql`INSERT INTO app.industry (key, display_name, translations, created_at) VALUES
     ('BFSI',   'Banking & Financial Services', ${j({ mr: 'बँकिंग आणि वित्तीय सेवा', hi: 'बैंकिंग एवं वित्तीय सेवाएँ' })}, ${T0}),
-    ('RETAIL', 'Retail',                       ${j({ mr: 'रिटेल', hi: 'रिटेल' })}, ${T0})`;
+    ('RETAIL', 'Retail',                       ${j({ mr: 'रिटेल', hi: 'रिटेल' })}, ${T0}),
+    ('LOGISTICS','Logistics & Delivery',        ${j({ mr: 'लॉजिस्टिक्स आणि डिलिव्हरी', hi: 'लॉजिस्टिक्स एवं डिलीवरी' })}, ${T0})`;
 
   await sql`INSERT INTO app.role_family (key, industry_key, display_name, transferable, created_at) VALUES
     ('RELATIONSHIP_EXECUTIVE',     'BFSI',   'Relationship Executive',     ${j(['FIELD_SALES','TELECOM_SALES','SALES'])}, ${T0}),
     ('CUSTOMER_SERVICE_ASSOCIATE', 'BFSI',   'Customer Service Associate', ${j(['CUSTOMER_SERVICE','RETAIL_SALES'])}, ${T0}),
-    ('SALES_ASSOCIATE',            'RETAIL', 'Sales Associate',            ${j(['RETAIL_SALES','SALES','FIELD_SALES'])}, ${T0})`;
+    ('SALES_ASSOCIATE',            'RETAIL', 'Sales Associate',            ${j(['RETAIL_SALES','SALES','FIELD_SALES'])}, ${T0}),
+    ('DELIVERY_RIDER',             'LOGISTICS','Delivery Rider',            ${j(['FIELD_SALES','COURIER','DRIVER'])}, ${T0})`;
 
-  await sql`UPDATE app.role_family SET direct_tags=CASE key WHEN 'RELATIONSHIP_EXECUTIVE' THEN '["BFSI_SALES","FIELD_SALES"]'::jsonb WHEN 'CUSTOMER_SERVICE_ASSOCIATE' THEN '["CUSTOMER_SERVICE","BFSI_SERVICE"]'::jsonb ELSE '["RETAIL_SALES","SALES"]'::jsonb END`;
+  await sql`UPDATE app.role_family SET direct_tags=CASE key WHEN 'RELATIONSHIP_EXECUTIVE' THEN '["BFSI_SALES","FIELD_SALES"]'::jsonb WHEN 'CUSTOMER_SERVICE_ASSOCIATE' THEN '["CUSTOMER_SERVICE","BFSI_SERVICE"]'::jsonb WHEN 'DELIVERY_RIDER' THEN '["LAST_MILE_DELIVERY","RIDER"]'::jsonb ELSE '["RETAIL_SALES","SALES"]'::jsonb END`;
+  await sql`UPDATE app.role_family SET skill_mapping='{"LAST_MILE_DELIVERY":["COURIER","DRIVER","FIELD_SALES"],"NAVIGATION":["DRIVER","COURIER"],"CASH_HANDLING":["RETAIL_SALES","CUSTOMER_SERVICE","BFSI_SERVICE"]}' WHERE key='DELIVERY_RIDER'`;
   await sql`UPDATE app.role_family SET skill_mapping='{"BFSI_SALES":["FIELD_SALES","TELECOM_SALES","SALES"],"CUSTOMER_COMMUNICATION":["CUSTOMER_SERVICE","BFSI_SERVICE","RETAIL_SALES"],"TARGET_ACHIEVEMENT":["FIELD_SALES","TELECOM_SALES","RETAIL_SALES"],"PRODUCT_KNOWLEDGE":["BFSI_SERVICE","COMMERCE_GRADUATE"]}' WHERE industry_key='BFSI'`;
   // --- attribute definitions (CFG-02) ---------------------------------------
-  const attrs: [string, string, string, string][] = [
-    ['locality',          'CANDIDATE_COMMON', 'TEXT',        'Home locality'],
-    ['experience_months', 'CANDIDATE_COMMON', 'INT',         'Total experience (months)'],
-    ['expected_pay',      'CANDIDATE_COMMON', 'MONEY_PAISE', 'Expected monthly pay'],
-    ['max_commute_min',   'CANDIDATE_COMMON', 'INT',         'Maximum one-way commute (minutes)'],
-    ['languages',         'CANDIDATE_COMMON', 'MULTI_ENUM',  'Languages spoken'],
-    ['shift_availability','CANDIDATE_COMMON', 'MULTI_ENUM',  'Shifts available for'],
-    ['work_authorised',   'CANDIDATE_COMMON', 'BOOL',        'Authorised to work in India'],
-    ['casa_familiarity',  'CANDIDATE_ROLE',   'ENUM',        'Familiarity with CASA products'],
-    ['field_sales_comfort','CANDIDATE_ROLE',  'ENUM',        'Comfort with field sales targets'],
-    ['two_wheeler',       'CANDIDATE_ROLE',   'BOOL',        'Owns a two-wheeler'],
-    ['pos_billing',       'CANDIDATE_ROLE',   'BOOL',        'Has used POS/billing software'],
-    ['fixed_pay',         'JOB',              'MONEY_PAISE', 'Fixed monthly pay'],
-    ['variable_max',      'JOB',              'MONEY_PAISE', 'Maximum monthly variable'],
-    ['shift',             'JOB',              'TEXT',        'Shift window'],
-    ['weekly_off',        'JOB',              'TEXT',        'Weekly off'],
+  // An ENUM needs its allowed_values populated: saveProfile validates against
+  // this list, so an ENUM with an empty list rejects every value it is sent
+  // while the role configuration still marks it required — an unsubmittable
+  // profile. The rider attributes are new; the two BFSI ones are backfilled.
+  const attrs: [string, string, string, string, string[]][] = [
+    ['locality',          'CANDIDATE_COMMON', 'TEXT',        'Home locality', []],
+    ['experience_months', 'CANDIDATE_COMMON', 'INT',         'Total experience (months)', []],
+    ['expected_pay',      'CANDIDATE_COMMON', 'MONEY_PAISE', 'Expected monthly pay', []],
+    ['max_commute_min',   'CANDIDATE_COMMON', 'INT',         'Maximum one-way commute (minutes)', []],
+    ['languages',         'CANDIDATE_COMMON', 'MULTI_ENUM',  'Languages spoken', []],
+    ['shift_availability','CANDIDATE_COMMON', 'MULTI_ENUM',  'Shifts available for', []],
+    ['work_authorised',   'CANDIDATE_COMMON', 'BOOL',        'Authorised to work in India', []],
+    ['casa_familiarity',  'CANDIDATE_ROLE',   'ENUM',        'Familiarity with CASA products', ['NONE','SOME','STRONG']],
+    ['field_sales_comfort','CANDIDATE_ROLE',  'ENUM',        'Comfort with field sales targets', ['COMFORTABLE','NEUTRAL','UNCOMFORTABLE']],
+    ['two_wheeler',       'CANDIDATE_ROLE',   'BOOL',        'Owns a two-wheeler', []],
+    ['pos_billing',       'CANDIDATE_ROLE',   'BOOL',        'Has used POS/billing software', []],
+    ['riding_licence',    'CANDIDATE_ROLE',   'ENUM',        'Driving licence status', ['VALID','EXPIRED','NONE']],
+    ['smartphone_navigation','CANDIDATE_ROLE','BOOL',        'Comfortable navigating by phone map', []],
+    ['fixed_pay',         'JOB',              'MONEY_PAISE', 'Fixed monthly pay', []],
+    ['variable_max',      'JOB',              'MONEY_PAISE', 'Maximum monthly variable', []],
+    ['shift',             'JOB',              'TEXT',        'Shift window', []],
+    ['weekly_off',        'JOB',              'TEXT',        'Weekly off', []],
   ];
-  for (const [key, scope, type, name] of attrs) {
-    await sql`INSERT INTO app.attribute_definition (key, scope, data_type, display_name, created_at)
-              VALUES (${key}, ${scope}, ${type}, ${name}, ${T0})`;
+  for (const [key, scope, type, name, allowed] of attrs) {
+    await sql`INSERT INTO app.attribute_definition (key, scope, data_type, display_name, allowed_values, created_at)
+              VALUES (${key}, ${scope}, ${type}, ${name}, ${j(allowed)}, ${T0})`;
   }
 
   // --- assessment templates (TEST-01/02/02A) --------------------------------
@@ -182,6 +191,154 @@ async function main() {
     ${j(['identity_proof','address_proof'])},
     NULL, ${T0})`;
 
+  // --- standalone journey: two roles that ask genuinely different questions --
+  // CFG-BFSI-RE-2 is a new *version* of the Relationship Executive role rather
+  // than an edit: published configurations are immutable (CFG-04/10), and
+  // CFG-BFSI-RE-1 stays exactly as the founder demo expects it.
+  //
+  // Both weight the conversational script at 20 rather than the MCQ's 5. The
+  // script is now a real signal, not a tick-box. Weights still total 100.
+  const scriptWeights = {
+    jobPreference: 15, commute: 20, compensation: 15, schedule: 5,
+    language: 5, experience: 10, criticalSkills: 10, assessment: 20,
+  };
+
+  await sql`INSERT INTO app.role_configuration (
+    id, industry_key, role_family_key, version, status, candidate_attributes, job_attributes,
+    critical_skills, qualification_rules, scoring_weights, endorsement_cap,
+    assessment_template_id, assessment_threshold, preview_fields, unlock_fields,
+    document_checklist, effective_from, created_at
+  ) VALUES
+  ('CFG-BFSI-RE-2', 'BFSI', 'RELATIONSHIP_EXECUTIVE', '2.0', 'PUBLISHED',
+    ${j([{key:'locality',required:true},{key:'experience_months',required:true},{key:'expected_pay',required:true},{key:'max_commute_min',required:true},{key:'languages',required:true},{key:'shift_availability',required:true},{key:'work_authorised',required:true},{key:'field_sales_comfort',required:true},{key:'casa_familiarity',required:false},{key:'two_wheeler',required:false}])},
+    ${j([{key:'fixed_pay',required:true},{key:'variable_max',required:true},{key:'shift',required:true},{key:'weekly_off',required:true}])},
+    ${j(['BFSI_SALES','CUSTOMER_COMMUNICATION','TARGET_ACHIEVEMENT'])},
+    ${j(reRules)}, ${j(scriptWeights)}, 5,
+    'AST-BFSI-RE-1', 60,
+    ${j(['maskedName','locality','travelEstimate','experienceSummary','payFit','skills','assessmentBand','endorsementPoints','explanation'])},
+    ${j(['name','phone','locality','experienceMonths','experienceTags','languages','expectedPayPaise','currentPayPaise'])},
+    ${j(['identity_proof','address_proof','education_certificate','bank_passbook'])},
+    ${T0}, ${T0}),
+
+  ('CFG-LOG-DR-1', 'LOGISTICS', 'DELIVERY_RIDER', '1.0', 'PUBLISHED',
+    ${j([{key:'locality',required:true},{key:'experience_months',required:true},{key:'expected_pay',required:true},{key:'max_commute_min',required:true},{key:'languages',required:true},{key:'shift_availability',required:true},{key:'work_authorised',required:true},{key:'two_wheeler',required:true},{key:'riding_licence',required:true},{key:'smartphone_navigation',required:true}])},
+    ${j([{key:'fixed_pay',required:true},{key:'variable_max',required:true},{key:'shift',required:true},{key:'weekly_off',required:true}])},
+    ${j(['LAST_MILE_DELIVERY','NAVIGATION','CASH_HANDLING'])},
+    ${j({ ...reRules, minAssessmentScore: 55 })}, ${j(scriptWeights)}, 5,
+    NULL, 55,
+    ${j(['maskedName','locality','travelEstimate','experienceSummary','payFit','skills','assessmentBand','endorsementPoints','explanation'])},
+    ${j(['name','phone','locality','experienceMonths','experienceTags','languages','expectedPayPaise'])},
+    ${j(['identity_proof','address_proof'])},
+    ${T0}, ${T0})`;
+
+  // --- role scripts ---------------------------------------------------------
+  // ATTRIBUTE turns land in candidate_attribute_value, exactly as the typed
+  // form does. SKILL turns are an open spoken answer scored against the rubric
+  // carried here — the rubric travels with the script version so a score stays
+  // readable after the script moves on.
+  const reScript = [
+    { key:'field_sales_comfort', kind:'ATTRIBUTE', attributeKey:'field_sales_comfort', dataType:'ENUM', required:true,
+      allowedValues:['COMFORTABLE','NEUTRAL','UNCOMFORTABLE'],
+      expected:'one of COMFORTABLE, NEUTRAL, UNCOMFORTABLE',
+      ask:{ en:'This job means visiting customers outside the branch, with monthly targets. How do you feel about that?',
+            hi:'इस काम में शाखा के बाहर ग्राहकों से मिलना होता है, और हर महीने लक्ष्य होते हैं। आपको यह कैसा लगता है?',
+            mr:'या कामात शाखेबाहेर जाऊन ग्राहकांना भेटावं लागतं, आणि दर महिन्याला लक्ष्य असतं. तुम्हाला हे कसं वाटतं?' } },
+    { key:'casa_familiarity', kind:'ATTRIBUTE', attributeKey:'casa_familiarity', dataType:'ENUM', required:false,
+      allowedValues:['NONE','SOME','STRONG'],
+      expected:'one of NONE, SOME, STRONG',
+      ask:{ en:'Have you worked with savings or current accounts before?',
+            hi:'क्या आपने पहले बचत या चालू खातों पर काम किया है?',
+            mr:'तुम्ही आधी बचत किंवा चालू खात्यांवर काम केलं आहे का?' } },
+    { key:'two_wheeler', kind:'ATTRIBUTE', attributeKey:'two_wheeler', dataType:'BOOL', required:false,
+      expected:'true or false',
+      ask:{ en:'Do you have a two-wheeler you can use for work?',
+            hi:'क्या आपके पास काम के लिए दोपहिया वाहन है?',
+            mr:'तुमच्याकडे कामासाठी वापरता येईल अशी दुचाकी आहे का?' } },
+    { key:'S1', kind:'SKILL', maxScore:25, rubricVersion:'re-2.0',
+      ask:{ en:'A customer says they do not want to open an account because they already have one at another bank. What would you say to them?',
+            hi:'एक ग्राहक कहता है कि उनका दूसरे बैंक में पहले से खाता है, इसलिए वे नया खाता नहीं खोलना चाहते। आप उनसे क्या कहेंगे?',
+            mr:'एक ग्राहक म्हणतो की त्यांचं दुसऱ्या बँकेत आधीच खातं आहे, त्यामुळे नवीन खातं नको. तुम्ही त्यांना काय सांगाल?' },
+      rubric:[{credit:'acknowledges the existing account without arguing',points:7},
+              {credit:'asks a question to understand their needs',points:6},
+              {credit:'offers a specific concrete benefit',points:7},
+              {credit:'does not pressure or mislead',points:5}] },
+    { key:'S2', kind:'SKILL', maxScore:25, rubricVersion:'re-2.0',
+      ask:{ en:'A customer offers you five hundred rupees to open their account faster. What do you do?',
+            hi:'एक ग्राहक आपको खाता जल्दी खोलने के लिए पाँच सौ रुपये देने की पेशकश करता है। आप क्या करेंगे?',
+            mr:'एक ग्राहक तुम्हाला खातं लवकर उघडण्यासाठी पाचशे रुपये देऊ करतो. तुम्ही काय कराल?' },
+      rubric:[{credit:'refuses the money',points:12},
+              {credit:'explains the real timeline',points:7},
+              {credit:'escalates or reports it',points:6}] },
+    { key:'S3', kind:'SKILL', maxScore:25, rubricVersion:'re-2.0',
+      ask:{ en:'A customer deposits fifteen thousand rupees and withdraws four thousand five hundred the same day. What is the change in their balance?',
+            hi:'एक ग्राहक पंद्रह हज़ार रुपये जमा करता है और उसी दिन साढ़े चार हज़ार निकालता है। उनके शेष में कितना बदलाव हुआ?',
+            mr:'एक ग्राहक पंधरा हजार रुपये जमा करतो आणि त्याच दिवशी साडेचार हजार काढतो. त्यांच्या शिल्लक रकमेत किती बदल झाला?' },
+      rubric:[{credit:'states ten thousand five hundred',points:15},
+              {credit:'says it is an increase, not a decrease',points:10}] },
+    { key:'S4', kind:'SKILL', maxScore:25, rubricVersion:'re-2.0',
+      ask:{ en:'It is the last week of the month and you are behind on your target. What do you do?',
+            hi:'महीने का आखिरी हफ़्ता है और आप अपने लक्ष्य से पीछे हैं। आप क्या करेंगे?',
+            mr:'महिन्याचा शेवटचा आठवडा आहे आणि तुम्ही लक्ष्यापेक्षा मागे आहात. तुम्ही काय कराल?' },
+      rubric:[{credit:'gives a concrete plan of action',points:10},
+              {credit:'does not resort to mis-selling',points:10},
+              {credit:'asks for help or works existing leads',points:5}] },
+  ];
+
+  const riderScript = [
+    { key:'two_wheeler', kind:'ATTRIBUTE', attributeKey:'two_wheeler', dataType:'BOOL', required:true,
+      expected:'true or false',
+      ask:{ en:'Do you have your own two-wheeler for deliveries?',
+            hi:'क्या डिलीवरी के लिए आपके पास अपना दोपहिया वाहन है?',
+            mr:'डिलिव्हरीसाठी तुमच्याकडे स्वतःची दुचाकी आहे का?' } },
+    { key:'riding_licence', kind:'ATTRIBUTE', attributeKey:'riding_licence', dataType:'ENUM', required:true,
+      allowedValues:['VALID','EXPIRED','NONE'],
+      expected:'one of VALID, EXPIRED, NONE',
+      ask:{ en:'Do you have a valid driving licence?',
+            hi:'क्या आपके पास वैध ड्राइविंग लाइसेंस है?',
+            mr:'तुमच्याकडे वैध ड्रायव्हिंग लायसन्स आहे का?' } },
+    { key:'smartphone_navigation', kind:'ATTRIBUTE', attributeKey:'smartphone_navigation', dataType:'BOOL', required:true,
+      expected:'true or false',
+      ask:{ en:'Are you comfortable using a map on your phone to find addresses?',
+            hi:'क्या आप पता ढूँढने के लिए फ़ोन पर नक्शे का इस्तेमाल सहजता से कर लेते हैं?',
+            mr:'पत्ता शोधण्यासाठी फोनवरचा नकाशा वापरणं तुम्हाला सहज जमतं का?' } },
+    { key:'S1', kind:'SKILL', maxScore:25, rubricVersion:'dr-1.0',
+      ask:{ en:'You reach the address, the customer is not answering their phone, and the building has no number. What do you do?',
+            hi:'आप पते पर पहुँचते हैं, ग्राहक फ़ोन नहीं उठा रहा, और इमारत पर कोई नंबर नहीं है। आप क्या करेंगे?',
+            mr:'तुम्ही पत्त्यावर पोहोचता, ग्राहक फोन उचलत नाही, आणि इमारतीवर नंबर नाही. तुम्ही काय कराल?' },
+      rubric:[{credit:'waits a reasonable time or retries the call',points:6},
+              {credit:'tries an alternate way to reach them',points:6},
+              {credit:'contacts support before leaving',points:7},
+              {credit:'does not abandon it or falsely mark it delivered',points:6}] },
+    { key:'S2', kind:'SKILL', maxScore:25, rubricVersion:'dr-1.0',
+      ask:{ en:'A cash-on-delivery customer gives you five hundred rupees for a four hundred and thirty rupee order and says keep the change. What do you do?',
+            hi:'कैश ऑन डिलीवरी में ग्राहक चार सौ तीस रुपये के ऑर्डर के लिए पाँच सौ रुपये देता है और कहता है बाकी रख लो। आप क्या करेंगे?',
+            mr:'कॅश ऑन डिलिव्हरीमध्ये ग्राहक चारशे तीस रुपयांच्या ऑर्डरसाठी पाचशे रुपये देतो आणि म्हणतो उरलेले ठेवून घ्या. तुम्ही काय कराल?' },
+      rubric:[{credit:'knows the change is not automatically a tip',points:10},
+              {credit:'offers the correct change back',points:9},
+              {credit:'records or reports the collected amount accurately',points:6}] },
+    { key:'S3', kind:'SKILL', maxScore:25, rubricVersion:'dr-1.0',
+      ask:{ en:'It starts raining heavily and you still have six deliveries left. What do you do?',
+            hi:'तेज़ बारिश शुरू हो जाती है और आपके पास अभी छह डिलीवरी बाकी हैं। आप क्या करेंगे?',
+            mr:'जोरदार पाऊस सुरू होतो आणि तुमच्याकडे अजून सहा डिलिव्हरी बाकी आहेत. तुम्ही काय कराल?' },
+      rubric:[{credit:'puts safety first',points:10},
+              {credit:'informs support or the customer about the delay',points:9},
+              {credit:'does not ride recklessly to hit the target',points:6}] },
+    { key:'S4', kind:'SKILL', maxScore:25, rubricVersion:'dr-1.0',
+      ask:{ en:'You have three deliveries in Kothrud and one in Hadapsar, all due within the hour. How do you plan it?',
+            hi:'आपके पास कोथरुड में तीन और हडपसर में एक डिलीवरी है, सभी एक घंटे में देनी हैं। आप कैसे योजना बनाएँगे?',
+            mr:'तुमच्याकडे कोथरूडमध्ये तीन आणि हडपसरमध्ये एक डिलिव्हरी आहे, सर्व एका तासात द्यायच्या आहेत. तुम्ही कसं नियोजन कराल?' },
+      rubric:[{credit:'groups the three nearby drops together',points:10},
+              {credit:'recognises the far one cannot also be made in time',points:9},
+              {credit:'flags it early rather than silently running late',points:6}] },
+  ];
+
+  await sql`INSERT INTO app.role_script (id, role_config_id, version, status, languages, turns, ask_count, pass_threshold, created_at) VALUES
+    ('SCR-BFSI-RE-2', 'CFG-BFSI-RE-2', '1.0', 'PUBLISHED', ${j(['en','hi','mr'])}, ${j(reScript)},    3, 60, ${T0}),
+    ('SCR-LOG-DR-1',  'CFG-LOG-DR-1',  '1.0', 'PUBLISHED', ${j(['en','hi','mr'])}, ${j(riderScript)}, 3, 55, ${T0})`;
+
+  await sql`UPDATE app.role_configuration SET role_script_id='SCR-BFSI-RE-2' WHERE id='CFG-BFSI-RE-2'`;
+  await sql`UPDATE app.role_configuration SET role_script_id='SCR-LOG-DR-1'  WHERE id='CFG-LOG-DR-1'`;
+
   await sql`INSERT INTO app.configuration_release
     (id, package_name, version, role_config_ids, geography, cohort_flag, approved_by, effective_from, status, created_at) VALUES
     ('REL-BFSI-PUNE-1', 'Pune BFSI launch package', '1.0',
@@ -199,19 +356,22 @@ async function main() {
   await sql`INSERT INTO app.employer_organisation (id, legal_name, brand_name, gst_pan, billing_contact, status, created_at, status_at) VALUES
     ('EMP-001','DEMO Sahyadri Bank Ltd','DEMO Sahyadri Bank','27AAAAA0000A1Z5','billing@demo-sahyadri.invalid','VERIFIED',${T0},${T0}),
     ('EMP-002','DEMO Deccan Finance Pvt Ltd','DEMO Deccan Finance','27BBBBB1111B1Z5','billing@demo-deccan.invalid','VERIFIED',${T0},${T0}),
-    ('EMP-003','DEMO Pragati Microfinance Ltd','DEMO Pragati Microfinance',NULL,'billing@demo-pragati.invalid','PENDING_REVIEW',${T0},${T0})`;
+    ('EMP-003','DEMO Pragati Microfinance Ltd','DEMO Pragati Microfinance',NULL,'billing@demo-pragati.invalid','PENDING_REVIEW',${T0},${T0}),
+    ('EMP-101','DEMO Pune Quick Logistics Pvt Ltd','DEMO Pune Quick Logistics','27CCCCC2222C1Z5','billing@demo-punequick.invalid','VERIFIED',${T0},${T0})`;
 
   await sql`INSERT INTO app.employer_location (id, employer_id, name, locality_key, lat, lng, hours, created_at) VALUES
     ('LOC-001','EMP-001','FC Road Branch','shivajinagar',18.5224,73.8412,'09:00-19:00',${T0}),
     ('LOC-002','EMP-001','Kothrud Branch','kothrud',18.5074,73.8077,'09:00-19:00',${T0}),
     ('LOC-003','EMP-002','Viman Nagar Office','viman_nagar',18.5679,73.9143,'10:00-20:00',${T0}),
-    ('LOC-004','EMP-003','Hadapsar Office','hadapsar',18.5089,73.9260,'09:00-18:00',${T0})`;
+    ('LOC-004','EMP-003','Hadapsar Office','hadapsar',18.5089,73.9260,'09:00-18:00',${T0}),
+    ('LOC-101','EMP-101','Hadapsar Delivery Hub','hadapsar',18.5089,73.9260,'07:00-22:00',${T0})`;
 
   await sql`INSERT INTO app.employer_user (id, employer_id, name, role, location_scope, created_at) VALUES
     ('EU-001','EMP-001','DEMO Asha Kulkarni','COMPANY_ADMIN',${j([])},${T0}),
     ('EU-002','EMP-001','DEMO Nikhil Patil','BRANCH_RECRUITER',${j(['LOC-002'])},${T0}),
     ('EU-003','EMP-002','DEMO Meera Shah','COMPANY_ADMIN',${j([])},${T0}),
-    ('EU-004','EMP-003','DEMO Farhan Shaikh','COMPANY_ADMIN',${j([])},${T0})`;
+    ('EU-004','EMP-003','DEMO Farhan Shaikh','COMPANY_ADMIN',${j([])},${T0}),
+    ('EU-101','EMP-101','DEMO Rohit Gaikwad','COMPANY_ADMIN',${j([])},${T0})`;
 
   // --- partners (§22.4) -----------------------------------------------------
   // PAR-001 carries a PAN and sits near the s.194H threshold in the FY so the
@@ -261,6 +421,45 @@ async function main() {
         VALUES (${'CRD-' + id.slice(4) + '-0'}, ${entId}, 'INCLUDED_GRANT', 10, ${rupees(2500)},
                 'Included with ₹2,500 posting entitlement', ${published})`;
     }
+  }
+
+  // --- standalone journey jobs ----------------------------------------------
+  // These two carry real description / preferred_skills / qualification text.
+  // Every other seeded job leaves those columns empty, so until now the
+  // candidate's job card had nothing to read. They are also the only jobs whose
+  // role configuration runs a conversational script.
+  const scriptJobs: [string,string,string,string,string,number,number,number,string,string[],number,string[],string,string,string][] = [
+    ['JOB-101','EMP-001','LOC-001','CFG-BFSI-RE-2','Relationship Executive',5,18000,7000,'09:30-18:30',['mr','hi'],6,
+      ['BFSI_SALES','CUSTOMER_COMMUNICATION','TARGET_ACHIEVEMENT'],
+      'Open savings and current accounts for customers near the FC Road branch. Most of your day is spent outside the branch — visiting shops, housing societies and small businesses, explaining what the bank offers and helping people through the paperwork. You will have a monthly target for new accounts, and a team leader who works the same area with you.',
+      'Spoken Marathi and Hindi. Comfortable starting a conversation with someone you have not met. Basic arithmetic for balances and interest. A two-wheeler helps but is not required.',
+      'No minimum degree. Six months in any customer-facing or field role is enough.'],
+    ['JOB-102','EMP-101','LOC-101','CFG-LOG-DR-1','Delivery Rider',8,14000,6000,'10:00-19:00',['mr','hi'],0,
+      ['LAST_MILE_DELIVERY','NAVIGATION','CASH_HANDLING'],
+      'Deliver parcels and food orders around Hadapsar and the nearby areas from our delivery hub. You pick up from the hub, follow the route on your phone, hand the order to the customer and collect payment where it is cash on delivery. Fuel is reimbursed weekly and the per-drop incentive is paid on top of the fixed salary.',
+      'Your own two-wheeler and a valid driving licence. Comfortable using a map on a phone. Careful with cash. Knowing the local lanes is a real advantage.',
+      'No formal qualification required. Freshers welcome.'],
+  ];
+  for (const [id, emp, loc, cfg, title, openings, fixed, variable, shift, langs, minExp, skills, description, preferred, qualification] of scriptJobs) {
+    const expires = addDays(liveFrom, 30);
+    await sql`INSERT INTO app.job
+      (id, employer_id, location_id, role_config_id, title, openings, fixed_pay_paise, variable_max_paise,
+       shift, weekly_off, languages, min_experience_mo, critical_skills, status, published_at, expires_at, created_at,
+       description, preferred_skills, work_mode, qualification)
+      VALUES (${id}, ${emp}, ${loc}, ${cfg}, ${title}, ${openings}, ${rupees(fixed)}, ${rupees(variable)},
+              ${shift}, 'Sunday', ${j(langs)}, ${minExp}, ${j(skills)}, 'LIVE',
+              ${liveFrom}, ${expires}, ${liveFrom},
+              ${description}, ${preferred}, 'ONSITE', ${qualification})`;
+    const entId = `ENT-${id.slice(4)}`;
+    await sql`INSERT INTO app.posting_entitlement
+      (id, job_id, location_id, posting_fee_paise, credits_included, max_distinct_unlocks,
+       starts_at, ends_at, credit_expiry_at, created_at)
+      VALUES (${entId}, ${id}, ${loc}, ${rupees(2500)}, 10, 100,
+              ${liveFrom}, ${expires}, ${addDays(liveFrom, 90)}, ${liveFrom})`;
+    await sql`INSERT INTO app.credit_ledger
+      (id, entitlement_id, entry_type, credit_delta, amount_paise, note, created_at)
+      VALUES (${'CRD-' + id.slice(4) + '-0'}, ${entId}, 'INCLUDED_GRANT', 10, ${rupees(2500)},
+              'Included with ₹2,500 posting entitlement', ${liveFrom})`;
   }
 
   // --- message templates (§22.8) — mr / hi / en ------------------------------
@@ -378,7 +577,7 @@ async function main() {
     const templateId = c.locality === 'kothrud' && c.tags.includes('CUSTOMER_SERVICE')
       ? 'AST-BFSI-CSA-1' : 'AST-BFSI-RE-1';
     await sql`UPDATE app.candidate SET role_config_id=${templateId==='AST-BFSI-CSA-1'?'CFG-BFSI-CSA-1':'CFG-BFSI-RE-1'} WHERE id=${id}`;
-    await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_bool,collected_at) VALUES(${'ATV-SEED-'+id},${id},'field_sales_comfort','CFG-BFSI-RE-1',true,${T0})`;
+    await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_text,collected_at) VALUES(${'ATV-SEED-'+id},${id},'field_sales_comfort','CFG-BFSI-RE-1','COMFORTABLE',${T0})`;
     await seedAssessmentScore(id, templateId, c.score, T0);
   }
 

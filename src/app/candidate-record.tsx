@@ -2,7 +2,7 @@ import {sql} from '@/lib/db';
 import {fmtDateTime} from '@/lib/clock';
 import {Pill,StatusPill} from './ui';
 export async function CandidateRecord({id}:{id:string}){
- const [profiles,tests,apps,consents,attrs,voice]=await Promise.all([sql`SELECT c.*,p.name partner FROM app.candidate c LEFT JOIN app.attribution a ON a.candidate_id=c.id LEFT JOIN app.partner p ON p.id=a.partner_id WHERE c.id=${id}`,sql`SELECT score,completed_at FROM app.assessment_attempt WHERE candidate_id=${id} ORDER BY completed_at DESC`,sql`SELECT a.*,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${id} ORDER BY applied_at DESC`,sql`SELECT purpose,granted_at,withdrawn_at FROM app.consent_record WHERE candidate_id=${id}`,sql`SELECT d.display_name,v.value_text,v.value_bool,v.value_int FROM app.candidate_attribute_value v JOIN app.attribute_definition d ON d.key=v.attribute_key WHERE candidate_id=${id}`,sql`SELECT field,transcript,interpreted,confidence,provider,accepted,created_at FROM app.voice_turn WHERE candidate_id=${id} ORDER BY created_at`]);
+ const [profiles,tests,apps,consents,attrs,voice,script]=await Promise.all([sql`SELECT c.*,p.name partner FROM app.candidate c LEFT JOIN app.attribution a ON a.candidate_id=c.id LEFT JOIN app.partner p ON p.id=a.partner_id WHERE c.id=${id}`,sql`SELECT score,completed_at FROM app.assessment_attempt WHERE candidate_id=${id} ORDER BY completed_at DESC`,sql`SELECT a.*,j.title FROM app.application a JOIN app.job j ON j.id=a.job_id WHERE a.candidate_id=${id} ORDER BY applied_at DESC`,sql`SELECT purpose,granted_at,withdrawn_at FROM app.consent_record WHERE candidate_id=${id}`,sql`SELECT d.display_name,v.value_text,v.value_bool,v.value_int FROM app.candidate_attribute_value v JOIN app.attribute_definition d ON d.key=v.attribute_key WHERE candidate_id=${id}`,sql`SELECT field,transcript,interpreted,confidence,provider,accepted,created_at FROM app.voice_turn WHERE candidate_id=${id} ORDER BY created_at`,sql`SELECT r.id run_id,r.script_id,r.script_version,r.score run_score,r.status,p.turn_key,p.kind,p.transcript,p.interpreted,p.score,p.max_score,p.rubric_version,p.scorer,p.reasoning,p.credits,p.confidence,p.needs_review FROM app.script_run r LEFT JOIN app.script_response p ON p.run_id=r.id WHERE r.candidate_id=${id} ORDER BY r.started_at DESC,p.created_at`]);
  const c=profiles[0];if(!c)return <p>Candidate not found.</p>;
  const fields=Object.entries({
   Mobile:c.phone,Locality:c.locality_key,Education:c.education,
@@ -72,6 +72,22 @@ export async function CandidateRecord({id}:{id:string}){
      <td className="small muted mono">{v.provider}</td>
     </tr>)}</tbody>
    </table></div></div>
+  </div>}
+  {script.length>0&&script[0].run_id&&<div className="card mb">
+   <div className="card-head"><h3>Skill answers</h3><span className="small muted">role script · {String(script[0].script_id)} v{String(script[0].script_version)} · score {String(script[0].run_score??'—')}/100</span></div>
+   <div className="card-body tight"><div className="tblwrap"><table>
+    <thead><tr><th>Question</th><th>Said</th><th>Credited</th><th>Score</th><th>Confidence</th><th>Scorer</th></tr></thead>
+    <tbody>{script.filter((r:any)=>r.turn_key).map((r:any,i:number)=><tr key={i}>
+     <td className="small">{r.turn_key}{r.needs_review&&<Pill tone="warn">needs review</Pill>}</td>
+     <td className="small">“{r.transcript}”</td>
+     <td className="small">{r.kind==='SKILL'?((r.credits||[]).length?(r.credits as string[]).join('; '):'none'):(r.interpreted?.display||'—')}</td>
+     <td className="num">{r.kind==='SKILL'?`${r.score}/${r.max_score}`:'—'}</td>
+     <td className="num">{Math.round(Number(r.confidence)*100)}%</td>
+     <td className="small muted mono">{r.scorer||'—'}{r.rubric_version?` · ${r.rubric_version}`:''}</td>
+    </tr>)}</tbody>
+   </table></div>
+   {script.some((r:any)=>r.needs_review)&&<p className="small muted">Some answers were scored without a model, or with low confidence. Treat those scores as provisional until a person has read them.</p>}
+   </div>
   </div>}
   <div className="card">
    <div className="card-head"><h3>Consent choices</h3></div>

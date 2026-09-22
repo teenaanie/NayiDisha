@@ -24,7 +24,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "incentive_conditions",
@@ -36,7 +36,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "overtime",
@@ -48,7 +48,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "benefits",
@@ -60,7 +60,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "employment_type",
@@ -72,7 +72,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "safety",
@@ -84,7 +84,7 @@
         "sensitivity": "NORMAL",
         "freshness_days": null,
         "translations": {},
-        "created_at": "2026-09-09T11:02:38.170Z"
+        "created_at": "2026-09-22T05:59:56.976Z"
       },
       {
         "key": "locality",
@@ -175,7 +175,11 @@
         "scope": "CANDIDATE_ROLE",
         "data_type": "ENUM",
         "display_name": "Familiarity with CASA products",
-        "allowed_values": [],
+        "allowed_values": [
+          "NONE",
+          "SOME",
+          "STRONG"
+        ],
         "validation": {},
         "sensitivity": "NORMAL",
         "freshness_days": null,
@@ -187,7 +191,11 @@
         "scope": "CANDIDATE_ROLE",
         "data_type": "ENUM",
         "display_name": "Comfort with field sales targets",
-        "allowed_values": [],
+        "allowed_values": [
+          "COMFORTABLE",
+          "NEUTRAL",
+          "UNCOMFORTABLE"
+        ],
         "validation": {},
         "sensitivity": "NORMAL",
         "freshness_days": null,
@@ -211,6 +219,34 @@
         "scope": "CANDIDATE_ROLE",
         "data_type": "BOOL",
         "display_name": "Has used POS/billing software",
+        "allowed_values": [],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "riding_licence",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "ENUM",
+        "display_name": "Driving licence status",
+        "allowed_values": [
+          "VALID",
+          "EXPIRED",
+          "NONE"
+        ],
+        "validation": {},
+        "sensitivity": "NORMAL",
+        "freshness_days": null,
+        "translations": {},
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "smartphone_navigation",
+        "scope": "CANDIDATE_ROLE",
+        "data_type": "BOOL",
+        "display_name": "Comfortable navigating by phone map",
         "allowed_values": [],
         "validation": {},
         "sensitivity": "NORMAL",
@@ -418,6 +454,11 @@
     ]
   },
   {
+    "table": "demo_account",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
     "table": "demo_clock",
     "jsonColumns": [],
     "rows": [
@@ -509,6 +550,17 @@
         "status_reason": null,
         "created_at": "2026-10-05T04:30:00.000Z",
         "status_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EMP-101",
+        "legal_name": "DEMO Pune Quick Logistics Pvt Ltd",
+        "brand_name": "DEMO Pune Quick Logistics",
+        "gst_pan": "27CCCCC2222C1Z5",
+        "billing_contact": "billing@demo-punequick.invalid",
+        "status": "VERIFIED",
+        "status_reason": null,
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_at": "2026-10-05T04:30:00.000Z"
       }
     ]
   },
@@ -550,6 +602,26 @@
     "jsonColumns": [],
     "rows": [
       {
+        "prefix": "UNL",
+        "value": "2"
+      },
+      {
+        "prefix": "RPL",
+        "value": "1"
+      },
+      {
+        "prefix": "CRD",
+        "value": "3"
+      },
+      {
+        "prefix": "RWD",
+        "value": "3"
+      },
+      {
+        "prefix": "AUD",
+        "value": "5"
+      },
+      {
         "prefix": "CAN",
         "value": "8"
       },
@@ -580,26 +652,6 @@
       {
         "prefix": "MATCH",
         "value": "8"
-      },
-      {
-        "prefix": "UNL",
-        "value": "2"
-      },
-      {
-        "prefix": "RPL",
-        "value": "1"
-      },
-      {
-        "prefix": "CRD",
-        "value": "3"
-      },
-      {
-        "prefix": "RWD",
-        "value": "3"
-      },
-      {
-        "prefix": "AUD",
-        "value": "5"
       }
     ]
   },
@@ -625,6 +677,16 @@
         "translations": {
           "hi": "रिटेल",
           "mr": "रिटेल"
+        },
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "key": "LOGISTICS",
+        "display_name": "Logistics & Delivery",
+        "translations": {
+          "hi": "लॉजिस्टिक्स एवं डिलीवरी",
+          "mr": "लॉजिस्टिक्स आणि डिलिव्हरी"
         },
         "status": "ACTIVE",
         "created_at": "2026-10-05T04:30:00.000Z"
@@ -1223,6 +1285,17 @@
         "hours": "09:00-18:00",
         "status": "ACTIVE",
         "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "LOC-101",
+        "employer_id": "EMP-101",
+        "name": "Hadapsar Delivery Hub",
+        "locality_key": "hadapsar",
+        "lat": 18.5089,
+        "lng": 73.926,
+        "hours": "07:00-22:00",
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
       }
     ]
   },
@@ -1265,6 +1338,15 @@
         "id": "EU-004",
         "employer_id": "EMP-003",
         "name": "DEMO Farhan Shaikh",
+        "role": "COMPANY_ADMIN",
+        "location_scope": [],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "EU-101",
+        "employer_id": "EMP-101",
+        "name": "DEMO Rohit Gaikwad",
         "role": "COMPANY_ADMIN",
         "location_scope": [],
         "status": "ACTIVE",
@@ -1368,6 +1450,39 @@
           "SALES"
         ],
         "skill_mapping": {}
+      },
+      {
+        "key": "DELIVERY_RIDER",
+        "industry_key": "LOGISTICS",
+        "display_name": "Delivery Rider",
+        "parent_key": null,
+        "transferable": [
+          "FIELD_SALES",
+          "COURIER",
+          "DRIVER"
+        ],
+        "status": "ACTIVE",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "direct_tags": [
+          "LAST_MILE_DELIVERY",
+          "RIDER"
+        ],
+        "skill_mapping": {
+          "NAVIGATION": [
+            "DRIVER",
+            "COURIER"
+          ],
+          "CASH_HANDLING": [
+            "RETAIL_SALES",
+            "CUSTOMER_SERVICE",
+            "BFSI_SERVICE"
+          ],
+          "LAST_MILE_DELIVERY": [
+            "COURIER",
+            "DRIVER",
+            "FIELD_SALES"
+          ]
+        }
       },
       {
         "key": "RELATIONSHIP_EXECUTIVE",
@@ -2070,7 +2185,8 @@
           "bank_passbook"
         ],
         "effective_from": "2026-10-05T04:30:00.000Z",
-        "created_at": "2026-10-05T04:30:00.000Z"
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "role_script_id": null
       },
       {
         "id": "CFG-BFSI-CSA-1",
@@ -2183,7 +2299,8 @@
           "address_proof"
         ],
         "effective_from": "2026-10-05T04:30:00.000Z",
-        "created_at": "2026-10-05T04:30:00.000Z"
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "role_script_id": null
       },
       {
         "id": "CFG-RTL-SA-1",
@@ -2295,7 +2412,257 @@
           "address_proof"
         ],
         "effective_from": null,
-        "created_at": "2026-10-05T04:30:00.000Z"
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "role_script_id": null
+      },
+      {
+        "id": "CFG-BFSI-RE-2",
+        "industry_key": "BFSI",
+        "role_family_key": "RELATIONSHIP_EXECUTIVE",
+        "version": "2.0",
+        "status": "PUBLISHED",
+        "candidate_attributes": [
+          {
+            "key": "locality",
+            "required": true
+          },
+          {
+            "key": "experience_months",
+            "required": true
+          },
+          {
+            "key": "expected_pay",
+            "required": true
+          },
+          {
+            "key": "max_commute_min",
+            "required": true
+          },
+          {
+            "key": "languages",
+            "required": true
+          },
+          {
+            "key": "shift_availability",
+            "required": true
+          },
+          {
+            "key": "work_authorised",
+            "required": true
+          },
+          {
+            "key": "field_sales_comfort",
+            "required": true
+          },
+          {
+            "key": "casa_familiarity",
+            "required": false
+          },
+          {
+            "key": "two_wheeler",
+            "required": false
+          }
+        ],
+        "job_attributes": [
+          {
+            "key": "fixed_pay",
+            "required": true
+          },
+          {
+            "key": "variable_max",
+            "required": true
+          },
+          {
+            "key": "shift",
+            "required": true
+          },
+          {
+            "key": "weekly_off",
+            "required": true
+          }
+        ],
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "qualification_rules": {
+          "minAge18": true,
+          "minAssessmentScore": 60,
+          "requireLanguageMatch": true,
+          "requireMobileVerified": true,
+          "requireReconfirmation": true,
+          "requireShiftCompatible": true,
+          "requireMandatoryProfile": true,
+          "requireSalaryCompatible": true,
+          "requireWorkAuthDeclaration": true
+        },
+        "scoring_weights": {
+          "commute": 20,
+          "language": 5,
+          "schedule": 5,
+          "assessment": 20,
+          "experience": 10,
+          "compensation": 15,
+          "jobPreference": 15,
+          "criticalSkills": 10
+        },
+        "endorsement_cap": 5,
+        "assessment_template_id": "AST-BFSI-RE-1",
+        "assessment_threshold": 60,
+        "preview_fields": [
+          "maskedName",
+          "locality",
+          "travelEstimate",
+          "experienceSummary",
+          "payFit",
+          "skills",
+          "assessmentBand",
+          "endorsementPoints",
+          "explanation"
+        ],
+        "unlock_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise",
+          "currentPayPaise"
+        ],
+        "document_checklist": [
+          "identity_proof",
+          "address_proof",
+          "education_certificate",
+          "bank_passbook"
+        ],
+        "effective_from": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "role_script_id": "SCR-BFSI-RE-2"
+      },
+      {
+        "id": "CFG-LOG-DR-1",
+        "industry_key": "LOGISTICS",
+        "role_family_key": "DELIVERY_RIDER",
+        "version": "1.0",
+        "status": "PUBLISHED",
+        "candidate_attributes": [
+          {
+            "key": "locality",
+            "required": true
+          },
+          {
+            "key": "experience_months",
+            "required": true
+          },
+          {
+            "key": "expected_pay",
+            "required": true
+          },
+          {
+            "key": "max_commute_min",
+            "required": true
+          },
+          {
+            "key": "languages",
+            "required": true
+          },
+          {
+            "key": "shift_availability",
+            "required": true
+          },
+          {
+            "key": "work_authorised",
+            "required": true
+          },
+          {
+            "key": "two_wheeler",
+            "required": true
+          },
+          {
+            "key": "riding_licence",
+            "required": true
+          },
+          {
+            "key": "smartphone_navigation",
+            "required": true
+          }
+        ],
+        "job_attributes": [
+          {
+            "key": "fixed_pay",
+            "required": true
+          },
+          {
+            "key": "variable_max",
+            "required": true
+          },
+          {
+            "key": "shift",
+            "required": true
+          },
+          {
+            "key": "weekly_off",
+            "required": true
+          }
+        ],
+        "critical_skills": [
+          "LAST_MILE_DELIVERY",
+          "NAVIGATION",
+          "CASH_HANDLING"
+        ],
+        "qualification_rules": {
+          "minAge18": true,
+          "minAssessmentScore": 55,
+          "requireLanguageMatch": true,
+          "requireMobileVerified": true,
+          "requireReconfirmation": true,
+          "requireShiftCompatible": true,
+          "requireMandatoryProfile": true,
+          "requireSalaryCompatible": true,
+          "requireWorkAuthDeclaration": true
+        },
+        "scoring_weights": {
+          "commute": 20,
+          "language": 5,
+          "schedule": 5,
+          "assessment": 20,
+          "experience": 10,
+          "compensation": 15,
+          "jobPreference": 15,
+          "criticalSkills": 10
+        },
+        "endorsement_cap": 5,
+        "assessment_template_id": null,
+        "assessment_threshold": 55,
+        "preview_fields": [
+          "maskedName",
+          "locality",
+          "travelEstimate",
+          "experienceSummary",
+          "payFit",
+          "skills",
+          "assessmentBand",
+          "endorsementPoints",
+          "explanation"
+        ],
+        "unlock_fields": [
+          "name",
+          "phone",
+          "locality",
+          "experienceMonths",
+          "experienceTags",
+          "languages",
+          "expectedPayPaise"
+        ],
+        "document_checklist": [
+          "identity_proof",
+          "address_proof"
+        ],
+        "effective_from": "2026-10-05T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "role_script_id": "SCR-LOG-DR-1"
       }
     ]
   },
@@ -2343,7 +2710,8 @@
           "partnerId": "PAR-001"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-002",
@@ -2380,7 +2748,8 @@
           "partnerId": "PAR-002"
         },
         "role_config_id": "CFG-BFSI-CSA-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-008",
@@ -2417,7 +2786,8 @@
           "partnerId": "PAR-005"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-007",
@@ -2454,7 +2824,8 @@
           "partnerId": "PAR-001"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-003",
@@ -2491,7 +2862,8 @@
           "partnerId": "PAR-003"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-004",
@@ -2529,7 +2901,8 @@
           "partnerId": null
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-005",
@@ -2566,7 +2939,8 @@
           "partnerId": "PAR-004"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       },
       {
         "id": "CAN-006",
@@ -2601,7 +2975,8 @@
           "partnerId": "PAR-002"
         },
         "role_config_id": "CFG-BFSI-RE-1",
-        "work_authorised": true
+        "work_authorised": true,
+        "education": ""
       }
     ]
   },
@@ -2645,7 +3020,11 @@
         "duplicated_from": null,
         "last_material_change_at": null,
         "pending_changes": null,
-        "requirements": {}
+        "requirements": {},
+        "description": "",
+        "preferred_skills": "",
+        "work_mode": "ONSITE",
+        "qualification": ""
       },
       {
         "id": "JOB-002",
@@ -2676,7 +3055,11 @@
         "duplicated_from": null,
         "last_material_change_at": null,
         "pending_changes": null,
-        "requirements": {}
+        "requirements": {},
+        "description": "",
+        "preferred_skills": "",
+        "work_mode": "ONSITE",
+        "qualification": ""
       },
       {
         "id": "JOB-003",
@@ -2708,7 +3091,11 @@
         "duplicated_from": null,
         "last_material_change_at": null,
         "pending_changes": null,
-        "requirements": {}
+        "requirements": {},
+        "description": "",
+        "preferred_skills": "",
+        "work_mode": "ONSITE",
+        "qualification": ""
       },
       {
         "id": "JOB-004",
@@ -2739,7 +3126,11 @@
         "duplicated_from": null,
         "last_material_change_at": null,
         "pending_changes": null,
-        "requirements": {}
+        "requirements": {},
+        "description": "",
+        "preferred_skills": "",
+        "work_mode": "ONSITE",
+        "qualification": ""
       },
       {
         "id": "JOB-005",
@@ -2770,7 +3161,421 @@
         "duplicated_from": null,
         "last_material_change_at": null,
         "pending_changes": null,
-        "requirements": {}
+        "requirements": {},
+        "description": "",
+        "preferred_skills": "",
+        "work_mode": "ONSITE",
+        "qualification": ""
+      },
+      {
+        "id": "JOB-101",
+        "employer_id": "EMP-001",
+        "location_id": "LOC-001",
+        "role_config_id": "CFG-BFSI-RE-2",
+        "title": "Relationship Executive",
+        "openings": 5,
+        "fixed_pay_paise": "1800000",
+        "variable_max_paise": "700000",
+        "shift": "09:30-18:30",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 6,
+        "critical_skills": [
+          "BFSI_SALES",
+          "CUSTOMER_COMMUNICATION",
+          "TARGET_ACHIEVEMENT"
+        ],
+        "attributes": {},
+        "status": "LIVE",
+        "published_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {},
+        "description": "Open savings and current accounts for customers near the FC Road branch. Most of your day is spent outside the branch — visiting shops, housing societies and small businesses, explaining what the bank offers and helping people through the paperwork. You will have a monthly target for new accounts, and a team leader who works the same area with you.",
+        "preferred_skills": "Spoken Marathi and Hindi. Comfortable starting a conversation with someone you have not met. Basic arithmetic for balances and interest. A two-wheeler helps but is not required.",
+        "work_mode": "ONSITE",
+        "qualification": "No minimum degree. Six months in any customer-facing or field role is enough."
+      },
+      {
+        "id": "JOB-102",
+        "employer_id": "EMP-101",
+        "location_id": "LOC-101",
+        "role_config_id": "CFG-LOG-DR-1",
+        "title": "Delivery Rider",
+        "openings": 8,
+        "fixed_pay_paise": "1400000",
+        "variable_max_paise": "600000",
+        "shift": "10:00-19:00",
+        "weekly_off": "Sunday",
+        "languages": [
+          "mr",
+          "hi"
+        ],
+        "min_experience_mo": 0,
+        "critical_skills": [
+          "LAST_MILE_DELIVERY",
+          "NAVIGATION",
+          "CASH_HANDLING"
+        ],
+        "attributes": {},
+        "status": "LIVE",
+        "published_at": "2026-10-05T04:30:00.000Z",
+        "expires_at": "2026-11-04T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z",
+        "status_reason": null,
+        "duplicated_from": null,
+        "last_material_change_at": null,
+        "pending_changes": null,
+        "requirements": {},
+        "description": "Deliver parcels and food orders around Hadapsar and the nearby areas from our delivery hub. You pick up from the hub, follow the route on your phone, hand the order to the customer and collect payment where it is cash on delivery. Fuel is reimbursed weekly and the per-drop incentive is paid on top of the fixed salary.",
+        "preferred_skills": "Your own two-wheeler and a valid driving licence. Comfortable using a map on a phone. Careful with cash. Knowing the local lanes is a real advantage.",
+        "work_mode": "ONSITE",
+        "qualification": "No formal qualification required. Freshers welcome."
+      }
+    ]
+  },
+  {
+    "table": "role_script",
+    "jsonColumns": [
+      "languages",
+      "turns"
+    ],
+    "rows": [
+      {
+        "id": "SCR-BFSI-RE-2",
+        "role_config_id": "CFG-BFSI-RE-2",
+        "version": "1.0",
+        "status": "PUBLISHED",
+        "languages": [
+          "en",
+          "hi",
+          "mr"
+        ],
+        "turns": [
+          {
+            "ask": {
+              "en": "This job means visiting customers outside the branch, with monthly targets. How do you feel about that?",
+              "hi": "इस काम में शाखा के बाहर ग्राहकों से मिलना होता है, और हर महीने लक्ष्य होते हैं। आपको यह कैसा लगता है?",
+              "mr": "या कामात शाखेबाहेर जाऊन ग्राहकांना भेटावं लागतं, आणि दर महिन्याला लक्ष्य असतं. तुम्हाला हे कसं वाटतं?"
+            },
+            "key": "field_sales_comfort",
+            "kind": "ATTRIBUTE",
+            "dataType": "ENUM",
+            "expected": "one of COMFORTABLE, NEUTRAL, UNCOMFORTABLE",
+            "required": true,
+            "attributeKey": "field_sales_comfort",
+            "allowedValues": [
+              "COMFORTABLE",
+              "NEUTRAL",
+              "UNCOMFORTABLE"
+            ]
+          },
+          {
+            "ask": {
+              "en": "Have you worked with savings or current accounts before?",
+              "hi": "क्या आपने पहले बचत या चालू खातों पर काम किया है?",
+              "mr": "तुम्ही आधी बचत किंवा चालू खात्यांवर काम केलं आहे का?"
+            },
+            "key": "casa_familiarity",
+            "kind": "ATTRIBUTE",
+            "dataType": "ENUM",
+            "expected": "one of NONE, SOME, STRONG",
+            "required": false,
+            "attributeKey": "casa_familiarity",
+            "allowedValues": [
+              "NONE",
+              "SOME",
+              "STRONG"
+            ]
+          },
+          {
+            "ask": {
+              "en": "Do you have a two-wheeler you can use for work?",
+              "hi": "क्या आपके पास काम के लिए दोपहिया वाहन है?",
+              "mr": "तुमच्याकडे कामासाठी वापरता येईल अशी दुचाकी आहे का?"
+            },
+            "key": "two_wheeler",
+            "kind": "ATTRIBUTE",
+            "dataType": "BOOL",
+            "expected": "true or false",
+            "required": false,
+            "attributeKey": "two_wheeler"
+          },
+          {
+            "ask": {
+              "en": "A customer says they do not want to open an account because they already have one at another bank. What would you say to them?",
+              "hi": "एक ग्राहक कहता है कि उनका दूसरे बैंक में पहले से खाता है, इसलिए वे नया खाता नहीं खोलना चाहते। आप उनसे क्या कहेंगे?",
+              "mr": "एक ग्राहक म्हणतो की त्यांचं दुसऱ्या बँकेत आधीच खातं आहे, त्यामुळे नवीन खातं नको. तुम्ही त्यांना काय सांगाल?"
+            },
+            "key": "S1",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "acknowledges the existing account without arguing",
+                "points": 7
+              },
+              {
+                "credit": "asks a question to understand their needs",
+                "points": 6
+              },
+              {
+                "credit": "offers a specific concrete benefit",
+                "points": 7
+              },
+              {
+                "credit": "does not pressure or mislead",
+                "points": 5
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "re-2.0"
+          },
+          {
+            "ask": {
+              "en": "A customer offers you five hundred rupees to open their account faster. What do you do?",
+              "hi": "एक ग्राहक आपको खाता जल्दी खोलने के लिए पाँच सौ रुपये देने की पेशकश करता है। आप क्या करेंगे?",
+              "mr": "एक ग्राहक तुम्हाला खातं लवकर उघडण्यासाठी पाचशे रुपये देऊ करतो. तुम्ही काय कराल?"
+            },
+            "key": "S2",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "refuses the money",
+                "points": 12
+              },
+              {
+                "credit": "explains the real timeline",
+                "points": 7
+              },
+              {
+                "credit": "escalates or reports it",
+                "points": 6
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "re-2.0"
+          },
+          {
+            "ask": {
+              "en": "A customer deposits fifteen thousand rupees and withdraws four thousand five hundred the same day. What is the change in their balance?",
+              "hi": "एक ग्राहक पंद्रह हज़ार रुपये जमा करता है और उसी दिन साढ़े चार हज़ार निकालता है। उनके शेष में कितना बदलाव हुआ?",
+              "mr": "एक ग्राहक पंधरा हजार रुपये जमा करतो आणि त्याच दिवशी साडेचार हजार काढतो. त्यांच्या शिल्लक रकमेत किती बदल झाला?"
+            },
+            "key": "S3",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "states ten thousand five hundred",
+                "points": 15
+              },
+              {
+                "credit": "says it is an increase, not a decrease",
+                "points": 10
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "re-2.0"
+          },
+          {
+            "ask": {
+              "en": "It is the last week of the month and you are behind on your target. What do you do?",
+              "hi": "महीने का आखिरी हफ़्ता है और आप अपने लक्ष्य से पीछे हैं। आप क्या करेंगे?",
+              "mr": "महिन्याचा शेवटचा आठवडा आहे आणि तुम्ही लक्ष्यापेक्षा मागे आहात. तुम्ही काय कराल?"
+            },
+            "key": "S4",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "gives a concrete plan of action",
+                "points": 10
+              },
+              {
+                "credit": "does not resort to mis-selling",
+                "points": 10
+              },
+              {
+                "credit": "asks for help or works existing leads",
+                "points": 5
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "re-2.0"
+          }
+        ],
+        "ask_count": 3,
+        "pass_threshold": 60,
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "SCR-LOG-DR-1",
+        "role_config_id": "CFG-LOG-DR-1",
+        "version": "1.0",
+        "status": "PUBLISHED",
+        "languages": [
+          "en",
+          "hi",
+          "mr"
+        ],
+        "turns": [
+          {
+            "ask": {
+              "en": "Do you have your own two-wheeler for deliveries?",
+              "hi": "क्या डिलीवरी के लिए आपके पास अपना दोपहिया वाहन है?",
+              "mr": "डिलिव्हरीसाठी तुमच्याकडे स्वतःची दुचाकी आहे का?"
+            },
+            "key": "two_wheeler",
+            "kind": "ATTRIBUTE",
+            "dataType": "BOOL",
+            "expected": "true or false",
+            "required": true,
+            "attributeKey": "two_wheeler"
+          },
+          {
+            "ask": {
+              "en": "Do you have a valid driving licence?",
+              "hi": "क्या आपके पास वैध ड्राइविंग लाइसेंस है?",
+              "mr": "तुमच्याकडे वैध ड्रायव्हिंग लायसन्स आहे का?"
+            },
+            "key": "riding_licence",
+            "kind": "ATTRIBUTE",
+            "dataType": "ENUM",
+            "expected": "one of VALID, EXPIRED, NONE",
+            "required": true,
+            "attributeKey": "riding_licence",
+            "allowedValues": [
+              "VALID",
+              "EXPIRED",
+              "NONE"
+            ]
+          },
+          {
+            "ask": {
+              "en": "Are you comfortable using a map on your phone to find addresses?",
+              "hi": "क्या आप पता ढूँढने के लिए फ़ोन पर नक्शे का इस्तेमाल सहजता से कर लेते हैं?",
+              "mr": "पत्ता शोधण्यासाठी फोनवरचा नकाशा वापरणं तुम्हाला सहज जमतं का?"
+            },
+            "key": "smartphone_navigation",
+            "kind": "ATTRIBUTE",
+            "dataType": "BOOL",
+            "expected": "true or false",
+            "required": true,
+            "attributeKey": "smartphone_navigation"
+          },
+          {
+            "ask": {
+              "en": "You reach the address, the customer is not answering their phone, and the building has no number. What do you do?",
+              "hi": "आप पते पर पहुँचते हैं, ग्राहक फ़ोन नहीं उठा रहा, और इमारत पर कोई नंबर नहीं है। आप क्या करेंगे?",
+              "mr": "तुम्ही पत्त्यावर पोहोचता, ग्राहक फोन उचलत नाही, आणि इमारतीवर नंबर नाही. तुम्ही काय कराल?"
+            },
+            "key": "S1",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "waits a reasonable time or retries the call",
+                "points": 6
+              },
+              {
+                "credit": "tries an alternate way to reach them",
+                "points": 6
+              },
+              {
+                "credit": "contacts support before leaving",
+                "points": 7
+              },
+              {
+                "credit": "does not abandon it or falsely mark it delivered",
+                "points": 6
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "dr-1.0"
+          },
+          {
+            "ask": {
+              "en": "A cash-on-delivery customer gives you five hundred rupees for a four hundred and thirty rupee order and says keep the change. What do you do?",
+              "hi": "कैश ऑन डिलीवरी में ग्राहक चार सौ तीस रुपये के ऑर्डर के लिए पाँच सौ रुपये देता है और कहता है बाकी रख लो। आप क्या करेंगे?",
+              "mr": "कॅश ऑन डिलिव्हरीमध्ये ग्राहक चारशे तीस रुपयांच्या ऑर्डरसाठी पाचशे रुपये देतो आणि म्हणतो उरलेले ठेवून घ्या. तुम्ही काय कराल?"
+            },
+            "key": "S2",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "knows the change is not automatically a tip",
+                "points": 10
+              },
+              {
+                "credit": "offers the correct change back",
+                "points": 9
+              },
+              {
+                "credit": "records or reports the collected amount accurately",
+                "points": 6
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "dr-1.0"
+          },
+          {
+            "ask": {
+              "en": "It starts raining heavily and you still have six deliveries left. What do you do?",
+              "hi": "तेज़ बारिश शुरू हो जाती है और आपके पास अभी छह डिलीवरी बाकी हैं। आप क्या करेंगे?",
+              "mr": "जोरदार पाऊस सुरू होतो आणि तुमच्याकडे अजून सहा डिलिव्हरी बाकी आहेत. तुम्ही काय कराल?"
+            },
+            "key": "S3",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "puts safety first",
+                "points": 10
+              },
+              {
+                "credit": "informs support or the customer about the delay",
+                "points": 9
+              },
+              {
+                "credit": "does not ride recklessly to hit the target",
+                "points": 6
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "dr-1.0"
+          },
+          {
+            "ask": {
+              "en": "You have three deliveries in Kothrud and one in Hadapsar, all due within the hour. How do you plan it?",
+              "hi": "आपके पास कोथरुड में तीन और हडपसर में एक डिलीवरी है, सभी एक घंटे में देनी हैं। आप कैसे योजना बनाएँगे?",
+              "mr": "तुमच्याकडे कोथरूडमध्ये तीन आणि हडपसरमध्ये एक डिलिव्हरी आहे, सर्व एका तासात द्यायच्या आहेत. तुम्ही कसं नियोजन कराल?"
+            },
+            "key": "S4",
+            "kind": "SKILL",
+            "rubric": [
+              {
+                "credit": "groups the three nearby drops together",
+                "points": 10
+              },
+              {
+                "credit": "recognises the far one cannot also be made in time",
+                "points": 9
+              },
+              {
+                "credit": "flags it early rather than silently running late",
+                "points": 6
+              }
+            ],
+            "maxScore": 25,
+            "rubricVersion": "dr-1.0"
+          }
+        ],
+        "ask_count": 3,
+        "pass_threshold": 55,
+        "created_at": "2026-10-05T04:30:00.000Z"
       }
     ]
   },
@@ -3152,9 +3957,9 @@
         "candidate_id": "CAN-001",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3163,9 +3968,9 @@
         "candidate_id": "CAN-002",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3174,9 +3979,9 @@
         "candidate_id": "CAN-003",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3185,9 +3990,9 @@
         "candidate_id": "CAN-004",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3196,9 +4001,9 @@
         "candidate_id": "CAN-005",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3207,9 +4012,9 @@
         "candidate_id": "CAN-006",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3218,9 +4023,9 @@
         "candidate_id": "CAN-007",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       },
@@ -3229,13 +4034,18 @@
         "candidate_id": "CAN-008",
         "attribute_key": "field_sales_comfort",
         "role_config_id": "CFG-BFSI-RE-1",
-        "value_text": null,
+        "value_text": "COMFORTABLE",
         "value_int": null,
-        "value_bool": true,
+        "value_bool": null,
         "verified": false,
         "collected_at": "2026-10-05T04:30:00.000Z"
       }
     ]
+  },
+  {
+    "table": "candidate_reminder",
+    "jsonColumns": [],
+    "rows": []
   },
   {
     "table": "consent_record",
@@ -3451,6 +4261,11 @@
     ]
   },
   {
+    "table": "credit_request",
+    "jsonColumns": [],
+    "rows": []
+  },
+  {
     "table": "data_request",
     "jsonColumns": [
       "response"
@@ -3477,7 +4292,7 @@
         "comment": "Reliable, handled walk-in customers well.",
         "status": "VERIFIED_CONTACT",
         "raw_points": 10,
-        "invite_token": "7AMGAs4yl2LzBb-CKg6wCFgn",
+        "invite_token": "6q9uNZsPwhw3NczyocWYbCCt",
         "invited_at": "2026-10-05T04:30:00.000Z",
         "verified_at": "2026-10-05T04:30:00.000Z",
         "created_at": "2026-10-05T04:30:00.000Z",
@@ -3499,7 +4314,7 @@
         "comment": "Picks up new processes quickly.",
         "status": "VERIFIED_CONTACT",
         "raw_points": 10,
-        "invite_token": "LHqLPR4y1EOmuEYJVtMSlfaB",
+        "invite_token": "l9rX_bUytX0P0daDz3b0cGcy",
         "invited_at": "2026-10-05T04:30:00.000Z",
         "verified_at": "2026-10-05T04:30:00.000Z",
         "created_at": "2026-10-05T04:30:00.000Z",
@@ -3521,7 +4336,7 @@
         "comment": "Self-submitted.",
         "status": "FLAGGED",
         "raw_points": 0,
-        "invite_token": "LLQq0RcPlQoQ1njoiV5VVDDE",
+        "invite_token": "Q5kIZPb517V6_sdEup2QqGI7",
         "invited_at": "2026-10-05T04:30:00.000Z",
         "verified_at": "2026-10-05T04:30:00.000Z",
         "created_at": "2026-10-05T04:30:00.000Z",
@@ -3540,6 +4355,14 @@
   {
     "table": "job_change",
     "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "job_suggestion",
+    "jsonColumns": [
+      "explanation",
+      "gaps"
+    ],
     "rows": []
   },
   {
@@ -3599,8 +4422,60 @@
         "ends_at": "2026-11-04T04:30:00.000Z",
         "credit_expiry_at": "2027-01-03T04:30:00.000Z",
         "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ENT-101",
+        "job_id": "JOB-101",
+        "location_id": "LOC-001",
+        "posting_fee_paise": "250000",
+        "credits_included": 10,
+        "credits_purchased": 0,
+        "max_distinct_unlocks": 100,
+        "starts_at": "2026-10-05T04:30:00.000Z",
+        "ends_at": "2026-11-04T04:30:00.000Z",
+        "credit_expiry_at": "2027-01-03T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "ENT-102",
+        "job_id": "JOB-102",
+        "location_id": "LOC-101",
+        "posting_fee_paise": "250000",
+        "credits_included": 10,
+        "credits_purchased": 0,
+        "max_distinct_unlocks": 100,
+        "starts_at": "2026-10-05T04:30:00.000Z",
+        "ends_at": "2026-11-04T04:30:00.000Z",
+        "credit_expiry_at": "2027-01-03T04:30:00.000Z",
+        "created_at": "2026-10-05T04:30:00.000Z"
       }
     ]
+  },
+  {
+    "table": "screening_call",
+    "jsonColumns": [
+      "extracted"
+    ],
+    "rows": []
+  },
+  {
+    "table": "script_run",
+    "jsonColumns": [
+      "turn_keys"
+    ],
+    "rows": []
+  },
+  {
+    "table": "voice_turn",
+    "jsonColumns": [
+      "interpreted"
+    ],
+    "rows": []
+  },
+  {
+    "table": "workflow_issue",
+    "jsonColumns": [],
+    "rows": []
   },
   {
     "table": "interview",
@@ -3741,6 +4616,7 @@
           },
           "assessment": {
             "score": 82,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -3888,6 +4764,7 @@
           },
           "assessment": {
             "score": 68,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4034,6 +4911,7 @@
           },
           "assessment": {
             "score": 91,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4178,6 +5056,7 @@
           },
           "assessment": {
             "score": 73,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4323,6 +5202,7 @@
           },
           "assessment": {
             "score": 54,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4466,6 +5346,7 @@
           },
           "assessment": {
             "score": 76,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4480,6 +5361,151 @@
             "compensation": 10,
             "jobPreference": 15,
             "criticalSkills": 10
+          },
+          "travelProvider": "seeded-pune-matrix@1.0",
+          "endorsementRawPoints": 0
+        },
+        "computed_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "MATCH-008",
+        "application_id": "APP-008",
+        "candidate_id": "CAN-007",
+        "job_id": "JOB-001",
+        "role_config_id": "CFG-BFSI-RE-1",
+        "rule_version": "match-engine@1.3.0",
+        "stage_a_pass": true,
+        "stage_b_pass": true,
+        "qualified": true,
+        "score": 70,
+        "score_components": {
+          "commute": {
+            "raw": 70,
+            "weight": 20,
+            "weighted": 14
+          },
+          "language": {
+            "raw": 50,
+            "weight": 10,
+            "weighted": 5
+          },
+          "schedule": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "assessment": {
+            "raw": 79,
+            "weight": 5,
+            "weighted": 4
+          },
+          "experience": {
+            "raw": 100,
+            "weight": 10,
+            "weighted": 10
+          },
+          "compensation": {
+            "raw": 63,
+            "weight": 15,
+            "weighted": 9.5
+          },
+          "jobPreference": {
+            "raw": 65,
+            "weight": 15,
+            "weighted": 9.8
+          },
+          "criticalSkills": {
+            "raw": 53,
+            "weight": 15,
+            "weighted": 8
+          }
+        },
+        "endorsement_points": 0,
+        "explanation": [
+          "MODERATE_COMMUTE",
+          "SHIFT_FIT",
+          "TRANSFERABLE_EXPERIENCE",
+          "ASSESSMENT_PASS"
+        ],
+        "gaps": [
+          "SALARY_GAP"
+        ],
+        "inputs_snapshot": {
+          "job": {
+            "shift": "09:30-18:30",
+            "locality": "shivajinagar",
+            "languages": [
+              "mr",
+              "hi"
+            ],
+            "fixedPayPaise": 1800000,
+            "criticalSkills": [
+              "BFSI_SALES",
+              "CUSTOMER_COMMUNICATION",
+              "TARGET_ACHIEVEMENT"
+            ],
+            "minExperienceMo": 6,
+            "variableMaxPaise": 700000
+          },
+          "rules": {
+            "minAge18": true,
+            "minAssessmentScore": 60,
+            "requireLanguageMatch": true,
+            "requireMobileVerified": true,
+            "requireReconfirmation": true,
+            "requireShiftCompatible": true,
+            "requireMandatoryProfile": true,
+            "requireSalaryCompatible": true,
+            "requireWorkAuthDeclaration": true
+          },
+          "stageA": {
+            "pass": true,
+            "reasons": []
+          },
+          "stageB": {
+            "pass": true,
+            "reasons": []
+          },
+          "travel": {
+            "km": 9.5,
+            "band": "MODERATE",
+            "minutes": 32,
+            "provider": "seeded-pune-matrix@1.0"
+          },
+          "candidate": {
+            "languages": [
+              "hi",
+              "en"
+            ],
+            "localityKey": "baner",
+            "maxCommuteMin": 60,
+            "experienceTags": [
+              "SALES",
+              "CUSTOMER_COMMUNICATION"
+            ],
+            "expectedPayPaise": 2000000,
+            "experienceMonths": 14,
+            "shiftAvailability": [
+              "ANY"
+            ]
+          },
+          "assessment": {
+            "score": 79,
+            "source": "TEST",
+            "templateVersion": "1.0"
+          },
+          "salaryBasis": "TOTAL",
+          "configVersion": "CFG-BFSI-RE-1@1.0",
+          "endorsementCap": 5,
+          "scoringWeights": {
+            "commute": 20,
+            "language": 10,
+            "schedule": 10,
+            "assessment": 5,
+            "experience": 10,
+            "compensation": 15,
+            "jobPreference": 15,
+            "criticalSkills": 15
           },
           "travelProvider": "seeded-pune-matrix@1.0",
           "endorsementRawPoints": 0
@@ -4611,150 +5637,7 @@
           },
           "assessment": {
             "score": 85,
-            "templateVersion": "1.0"
-          },
-          "salaryBasis": "TOTAL",
-          "configVersion": "CFG-BFSI-RE-1@1.0",
-          "endorsementCap": 5,
-          "scoringWeights": {
-            "commute": 20,
-            "language": 10,
-            "schedule": 10,
-            "assessment": 5,
-            "experience": 10,
-            "compensation": 15,
-            "jobPreference": 15,
-            "criticalSkills": 15
-          },
-          "travelProvider": "seeded-pune-matrix@1.0",
-          "endorsementRawPoints": 0
-        },
-        "computed_at": "2026-10-05T04:30:00.000Z"
-      },
-      {
-        "id": "MATCH-008",
-        "application_id": "APP-008",
-        "candidate_id": "CAN-007",
-        "job_id": "JOB-001",
-        "role_config_id": "CFG-BFSI-RE-1",
-        "rule_version": "match-engine@1.3.0",
-        "stage_a_pass": true,
-        "stage_b_pass": true,
-        "qualified": true,
-        "score": 70,
-        "score_components": {
-          "commute": {
-            "raw": 70,
-            "weight": 20,
-            "weighted": 14
-          },
-          "language": {
-            "raw": 50,
-            "weight": 10,
-            "weighted": 5
-          },
-          "schedule": {
-            "raw": 100,
-            "weight": 10,
-            "weighted": 10
-          },
-          "assessment": {
-            "raw": 79,
-            "weight": 5,
-            "weighted": 4
-          },
-          "experience": {
-            "raw": 100,
-            "weight": 10,
-            "weighted": 10
-          },
-          "compensation": {
-            "raw": 63,
-            "weight": 15,
-            "weighted": 9.5
-          },
-          "jobPreference": {
-            "raw": 65,
-            "weight": 15,
-            "weighted": 9.8
-          },
-          "criticalSkills": {
-            "raw": 53,
-            "weight": 15,
-            "weighted": 8
-          }
-        },
-        "endorsement_points": 0,
-        "explanation": [
-          "MODERATE_COMMUTE",
-          "SHIFT_FIT",
-          "TRANSFERABLE_EXPERIENCE",
-          "ASSESSMENT_PASS"
-        ],
-        "gaps": [
-          "SALARY_GAP"
-        ],
-        "inputs_snapshot": {
-          "job": {
-            "shift": "09:30-18:30",
-            "locality": "shivajinagar",
-            "languages": [
-              "mr",
-              "hi"
-            ],
-            "fixedPayPaise": 1800000,
-            "criticalSkills": [
-              "BFSI_SALES",
-              "CUSTOMER_COMMUNICATION",
-              "TARGET_ACHIEVEMENT"
-            ],
-            "minExperienceMo": 6,
-            "variableMaxPaise": 700000
-          },
-          "rules": {
-            "minAge18": true,
-            "minAssessmentScore": 60,
-            "requireLanguageMatch": true,
-            "requireMobileVerified": true,
-            "requireReconfirmation": true,
-            "requireShiftCompatible": true,
-            "requireMandatoryProfile": true,
-            "requireSalaryCompatible": true,
-            "requireWorkAuthDeclaration": true
-          },
-          "stageA": {
-            "pass": true,
-            "reasons": []
-          },
-          "stageB": {
-            "pass": true,
-            "reasons": []
-          },
-          "travel": {
-            "km": 9.5,
-            "band": "MODERATE",
-            "minutes": 32,
-            "provider": "seeded-pune-matrix@1.0"
-          },
-          "candidate": {
-            "languages": [
-              "hi",
-              "en"
-            ],
-            "localityKey": "baner",
-            "maxCommuteMin": 60,
-            "experienceTags": [
-              "SALES",
-              "CUSTOMER_COMMUNICATION"
-            ],
-            "expectedPayPaise": 2000000,
-            "experienceMonths": 14,
-            "shiftAvailability": [
-              "ANY"
-            ]
-          },
-          "assessment": {
-            "score": 79,
+            "source": "TEST",
             "templateVersion": "1.0"
           },
           "salaryBasis": "TOTAL",
@@ -4787,6 +5670,14 @@
   {
     "table": "optional_outcome_event",
     "jsonColumns": [],
+    "rows": []
+  },
+  {
+    "table": "script_response",
+    "jsonColumns": [
+      "interpreted",
+      "credits"
+    ],
     "rows": []
   },
   {
@@ -4905,6 +5796,28 @@
       {
         "id": "CRD-003-0",
         "entitlement_id": "ENT-003",
+        "entry_type": "INCLUDED_GRANT",
+        "credit_delta": 10,
+        "amount_paise": "250000",
+        "unlock_id": null,
+        "linked_entry_id": null,
+        "note": "Included with ₹2,500 posting entitlement",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-101-0",
+        "entitlement_id": "ENT-101",
+        "entry_type": "INCLUDED_GRANT",
+        "credit_delta": 10,
+        "amount_paise": "250000",
+        "unlock_id": null,
+        "linked_entry_id": null,
+        "note": "Included with ₹2,500 posting entitlement",
+        "created_at": "2026-10-05T04:30:00.000Z"
+      },
+      {
+        "id": "CRD-102-0",
+        "entitlement_id": "ENT-102",
         "entry_type": "INCLUDED_GRANT",
         "credit_delta": 10,
         "amount_paise": "250000",

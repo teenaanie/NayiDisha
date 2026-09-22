@@ -63,10 +63,34 @@ const UI: Record<Lang, Record<string, string>> = {
 
 interface Turn { who: 'bot' | 'me'; text: string; voice?: boolean; seconds?: number }
 
-export function VoiceJourney({ lang, onLang, onComplete }: {
+/** One question in a script. `field` is a profile field or a script turn key. */
+export interface VoiceStep { field: string; ask: Record<Lang, string> }
+
+/**
+ * The speech machinery — recognition, endpointing, read-back, typing fallback —
+ * is identical whether the questions come from the built-in profile script or
+ * from a role configuration. So the script and the three server calls are
+ * injectable, and default to the profile journey's own.
+ */
+export function VoiceJourney({
+  lang, onLang, onComplete,
+  script = SCRIPT,
+  interpret = interpretAnswer,
+  accept = (field: string) => acceptAnswer(field),
+  onFinished = auditVoiceCompleted,
+}: {
   lang: Lang;
   onLang: (l: Lang) => void;
-  onComplete: (answers: Record<Field, unknown>) => void;
+  onComplete: (answers: Record<string, unknown>) => void;
+  script?: VoiceStep[];
+  interpret?: (field: string, transcript: string, lang: Lang) => Promise<{
+    value: unknown; display: string; confidence: number;
+    needsConfirmation: boolean; understood: boolean;
+  }>;
+  /** Called once the candidate has accepted the answer. `ctx` carries what a
+   *  rubric scorer needs, which the default profile journey ignores. */
+  accept?: (field: string, ctx: { value: unknown; display: string; transcript: string }) => Promise<void>;
+  onFinished?: () => Promise<void>;
 }) {
   const t = UI[lang];
   const [index, setIndex] = useState(0);
@@ -86,10 +110,12 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
   /** One answer per listening session, whichever path finishes first. */
   const submitted = useRef(false);
   const startedAt = useRef(0);
+  /** The raw transcript behind the answer awaiting confirmation. */
+  const lastTranscript = useRef('');
   const bottom = useRef<HTMLDivElement>(null);
 
-  const step = SCRIPT[index];
-  const finished = index >= SCRIPT.length;
+  const step = script[index];
+  const finished = index >= script.length;
 
   useEffect(() => { bottom.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [turns, pendingConfirm]);
 
@@ -134,11 +160,12 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
   }, [index, lang, finished, step, speak]);
 
   async function handleTranscript(transcript: string) {
+    lastTranscript.current = transcript;
     const seconds = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
     setTurns((prev) => [...prev, { who: 'me', text: transcript, voice: !typing, seconds }]);
     setBusy(true); setError('');
     try {
-      const r = await interpretAnswer(step.field, transcript, lang);
+      const r = await interpret(step.field, transcript, lang);
       if (!r.understood) {
         setTurns((prev) => [...prev, { who: 'bot', text: t.unclear }]);
         speak(t.unclear);
@@ -156,14 +183,14 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
   }
 
   async function commit(value: unknown, display: string) {
-    await acceptAnswer(step.field).catch(() => {});
+    await accept(step.field, { value, display, transcript: lastTranscript.current }).catch(() => {});
     const next = { ...answers, [step.field]: value };
     setAnswers(next);
     setPendingConfirm(null);
     setTurns((prev) => [...prev, { who: 'bot', text: `✓ ${display}` }]);
-    if (index + 1 >= SCRIPT.length) {
-      await auditVoiceCompleted().catch(() => {});
-      onComplete(next as Record<Field, unknown>);
+    if (index + 1 >= script.length) {
+      await onFinished().catch(() => {});
+      onComplete(next);
     }
     setIndex((i) => i + 1);
   }
@@ -345,7 +372,7 @@ export function VoiceJourney({ lang, onLang, onComplete }: {
           </div>
           <p className="small">{t.review}:</p>
           <ul className="wa-voice-review">
-            {SCRIPT.map((s) => answers[s.field] !== undefined && (
+            {script.map((s) => answers[s.field] !== undefined && (
               <li key={s.field}><span>{s.field.replace(/([A-Z])/g, ' $1').toLowerCase()}</span>
                 <strong>{Array.isArray(answers[s.field]) ? (answers[s.field] as string[]).join(', ') : String(answers[s.field])}</strong></li>
             ))}

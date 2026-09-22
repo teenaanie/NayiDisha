@@ -149,7 +149,7 @@ export async function computeMatch(
   const rules = cfg.qualificationRules;
 
   // family needs cfg.roleFamilyKey/industryKey; attempt needs cfg.assessmentTemplateId.
-  const [[family], [attempt]] = await Promise.all([
+  const [[family], [attempt], [scriptRun]] = await Promise.all([
     sql`SELECT direct_tags,transferable,skill_mapping FROM app.role_family WHERE key=${cfg.roleFamilyKey} AND industry_key=${cfg.industryKey}`,
     sql<{ score: number; template_version: string }[]>`
       SELECT score, template_version FROM app.assessment_attempt
@@ -157,7 +157,25 @@ export async function computeMatch(
        AND template_id=${cfg.assessmentTemplateId}
        ORDER BY completed_at DESC, id DESC LIMIT 1
     `,
+    // A role assessed by script has its score here instead of in an attempt.
+    cfg.roleScriptId
+      ? sql<{ score: number; script_version: string }[]>`
+          SELECT score, script_version FROM app.script_run
+           WHERE candidate_id = ${candidateId} AND script_id = ${cfg.roleScriptId}
+             AND status = 'COMPLETED' AND score IS NOT NULL
+           ORDER BY completed_at DESC, id DESC LIMIT 1
+        `
+      : Promise.resolve([]),
   ]);
+
+  /**
+   * One assessment signal, whichever mechanism produced it. A script-assessed
+   * role reads its script run; every existing role still reads its attempt.
+   */
+  const assessed: { score: number; source: 'SCRIPT' | 'TEST' } | null =
+    cfg.roleScriptId
+      ? (scriptRun ? { score: scriptRun.score, source: 'SCRIPT' } : null)
+      : (attempt ? { score: attempt.score, source: 'TEST' } : null);
 
   const fixed = Number(job.fixed_pay_paise);
   const variableMax = Number(job.variable_max_paise);
@@ -195,9 +213,10 @@ export async function computeMatch(
   if (!app) bReasons.push('NO_APPLICATION');
   if (rules.requireReconfirmation && app && !app.reconfirmed_at) bReasons.push('INTEREST_NOT_RECONFIRMED');
   if (rules.minAssessmentScore !== null) {
-    if (!attempt) bReasons.push('ASSESSMENT_NOT_TAKEN');
-    else if (attempt.score < rules.minAssessmentScore) {
-      bReasons.push(`ASSESSMENT_BELOW_${rules.minAssessmentScore}`);
+    const scripted = cfg.roleScriptId !== null;
+    if (!assessed) bReasons.push(scripted ? 'SKILL_SCRIPT_NOT_TAKEN' : 'ASSESSMENT_NOT_TAKEN');
+    else if (assessed.score < rules.minAssessmentScore) {
+      bReasons.push(`${scripted ? 'SKILL_BELOW' : 'ASSESSMENT_BELOW'}_${rules.minAssessmentScore}`);
     }
   }
   if(rules.requireWorkAuthDeclaration && !cand.work_authorised) bReasons.push('WORK_AUTHORISATION_REQUIRED');
@@ -220,7 +239,7 @@ export async function computeMatch(
     language: scoreLanguage(cand.languages, job.languages),
     experience: scoreExperience(cand.experience_months, job.min_experience_mo),
     criticalSkills: scoreSkills(cand.experience_tags, job.critical_skills, family.skill_mapping),
-    assessment: attempt?.score ?? 0,
+    assessment: assessed?.score ?? 0,
   };
 
   const components: MatchComputation['components'] = {};
@@ -257,10 +276,10 @@ export async function computeMatch(
   else gaps.push('LIMITED_DIRECT_EXPERIENCE');
   if (raws.criticalSkills >= 80) explanation.push('STRONG_SKILLS');
   else if (raws.criticalSkills < 50) gaps.push('SKILL_GAPS');
-  if (attempt && rules.minAssessmentScore !== null) {
-    if (attempt.score >= 85) explanation.push('STRONG_ASSESSMENT');
-    else if (attempt.score >= rules.minAssessmentScore) explanation.push('ASSESSMENT_PASS');
-    else gaps.push(`ASSESSMENT_BELOW_${rules.minAssessmentScore}`);
+  if (assessed && rules.minAssessmentScore !== null) {
+    if (assessed.score >= 85) explanation.push('STRONG_ASSESSMENT');
+    else if (assessed.score >= rules.minAssessmentScore) explanation.push('ASSESSMENT_PASS');
+    else gaps.push(`${assessed.source === 'SCRIPT' ? 'SKILL_BELOW' : 'ASSESSMENT_BELOW'}_${rules.minAssessmentScore}`);
   }
   if (endorsementPoints > 0) explanation.push('VERIFIED_ENDORSEMENT');
   if (cand.experience_months === 0) gaps.push('FRESHER');
@@ -282,7 +301,13 @@ export async function computeMatch(
         languages: job.languages, minExperienceMo: job.min_experience_mo,
         criticalSkills: job.critical_skills, locality: job.loc_locality,
       },
-      assessment: attempt ? { score: attempt.score, templateVersion: attempt.template_version } : null,
+      // MATCH-06: the explanation must reproduce from what is stored here, so
+      // record which mechanism produced the score and at what version.
+      assessment: assessed
+        ? assessed.source === 'SCRIPT'
+          ? { score: assessed.score, source: 'SCRIPT', scriptVersion: scriptRun?.script_version ?? null }
+          : { score: assessed.score, source: 'TEST', templateVersion: attempt?.template_version ?? null }
+        : null,
       endorsementRawPoints: rawEndorsement,
       travelProvider: travel?.provider ?? null,
       configVersion: `${cfg.id}@${cfg.version}`,

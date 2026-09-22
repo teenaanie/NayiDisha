@@ -573,6 +573,69 @@ async function main() {
 
   await setClock(SEED_INSTANT);
 
+  // ---- role scripts: role-specific questions, rubric-scored ---------------
+  // A conversational script is an alternative to the multiple-choice template,
+  // so the things that must hold are: a script-only role can still publish, its
+  // score reaches Stage B and Stage C, and every rubric can actually be met.
+  const drCfg = await getRoleConfig('CFG-LOG-DR-1');
+  check('CFG-04', 'A role assessed by script alone can still be published',
+    (await validateRoleConfig('CFG-LOG-DR-1')).ok && drCfg.assessmentTemplateId === null,
+    `script ${drCfg.roleScriptId}, template ${drCfg.assessmentTemplateId}`);
+
+  const [drScript] = await sql<{ turns: { kind: string; maxScore?: number; rubric?: { points: number }[] }[]; ask_count: number }[]>`
+    SELECT turns, ask_count FROM app.role_script WHERE id='SCR-LOG-DR-1'`;
+  const drSkills = drScript.turns.filter((t) => t.kind === 'SKILL');
+  check('CFG-02', 'Every skill rubric can reach its own maximum score',
+    drSkills.every((t) => (t.rubric ?? []).reduce((a, c) => a + c.points, 0) === t.maxScore),
+    `${drSkills.length} skill questions, ${drScript.ask_count} asked per run`);
+
+  // A candidate who has taken the script but scored under the bar must fail
+  // Stage B on the script reason, not the multiple-choice one.
+  const scriptCand = await startRegistration({ phone: '+910000000077', language: 'en', method: 'DIRECT' });
+  await verifyAndBind(scriptCand.candidateId, null);
+  await grantConsent(scriptCand.candidateId, 'PROCESSING');
+  await completeProfile(scriptCand.candidateId, {
+    name: 'DEMO Script Rider', localityKey: 'hadapsar', age18: true, workAuthorised: true,
+    experienceMonths: 12, experienceTags: ['LAST_MILE_DELIVERY'], languages: ['mr', 'hi'],
+    currentPayPaise: null, expectedPayPaise: rupees(15000), maxCommuteMin: 45, shiftAvailability: ['ANY'],
+  });
+  await sql`UPDATE app.candidate SET role_config_id='CFG-LOG-DR-1' WHERE id=${scriptCand.candidateId}`;
+  for (const key of ['two_wheeler', 'riding_licence', 'smartphone_navigation']) {
+    await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_text,value_bool,collected_at)
+              VALUES(${await nextId('ATV')},${scriptCand.candidateId},${key},'CFG-LOG-DR-1',
+                     ${key === 'riding_licence' ? 'VALID' : null}, ${key === 'riding_licence' ? null : true}, ${SEED_INSTANT})`;
+  }
+
+  const beforeRun = await computeMatch(scriptCand.candidateId, 'JOB-102');
+  check('MATCH-08', 'A script-assessed role reports its own missing-assessment reason',
+    beforeRun.stageB.reasons.includes('SKILL_SCRIPT_NOT_TAKEN'),
+    beforeRun.stageB.reasons.join(', '));
+
+  const runId = await nextId('SRN');
+  await sql`INSERT INTO app.script_run(id,candidate_id,script_id,script_version,turn_keys,score,max_score,status,started_at,completed_at)
+            VALUES(${runId},${scriptCand.candidateId},'SCR-LOG-DR-1','1.0',${sql.json(['S1','S2','S3'] as never)},40,100,'COMPLETED',${SEED_INSTANT},${SEED_INSTANT})`;
+  const belowBar = await computeMatch(scriptCand.candidateId, 'JOB-102');
+  check('MATCH-08', 'A script score below the bar blocks qualification',
+    !belowBar.qualified && belowBar.stageB.reasons.includes('SKILL_BELOW_55'),
+    belowBar.stageB.reasons.join(', '));
+  check('MATCH-06', 'The script score feeds the ranking and is stored with its version',
+    belowBar.components.assessment.raw === 40
+      && (belowBar.inputs.assessment as { source?: string; scriptVersion?: string })?.source === 'SCRIPT'
+      && (belowBar.inputs.assessment as { scriptVersion?: string })?.scriptVersion === '1.0',
+    `raw ${belowBar.components.assessment.raw}, ${JSON.stringify(belowBar.inputs.assessment)}`);
+
+  await sql`UPDATE app.script_run SET score=80 WHERE id=${runId}`;
+  const aboveBar = await computeMatch(scriptCand.candidateId, 'JOB-102');
+  check('MATCH-08', 'Clearing the bar removes the script reason',
+    !aboveBar.stageB.reasons.some((r) => r.startsWith('SKILL_')),
+    aboveBar.stageB.reasons.join(', ') || 'no script reasons');
+
+  // The multiple-choice path must be untouched by any of this.
+  const mcq = await computeMatch('CAN-001', 'JOB-001');
+  check('MATCH-08', 'A template-assessed role still reads its assessment attempt',
+    (mcq.inputs.assessment as { source?: string })?.source === 'TEST',
+    JSON.stringify(mcq.inputs.assessment));
+
   // ---- §24: the unlock is the money path ---------------------------------
   // The unlock is the money path and the largest transaction in the app, so it
   // gets the same proof rather than an argument from code reading.

@@ -12,6 +12,10 @@ export function WorkspaceShell({children,role}:{children:React.ReactNode;role:st
  useEffect(()=>{setOpen(false);setQuery('');},[path]);
  useEffect(()=>{const close=(event:PointerEvent)=>{if(searchRef.current&&!searchRef.current.contains(event.target as Node))setQuery('');};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close);},[]);
  if(path.startsWith('/ops'))return <OpsShell role={role||'OPERATIONS'}>{children}</OpsShell>;
+ // The standalone applicant journey renders without any workspace chrome — no
+ // sidebar, topbar or breadcrumb. `nd-public` only hides the breadcrumb, so a
+ // bare return is the only way to give the page the whole viewport.
+ if(path==='/apply'||path.startsWith('/apply/'))return <>{children}</>;
  const section=path.split('/')[1];
  const tabs=section==='employer'?EMPLOYER_TABS:section==='partner'?PARTNER_TABS:section==='finance'?FINANCE_TABS:section==='wa'?[...CANDIDATE_TABS,{href:'/wa/suggestions',label:'Job suggestions'}]:null;
  const workspace=section==='employer'?'Employer':section==='partner'?'Partner':section==='finance'?'Finance':section==='wa'?'Candidate':'Platform';

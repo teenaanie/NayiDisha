@@ -1,15 +1,27 @@
-import {Icon} from '../ops/dashboard-icon';
-import {PhoneFrame} from './phone-frame';
+import {PhoneFrame} from '../wa/phone-frame';
 import {sql} from '@/lib/db';
 import {identity} from '@/lib/auth';
 import {readQuery} from '@/lib/read-query';
 import {Suspense} from 'react';
-import {SubNav,CANDIDATE_TABS} from '../subnav';
-import {Simulator} from './simulator';
+import {Simulator} from '../wa/simulator';
+import './apply.css';
+
 export const dynamic='force-dynamic';
-async function JourneyData({searchParams}:{searchParams:Promise<{code?:string;edit?:string}>}){
+
+/**
+ * The standalone applicant journey.
+ *
+ * Deliberately separate from /wa: no role switcher, no workspace sidebar, no
+ * demo banner. A job seeker who scans a printed QR or opens a shared link sees
+ * only this. `WorkspaceShell` early-returns for this section and the layout
+ * suppresses the demo clock banner, so the page owns the whole viewport.
+ *
+ * The journey itself is unchanged — the same server actions, the same
+ * attribution binding, the same step machine as /wa. Only the frame differs.
+ */
+async function ApplyData({searchParams}:{searchParams:Promise<{code?:string;edit?:string}>}){
  const {code,edit}=await searchParams;const actor=await identity();
- // One database round trip avoids queueing five reads behind the serverless pool.
+ // One round trip, matching /wa — five reads would queue behind the serverless pool.
  const [data]=await readQuery(sql`SELECT
  (SELECT COALESCE(json_agg(x),'[]'::json) FROM (SELECT rc.id,rc.role_family_key,rc.candidate_attributes,rc.version,rc.role_script_id,rf.display_name FROM app.role_configuration rc JOIN app.role_family rf ON rf.key=rc.role_family_key WHERE rc.status='PUBLISHED' ORDER BY rc.id) x) AS configs,
  (SELECT COALESCE(json_agg(x),'[]'::json) FROM (SELECT key,scope,data_type,display_name,translations,allowed_values FROM app.attribute_definition WHERE scope='CANDIDATE_ROLE') x) AS attributes,
@@ -24,9 +36,26 @@ async function JourneyData({searchParams}:{searchParams:Promise<{code?:string;ed
  return <Simulator configs={configs} attributes={attributes} localities={localities} jobs={jobs} resume={edit==='profile'&&profile?'profile':step} existing={profiles[0]||null} source={code||''}/>;
 }
 
-async function JourneyContent(props:{searchParams:Promise<{code?:string;edit?:string}>}){
- try{return await JourneyData(props);}catch{return <div className="wa-msg wa-in" role="alert"><strong>We could not connect to your profile.</strong><p>The demo database may be busy. Your saved details have not been changed.</p><a className="btn" href="/wa">Try again</a> <a href="/sign-in">Sign in again</a></div>;}
+async function ApplyContent(props:{searchParams:Promise<{code?:string;edit?:string}>}){
+ try{return await ApplyData(props);}catch{return <div className="wa-msg wa-in" role="alert"><strong>We could not connect right now.</strong><p>Please try again in a moment. Nothing you entered has been lost.</p><a className="btn" href="/apply">Try again</a></div>;}
 }
-export default function Journey(props:{searchParams:Promise<{code?:string;edit?:string}>}) {
- return <><SubNav tabs={CANDIDATE_TABS}/><main className="page"><div className="nd-journey-intro"><div className="nd-section-kicker">Your next chapter</div><h1>A better future starts with a hello.</h1><p>Build your profile and discover jobs through a simple conversation.</p><div className="nd-journey-features"><span><Icon name="shield"/>Free for job seekers</span><span><Icon name="lock"/>You control your details</span><span><Icon name="heart"/>At your own pace</span></div></div><PhoneFrame><Suspense fallback={<div className="wa-msg wa-in" role="status">Connecting to your demo profile…<p className="small">If the database does not respond, a retry option will appear.</p></div>}><JourneyContent {...props}/></Suspense></PhoneFrame></main></>;
+
+export default function Apply(props:{searchParams:Promise<{code?:string;edit?:string}>}) {
+ return <main className="nd-apply">
+  <header className="nd-apply-head">
+   <span className="nd-apply-sun">☀</span>
+   <div><strong>NayiDisha</strong><small>Jobs. Skills. Better Futures.</small></div>
+  </header>
+  <div className="nd-apply-intro">
+   <h1>Find work near you.</h1>
+   <p>Answer a few questions by voice or by typing. It takes about three minutes, and it is free.</p>
+   <ul className="nd-apply-points">
+    <li>Always free for job seekers</li>
+    <li>You choose what is shared</li>
+    <li>Speak in Marathi, Hindi or English</li>
+   </ul>
+  </div>
+  <PhoneFrame><Suspense fallback={<div className="wa-msg wa-in" role="status">Starting your conversation…</div>}><ApplyContent {...props}/></Suspense></PhoneFrame>
+  <footer className="nd-apply-foot">Demonstration build. Fictional data; no real messages are sent.</footer>
+ </main>;
 }

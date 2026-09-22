@@ -6,6 +6,7 @@ import { sql } from '@/lib/db';
 import { fmtDateTime } from '@/lib/clock';
 import {WorkspaceShell} from './workspace-shell';
 import {identity} from '@/lib/auth';
+import {headers} from 'next/headers';
 import './ops/operations.css';
 import './workspace.css';
 import './theme.css';
@@ -33,10 +34,14 @@ async function DemoBanner() {
 }
 export default async function RootLayout({children}:{children:React.ReactNode}) {
   const viewer=await identity();
+  // middleware.ts puts the pathname on every request so a server component can
+  // branch on it. The standalone applicant journey shows no demo clock banner —
+  // a job seeker is not an audience for the demo controls.
+  const standalone=(await headers()).get('x-page-path')?.startsWith('/apply')??false;
   return (
     <html lang="en" data-theme="light">
       <body className="nd-theme">
-        <Suspense fallback={<div className="demo-banner">Demo mode · loading clock…</div>}><DemoBanner /></Suspense>
+        {!standalone&&<Suspense fallback={<div className="demo-banner">Demo mode · loading clock…</div>}><DemoBanner /></Suspense>}
         <Suspense fallback={<main className="page">Opening your workspace…</main>}><WorkspaceShell role={viewer?.role||null}>{children}</WorkspaceShell></Suspense>
       </body>
     </html>

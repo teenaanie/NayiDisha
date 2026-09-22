@@ -13,9 +13,42 @@ import { sql } from '@/lib/db';
  * recording to store, leak or subject-access.
  */
 
-export type VoiceField =
-  | 'name' | 'locality' | 'experienceMonths' | 'skills'
-  | 'expectedPay' | 'commute' | 'shifts' | 'confirm';
+/**
+ * A field key. The seven profile fields plus 'confirm' are the core set, but a
+ * role script may ask about anything its configuration declares, so this is a
+ * string rather than a closed union. Unknown keys are rejected at the action
+ * boundary against the active script, not by the type.
+ */
+export type VoiceField = string;
+
+export const CORE_FIELDS = [
+  'name', 'locality', 'experienceMonths', 'skills',
+  'expectedPay', 'commute', 'shifts', 'confirm',
+] as const;
+
+export type CoreField = (typeof CORE_FIELDS)[number];
+
+export const isCoreField = (f: string): f is CoreField =>
+  (CORE_FIELDS as readonly string[]).includes(f);
+
+/**
+ * What a script turn expects back, so an interpreter can describe a field it
+ * has never seen. `expected` is the sentence handed to the model; the rule-based
+ * interpreter uses `dataType` and `allowedValues` instead.
+ */
+export interface FieldSpec {
+  key: string;
+  dataType: 'TEXT' | 'INT' | 'BOOL' | 'ENUM' | 'MULTI_ENUM' | 'MONEY_PAISE';
+  expected: string;
+  allowedValues?: string[];
+}
+
+export interface InterpretContext {
+  localities?: { key: string; display_name: string }[];
+  shifts?: string[];
+  /** Supplied for a script field; absent for the core eight. */
+  spec?: FieldSpec;
+}
 
 export type Language = 'en' | 'hi' | 'mr';
 
@@ -32,7 +65,7 @@ export interface Interpretation {
 export interface VoiceInterpreter {
   readonly name: string;
   interpret(field: VoiceField, transcript: string, language: Language,
-            context?: { localities?: { key: string; display_name: string }[]; shifts?: string[] }): Promise<Interpretation>;
+            context?: InterpretContext): Promise<Interpretation>;
 }
 
 export const CONFIRM_THRESHOLD = 0.72;
@@ -159,7 +192,7 @@ export class RuleBasedInterpreter implements VoiceInterpreter {
 
   async interpret(
     field: VoiceField, transcript: string, language: Language,
-    context: { localities?: { key: string; display_name: string }[]; shifts?: string[] } = {},
+    context: InterpretContext = {},
   ): Promise<Interpretation> {
     const t = transcript.trim();
     const out = (value: Interpretation['value'], display: string, confidence: number): Interpretation =>
@@ -272,6 +305,36 @@ export class RuleBasedInterpreter implements VoiceInterpreter {
         return out(hits, hits.map((s) => (s === 'ANY' ? 'Any shift' : s)).join(', '), 0.8);
       }
     }
+
+    // A script field. Handled by declared type rather than by name, so a new
+    // role attribute needs no code here. Confidence stays below
+    // CONFIRM_THRESHOLD throughout: without a model these are educated guesses
+    // and the candidate should always get to correct them.
+    const spec = context.spec;
+    if (!spec) return out(null, t, 0.2);
+    const lower = t.toLowerCase();
+
+    if (spec.dataType === 'BOOL') {
+      if (hasWord(lower, NO_LATIN, NO_DEV)) return out(false, t, 0.7);
+      if (hasWord(lower, YES_LATIN, YES_DEV)) return out(true, t, 0.7);
+      return out(null, t, 0.2);
+    }
+
+    if (spec.dataType === 'ENUM') {
+      const hit = (spec.allowedValues ?? []).find((v) => {
+        const words = v.toLowerCase().split('_').filter((w) => w.length > 2);
+        return words.some((w) => lower.includes(w));
+      });
+      return hit ? out(hit, hit, 0.7) : out(null, t, 0.2);
+    }
+
+    if (spec.dataType === 'INT' || spec.dataType === 'MONEY_PAISE') {
+      const n = parseNumber(t);
+      return n === null ? out(null, t, 0.2) : out(n, String(n), 0.7);
+    }
+
+    // Free text is never inferred — read it back verbatim and let them confirm.
+    return out(t, t, 0.5);
   }
 }
 
@@ -286,12 +349,12 @@ export class ClaudeInterpreter implements VoiceInterpreter {
 
   async interpret(
     field: VoiceField, transcript: string, language: Language,
-    context: { localities?: { key: string; display_name: string }[]; shifts?: string[] } = {},
+    context: InterpretContext = {},
   ): Promise<Interpretation> {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return this.fallback.interpret(field, transcript, language, context);
 
-    const schema: Record<VoiceField, string> = {
+    const schema: Record<string, string> = {
       name: 'a person\'s name as a string',
       locality: `one key from this list: ${(context.localities ?? []).map((l) => l.key).join(', ')}`,
       experienceMonths: 'total work experience as an integer number of months',
@@ -312,7 +375,7 @@ export class ClaudeInterpreter implements VoiceInterpreter {
         'Use null and low confidence when the answer is unclear or off-topic. Never invent a value.',
       messages: [{
         role: 'user',
-        content: `Field: ${field} (${schema[field]})\nSpeaker language: ${language}\nTranscript: ${JSON.stringify(transcript)}`,
+        content: `Field: ${field} (${schema[field] ?? context.spec?.expected ?? 'the value the question asked for'})\nSpeaker language: ${language}\nTranscript: ${JSON.stringify(transcript)}`,
       }],
     };
 
@@ -364,12 +427,12 @@ export class GeminiInterpreter implements VoiceInterpreter {
 
   async interpret(
     field: VoiceField, transcript: string, language: Language,
-    context: { localities?: { key: string; display_name: string }[]; shifts?: string[] } = {},
+    context: InterpretContext = {},
   ): Promise<Interpretation> {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return this.fallback.interpret(field, transcript, language, context);
 
-    const expected: Record<VoiceField, string> = {
+    const expected: Record<string, string> = {
       name: 'the person\'s name, as a string',
       locality: `exactly one key from this list: ${(context.localities ?? []).map((l) => l.key).join(', ')}`,
       experienceMonths: 'total work experience as an integer number of MONTHS (convert years)',
@@ -383,7 +446,7 @@ export class GeminiInterpreter implements VoiceInterpreter {
     const prompt =
       'You extract one field from a spoken answer by an Indian frontline job seeker. ' +
       'They speak English, Hindi or Marathi and often mix them. ' +
-      `Field: ${field} — ${expected[field]}. Speaker language: ${language}.\n` +
+      `Field: ${field} — ${expected[field] ?? context.spec?.expected ?? 'the value the question asked for'}. Speaker language: ${language}.\n` +
       `Transcript: ${JSON.stringify(transcript)}\n` +
       'Return null for value and a low confidence when the answer is unclear, off-topic or absent. ' +
       'Never invent a value. "display" must be a short confirmation phrase in the speaker\'s own language.';
