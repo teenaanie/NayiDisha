@@ -601,11 +601,19 @@ async function main() {
   });
   await sql`UPDATE app.candidate SET role_config_id='CFG-LOG-DR-1' WHERE id=${scriptCand.candidateId}`;
   for (const key of ['two_wheeler', 'riding_licence', 'smartphone_navigation']) {
+    // The suite must survive a second run: startRegistration returns the same
+    // candidate for a phone it has seen before, so these rows already exist.
     await sql`INSERT INTO app.candidate_attribute_value(id,candidate_id,attribute_key,role_config_id,value_text,value_bool,collected_at)
               VALUES(${await nextId('ATV')},${scriptCand.candidateId},${key},'CFG-LOG-DR-1',
-                     ${key === 'riding_licence' ? 'VALID' : null}, ${key === 'riding_licence' ? null : true}, ${SEED_INSTANT})`;
+                     ${key === 'riding_licence' ? 'VALID' : null}, ${key === 'riding_licence' ? null : true}, ${SEED_INSTANT})
+              ON CONFLICT (candidate_id, attribute_key) DO UPDATE SET
+                value_text=EXCLUDED.value_text, value_bool=EXCLUDED.value_bool, collected_at=EXCLUDED.collected_at`;
   }
 
+  // A repeat run would otherwise still carry the previous run's score, and the
+  // whole point of this check is the state where no script has been taken.
+  await sql`DELETE FROM app.script_response WHERE candidate_id=${scriptCand.candidateId}`;
+  await sql`DELETE FROM app.script_run WHERE candidate_id=${scriptCand.candidateId}`;
   const beforeRun = await computeMatch(scriptCand.candidateId, 'JOB-102');
   check('MATCH-08', 'A script-assessed role reports its own missing-assessment reason',
     beforeRun.stageB.reasons.includes('SKILL_SCRIPT_NOT_TAKEN'),

@@ -72,7 +72,9 @@ export class KeywordSkillScorer implements SkillScorer {
     'does','do','without','back','than','that','this','with','from','into','about',
   ]);
 
-  async score(turn: SkillTurn, transcript: string, _language: Language): Promise<SkillScore> {
+  /** `cause` explains why this ran instead of a model, so the flag is actionable. */
+  async score(turn: SkillTurn, transcript: string, _language: Language,
+              cause = 'No model was configured'): Promise<SkillScore> {
     const text = transcript.toLowerCase();
     if (!text.trim()) {
       return { score: 0, maxScore: turn.maxScore, credits: [], confidence: 0,
@@ -97,12 +99,18 @@ export class KeywordSkillScorer implements SkillScorer {
       credits,
       confidence: KEYWORD_MAX_CONFIDENCE,
       reasoning: credits.length
-        ? `Keyword match only. Words from these rubric credits appeared: ${credits.join('; ')}. No model was available, so this needs review.`
-        : 'Keyword match only. No rubric credit matched. No model was available, so this needs review.',
+        ? `Keyword match only (${cause}). Words from these rubric credits appeared: ${credits.join('; ')}. Needs review.`
+        : `Keyword match only (${cause}). No rubric credit matched. Needs review.`,
       scorer: this.name,
     };
   }
 }
+
+
+/** Free-tier quotas are per-minute, so a burst trips them; one retry clears it. */
+const RETRY_AFTER_MS = 3500;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const transient = (status: number) => status === 429 || status >= 500;
 
 /** Shared prompt. The rubric travels verbatim so the model grades the real thing. */
 function buildPrompt(turn: SkillTurn, transcript: string, language: Language): string {
@@ -145,35 +153,59 @@ function coerce(raw: unknown, turn: SkillTurn, scorer: string): SkillScore | nul
   };
 }
 
-/** Gemini 2.5 Flash. Free tier, which is what makes this demonstrable at all. */
+/**
+ * Gemini. Free tier, which is what makes this demonstrable at all.
+ *
+ * The free quota is per DAY and per MODEL, and it is small — 2.5-flash allows
+ * 20 generate calls a day, which is roughly six scored runs. flash-lite carries
+ * its own separate allowance and is more than capable of grading against an
+ * explicit rubric, so it is the default; GEMINI_MODEL overrides it.
+ */
 export class GeminiSkillScorer implements SkillScorer {
-  readonly name = 'gemini-2.5-flash';
+  readonly model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  readonly name = this.model;
   private fallback = new KeywordSkillScorer();
 
   async score(turn: SkillTurn, transcript: string, language: Language): Promise<SkillScore> {
     const key = process.env.GEMINI_API_KEY;
     if (!key) return this.fallback.score(turn, transcript, language);
 
+    const call = () => fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: buildPrompt(turn, transcript, language) }] }],
+          generationConfig: {
+            temperature: 0,
+            responseMimeType: 'application/json',
+            // Grading against an explicit rubric does not need extended
+            // reasoning, and the thinking tokens were pushing past the timeout
+            // on exactly the nuanced answers this is here to judge.
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+        signal: AbortSignal.timeout(12000),
+      },
+    );
+
     try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: buildPrompt(turn, transcript, language) }] }],
-            generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-          }),
-          signal: AbortSignal.timeout(8000),
-        },
-      );
-      if (!res.ok) return this.fallback.score(turn, transcript, language);
+      let res = await call();
+      if (transient(res.status)) { await sleep(RETRY_AFTER_MS); res = await call(); }
+      if (!res.ok) {
+        const why = res.status === 429
+          ? `${this.model} free-tier quota exhausted (the allowance is per day, per model)`
+          : `${this.model} returned HTTP ${res.status}`;
+        return this.fallback.score(turn, transcript, language, why);
+      }
       const body = await res.json();
       const text = body?.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = coerce(JSON.parse(String(text)), turn, this.name);
-      return parsed ?? await this.fallback.score(turn, transcript, language);
-    } catch {
-      return this.fallback.score(turn, transcript, language);
+      return parsed ?? await this.fallback.score(turn, transcript, language, `${this.model} returned an unreadable response`);
+    } catch (e) {
+      const why = e instanceof Error && e.name === 'TimeoutError' ? `${this.model} timed out` : `${this.model} was unreachable`;
+      return this.fallback.score(turn, transcript, language, why);
     }
   }
 }

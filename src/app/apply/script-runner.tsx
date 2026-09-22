@@ -73,7 +73,7 @@ export function ScriptRunner({ lang, onLang, jobId, jobTitle }: {
       onLang={onLang}
       script={steps}
       interpret={(field, transcript, l) => interpretScriptAnswer(field, transcript, l)}
-      accept={(field, ctx) => acceptScriptAnswer(field, ctx.transcript, lang, ctx.value, ctx.display)}
+      accept={(field, ctx) => acceptScriptAnswer(field, ctx.transcript, lang, ctx.value, ctx.display, ctx.confidence)}
       onFinished={async () => { const r = await finishScript(); setResult(r); }}
       onComplete={() => {}}
     />

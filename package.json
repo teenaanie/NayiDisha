@@ -11,7 +11,8 @@
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
     "db:reset": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --reset && tsx --env-file-if-exists=.env.local scripts/seed.ts",
     "test": "tsx --env-file-if-exists=.env.local scripts/acceptance.ts",
-    "test:serverless": "PG_POOL_MAX=1 tsx --env-file-if-exists=.env.local scripts/acceptance.ts"
+    "test:serverless": "PG_POOL_MAX=1 tsx --env-file-if-exists=.env.local scripts/acceptance.ts",
+    "dev:preview": "next dev -p 3100"
   },
   "dependencies": {
     "next": "^15.5.25",

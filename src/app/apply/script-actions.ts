@@ -2,7 +2,7 @@
 import { sql } from '@/lib/db';
 import { requireRole, auditAction } from '@/lib/auth';
 import { choice } from '@/lib/validation';
-import { voiceInterpreter, interpreterContext, CONFIRM_THRESHOLD, type Language, type FieldSpec } from '@/modules/adapters/voice';
+import { voiceInterpreter, RuleBasedInterpreter, interpreterContext, CONFIRM_THRESHOLD, type Language, type FieldSpec } from '@/modules/adapters/voice';
 import {
   scriptForConfig, startRun, activeRun, recordResponse, completeRun,
   type ScriptTurn, type RoleScript,
@@ -70,7 +70,21 @@ export async function interpretScriptAnswer(turnKey: string, transcript: string,
     expected: turn.expected, allowedValues: turn.allowedValues,
   };
   const base = await interpreterContext();
-  const r = await voiceInterpreter().interpret(turn.key, transcript.trim(), lang, { ...base, spec });
+  const ctx = { ...base, spec };
+
+  // Rules first, model only if they cannot read it. The free quota is small and
+  // per day, and the three rubric gradings in this same run are where a model
+  // genuinely earns its place. Most answers here are a plain yes or no and the
+  // rules settle them for nothing — but "roz google maps use karta hoon" has no
+  // yes-token in it at all, and only a model gets that right, so an unparsed
+  // answer still escalates rather than being thrown away.
+  const simple = turn.dataType === 'BOOL' || turn.dataType === 'ENUM';
+  let r = await (simple ? new RuleBasedInterpreter() : voiceInterpreter())
+    .interpret(turn.key, transcript.trim(), lang, ctx);
+  if (simple && r.value === null) {
+    const model = voiceInterpreter();
+    if (model.name !== 'rule-based@1.0') r = await model.interpret(turn.key, transcript.trim(), lang, ctx);
+  }
   return {
     value: r.value, display: r.display, confidence: r.confidence,
     needsConfirmation: r.confidence < CONFIRM_THRESHOLD || r.value === null,
@@ -79,7 +93,7 @@ export async function interpretScriptAnswer(turnKey: string, transcript: string,
 }
 
 /** Persist an accepted answer: the attribute write-through, or the rubric score. */
-export async function acceptScriptAnswer(turnKey: string, transcript: string, language: string, value?: unknown, display?: string) {
+export async function acceptScriptAnswer(turnKey: string, transcript: string, language: string, value?: unknown, display?: string, confidence?: number) {
   const c = await candidate();
   const lang = choice(language, LANGS, 'language') as Language;
   if (typeof transcript !== 'string' || !transcript.trim()) throw new Error('Nothing to save.');
@@ -89,6 +103,7 @@ export async function acceptScriptAnswer(turnKey: string, transcript: string, la
     runId, candidateId: c.id, turn, roleConfigId,
     transcript: transcript.trim(), language: lang,
     interpreted: turn.kind === 'ATTRIBUTE' ? { value: value ?? null, display: String(display ?? '') } : undefined,
+    confidence: typeof confidence === 'number' ? Math.max(0, Math.min(1, confidence)) : 0,
   });
 }
 

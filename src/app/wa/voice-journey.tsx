@@ -89,7 +89,7 @@ export function VoiceJourney({
   }>;
   /** Called once the candidate has accepted the answer. `ctx` carries what a
    *  rubric scorer needs, which the default profile journey ignores. */
-  accept?: (field: string, ctx: { value: unknown; display: string; transcript: string }) => Promise<void>;
+  accept?: (field: string, ctx: { value: unknown; display: string; transcript: string; confidence: number }) => Promise<void>;
   onFinished?: () => Promise<void>;
 }) {
   const t = UI[lang];
@@ -97,7 +97,7 @@ export function VoiceJourney({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [pendingConfirm, setPendingConfirm] = useState<{ value: unknown; display: string } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{ value: unknown; display: string; confidence: number } | null>(null);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [error, setError] = useState('');
   const [typing, setTyping] = useState(false);
@@ -173,17 +173,17 @@ export function VoiceJourney({
         const line = `${t.heard}: ${r.display}`;
         setTurns((prev) => [...prev, { who: 'bot', text: line }]);
         speak(line);
-        setPendingConfirm({ value: r.value, display: r.display });
+        setPendingConfirm({ value: r.value, display: r.display, confidence: r.confidence });
       } else {
-        await commit(r.value, r.display);
+        await commit(r.value, r.display, r.confidence);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Please try again.');
     } finally { setBusy(false); }
   }
 
-  async function commit(value: unknown, display: string) {
-    await accept(step.field, { value, display, transcript: lastTranscript.current }).catch(() => {});
+  async function commit(value: unknown, display: string, confidence = 0) {
+    await accept(step.field, { value, display, transcript: lastTranscript.current, confidence }).catch(() => {});
     const next = { ...answers, [step.field]: value };
     setAnswers(next);
     setPendingConfirm(null);
@@ -324,7 +324,7 @@ export function VoiceJourney({
           {pendingConfirm ? (
             <div className="btnrow">
               <button type="button" className="btn btn-primary" disabled={busy}
-                      onClick={() => commit(pendingConfirm.value, pendingConfirm.display)}>{t.correct}</button>
+                      onClick={() => commit(pendingConfirm.value, pendingConfirm.display, pendingConfirm.confidence)}>{t.correct}</button>
               <button type="button" className="btn" disabled={busy}
                       onClick={() => { setPendingConfirm(null); setTurns((p) => [...p, { who: 'bot', text: step.ask[lang] }]); speak(step.ask[lang]); }}>{t.retry}</button>
             </div>

@@ -422,7 +422,10 @@ export class ClaudeInterpreter implements VoiceInterpreter {
  * comprehension one.
  */
 export class GeminiInterpreter implements VoiceInterpreter {
-  readonly name = 'gemini-2.5-flash';
+  /** Free quota is per day AND per model, so this shares GEMINI_MODEL with the
+   *  rubric scorer: one exhausted model must not silently take out both. */
+  readonly model = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+  readonly name = this.model;
   private fallback = new RuleBasedInterpreter();
 
   async interpret(
@@ -453,7 +456,7 @@ export class GeminiInterpreter implements VoiceInterpreter {
 
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },

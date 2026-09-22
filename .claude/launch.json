@@ -1,6 +1,15 @@
 {
   "version": "0.0.1",
+  "autoPort": true,
   "configurations": [
-    { "name": "nayidisha-dev", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000 }
+    {
+      "name": "nayidisha-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:preview"
+      ],
+      "port": 3100
+    }
   ]
 }

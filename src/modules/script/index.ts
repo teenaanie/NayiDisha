@@ -101,10 +101,18 @@ export async function activeRun(candidateId: string, scriptId: string) {
   const [row] = await sql<{ id: string; turn_keys: string[] }[]>`
     SELECT id, turn_keys FROM app.script_run
      WHERE candidate_id=${candidateId} AND script_id=${scriptId} AND status='IN_PROGRESS'
-     ORDER BY started_at DESC LIMIT 1
+     ORDER BY started_at DESC, id DESC LIMIT 1
   `;
   return row ?? null;
 }
+
+/**
+ * An interpreter may hand back a real boolean or the string "false" — the
+ * LLM paths return strings. Boolean("false") is true, so coercing naively
+ * would record a candidate's "no" as a "yes".
+ */
+const asBool = (v: unknown): boolean =>
+  typeof v === 'boolean' ? v : String(v).trim().toLowerCase() === 'true';
 
 /**
  * Record one answer.
@@ -116,6 +124,8 @@ export async function activeRun(candidateId: string, scriptId: string) {
 export async function recordResponse(opts: {
   runId: string; candidateId: string; turn: ScriptTurn; roleConfigId: string;
   transcript: string; language: Language; interpreted?: { value: unknown; display: string };
+  /** How sure the interpreter was, for an ATTRIBUTE turn. */
+  confidence?: number;
 }): Promise<{ id: string; score: SkillScore | null }> {
   const at = await now();
   const id = await nextId('SRP');
@@ -130,7 +140,7 @@ export async function recordResponse(opts: {
           (id, candidate_id, attribute_key, role_config_id, value_text, value_bool, value_int, collected_at)
         VALUES (${await nextId('ATV')}, ${opts.candidateId}, ${opts.turn.attributeKey}, ${opts.roleConfigId},
                 ${isBool || isInt ? null : String(value)},
-                ${isBool ? Boolean(value) : null},
+                ${isBool ? asBool(value) : null},
                 ${isInt ? Number(value) : null}, ${at})
         ON CONFLICT (candidate_id, attribute_key) DO UPDATE SET
           role_config_id=EXCLUDED.role_config_id, value_text=EXCLUDED.value_text,
@@ -142,7 +152,7 @@ export async function recordResponse(opts: {
       INSERT INTO app.script_response
         (id, run_id, candidate_id, turn_key, kind, language, transcript, interpreted, confidence, accepted, created_at)
       VALUES (${id}, ${opts.runId}, ${opts.candidateId}, ${opts.turn.key}, 'ATTRIBUTE', ${opts.language},
-              ${opts.transcript}, ${sql.json((opts.interpreted ?? null) as never)}, 0, TRUE, ${at})
+              ${opts.transcript}, ${sql.json((opts.interpreted ?? null) as never)}, ${opts.confidence ?? 0}, TRUE, ${at})
     `;
     return { id, score: null };
   }
@@ -187,7 +197,7 @@ export async function latestScore(candidateId: string, scriptId: string) {
     SELECT score, script_version FROM app.script_run
      WHERE candidate_id=${candidateId} AND script_id=${scriptId}
        AND status='COMPLETED' AND score IS NOT NULL
-     ORDER BY completed_at DESC LIMIT 1
+     ORDER BY completed_at DESC, id DESC LIMIT 1
   `;
   return row ?? null;
 }
@@ -201,6 +211,6 @@ export async function runDetail(candidateId: string) {
       FROM app.script_run r
       LEFT JOIN app.script_response p ON p.run_id = r.id
      WHERE r.candidate_id = ${candidateId}
-     ORDER BY r.started_at DESC, p.created_at
+     ORDER BY r.started_at DESC, r.id DESC, p.created_at
   `;
 }

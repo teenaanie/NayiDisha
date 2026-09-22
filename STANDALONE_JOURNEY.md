@@ -45,8 +45,41 @@ multiple-choice step. A configuration without one is completely unaffected.
 
 ## Scoring, and how far to trust it
 
-`src/modules/adapters/scoring.ts` picks Gemini 2.5 Flash when `GEMINI_API_KEY`
-is set, Claude when `ANTHROPIC_API_KEY` is, and a keyword matcher otherwise.
+`src/modules/adapters/scoring.ts` picks Gemini when `GEMINI_API_KEY` is set,
+Claude when `ANTHROPIC_API_KEY` is, and a keyword matcher otherwise.
+
+### The free quota is far smaller than it looks
+
+Measured against a real key, not read off a pricing page:
+
+```
+QUOTA: GenerateRequestsPerDayPerProjectPerModel-FreeTier
+metric: generate_content_free_tier_requests
+value:  20
+```
+
+**Twenty generate calls per day, per model, per project** — not per minute, and
+nowhere near the 500/day the docs imply. At three graded answers per run that is
+about six scored runs a day before everything silently drops to keywords.
+
+The allowance is **per model**, so `gemini-2.5-flash` and
+`gemini-2.5-flash-lite` have separate buckets. The default is therefore
+`gemini-2.5-flash-lite`, which grades an explicit rubric perfectly well and
+leaves flash's allowance untouched. Override with `GEMINI_MODEL`.
+
+Two things keep a run inside that budget:
+
+- **Rules first, model only on a miss.** A yes/no or pick-one answer is read by
+  the rule-based interpreter for nothing. Only an answer it cannot parse —
+  "roz google maps use karta hoon" has no yes-token in it at all — escalates to
+  the model. That halves the calls a run makes without losing comprehension.
+- **Thinking disabled for grading.** `thinkingBudget: 0` took scoring from
+  timing out at 8s to answering in about 1.5s, and made the nuanced cases
+  (a flat negation) land correctly rather than falling back.
+
+When the quota does run out the run still completes, every answer is flagged,
+and the stored reason says exactly why: *"gemini-2.5-flash-lite free-tier quota
+exhausted (the allowance is per day, per model)"*.
 
 **The keyword fallback is weak on purpose and says so.** It cannot tell "I would
 refuse the money" from "I would not refuse the money", so its confidence is
@@ -58,8 +91,13 @@ verbatim transcript, the rubric credits awarded, the scorer and its reasoning.
 the journey dead-ends whenever no model is reachable — but it means a
 keyword-scored candidate can qualify. Worth revisiting before real applicants.
 
-No model key was set when this was built, so the Gemini and Claude paths compile
-and fall back correctly but have not been exercised against a live model.
+Verified against a live key. A rider run answered entirely in Hinglish scored
+67/100: 25/25 for a full answer on an unmarked address, 25/25 for route
+planning, and 0/25 — flagged for review — for "I would just leave it at the gate
+and go" given to the cash-on-delivery question. The keyword matcher scores that
+same Hinglish class of answer 0, which is the difference a model makes here.
+
+The Claude path compiles and falls back correctly but has not been exercised.
 
 ## Where the score goes
 
@@ -90,6 +128,13 @@ because a rubric-scored conversation is a real signal. Weights still total 100.
 4. **`capture-demo.ts` accepts an explicit declaration.** It required a database
    literally named `nayidisha_test`. It now also accepts `ALLOW_DEMO_RESET=true`,
    the flag that already authorises dropping the schema.
+5. **A spoken "no" could be recorded as "yes".** The LLM interpreters return the
+   *string* `"false"` for a boolean field, and `Boolean("false")` is `true`. Any
+   model-read negative answer would have been stored as affirmative.
+6. **"Latest run" was non-deterministic.** Run lookups ordered by `started_at`,
+   which comes from the demo clock and is frozen during a demo, so every run
+   shares a timestamp. Matching could read a stale score. Ordering now falls
+   back to the sequential id, as the assessment lookup already did.
 
 ## Verification
 
