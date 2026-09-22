@@ -12,3 +12,4 @@ tsconfig.tsbuildinfo
 .claude/worktrees/
 .claude/skills/
 .vercel
+.env*
