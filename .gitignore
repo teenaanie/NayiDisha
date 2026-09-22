@@ -7,3 +7,7 @@ pgdata/
 # build artefact
 tsconfig.tsbuildinfo
 .DS_Store
+
+# Claude worktrees and downloaded skills live here; never commit them.
+.claude/worktrees/
+.claude/skills/

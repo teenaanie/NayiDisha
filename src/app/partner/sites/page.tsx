@@ -62,7 +62,7 @@ export default async function SitesPage({
                   </tbody>
                 </table></div>
                 <div className="btnrow mt">
-                  <a className="btn btn-sm btn-primary" href={`/j/${s.qr_token}`}>Open the candidate journey</a>
+                  <a className="btn btn-sm btn-primary" href={`/apply/q/${s.qr_token}`}>Open the candidate journey</a>
                 </div>
               </div>
             </div>

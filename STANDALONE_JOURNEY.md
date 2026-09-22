@@ -16,6 +16,11 @@ npm run dev
 | `/apply?code=DCS101` | Partner-code entry. |
 | `/apply/q/qr_DCS101_7K2QX` | Printed-QR entry — redirects to `/apply?code=…`. |
 
+The Partner console's QR image, its **Copy link** button and its **Open the
+candidate journey** button all now point here. `/j/<token>` still resolves to the
+old `/wa` journey, so anything already printed keeps working and the founder
+demo is unchanged.
+
 Register with an **unseeded** number (`+910000000091` upward; `…0001`–`…0010`
 are existing candidates). OTP is `123456`.
 
