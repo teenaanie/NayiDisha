@@ -1,0 +1,9 @@
+# Netlify build for the Next.js app. The plugin turns the App Router's dynamic
+# routes into Netlify functions; every page here is force-dynamic because the
+# demo clock and the database drive them.
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
