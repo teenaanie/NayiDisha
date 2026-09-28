@@ -25,8 +25,12 @@ import {
 import {
   editJob, setJobState, duplicateJob, createEndorsementInvite, submitEndorsement,
   withdrawEndorsement, setEndorsementHidden, updatePreferences, resumePoint,
-  raiseDataRequest, acceptConduct,
+  raiseDataRequest, acceptConduct, resolveDataRequest,
 } from '../src/modules/lifecycle';
+import { loadScenario, startSession, learnerTurn, endSession } from '../src/modules/simulation';
+import { gatherEvidence, ruleScores } from '../src/modules/simulation/rules';
+import { sendInvites, handleInviteReply, handleFlowSubmission } from '../src/modules/registration';
+import { storageProvider } from '../src/modules/adapters/storage';
 
 let pass = 0, fail = 0;
 const results: { clause: string; name: string; ok: boolean; detail: string }[] = [];
@@ -274,7 +278,7 @@ async function main() {
 
   // ---- demo hygiene --------------------------------------------------------
   const [routable] = await sql<{ n: string }[]>`
-    SELECT COUNT(*)::text n FROM app.candidate WHERE phone !~ '^\\+9100000000'`;
+    SELECT COUNT(*)::text n FROM app.candidate WHERE phone !~ '^\\+9100000000' AND phone NOT LIKE 'erased-%'`;  // erasure replaces the number with a non-number
   check('§22', 'All demo phone numbers stay in the non-routable range', routable.n === '0', `${routable.n} outside range`);
 
   const [undemo] = await sql<{ n: string }[]>`
@@ -665,6 +669,91 @@ async function main() {
     await sql`DELETE FROM app.qualified_lead_unlock WHERE id = ${u}`;
     await sql`UPDATE app.application SET status='QUALIFIED'
                WHERE candidate_id='CAN-005' AND job_id='JOB-001'`;
+  }
+
+  // ---- sales practice: AI customer + separate evaluator ------------------
+  {
+  // Model keys are cleared for this block so the rule-based customer and
+  // evaluator run: the checks must be deterministic and free.
+  const savedKeys = Object.fromEntries(['GEMINI_API_KEY', 'ANTHROPIC_API_KEY', 'SARVAM_API_KEY'].map((k) => [k, process.env[k]]));
+  for (const k of Object.keys(savedKeys)) delete process.env[k];
+  const edu = await loadScenario('EDU_DISCOVERY_001');
+  check('SIM-01', 'The practice rubric can reach its maximum of 30',
+    edu.rubric.length * 5 === 30 && edu.bands.some((b) => b.min === 25), `${edu.rubric.length} dimensions`);
+  const said = (text: string) => [{ seq: 1, speaker: 'LEARNER' as const, text, textEn: text, revealedKeys: [] }];
+  const flagged = (text: string) => gatherEvidence(edu, said(text)).riskFlags.map((f) => f.rule);
+  check('SIM-02', 'Promising approval is flagged, in English and Hinglish',
+    flagged('Your loan will definitely be approved.').includes('guaranteed_approval') && flagged('Sir, pakka approve ho jayega').includes('guaranteed_approval'),
+    `${flagged('Your loan will definitely be approved.')} / ${flagged('Sir, pakka approve ho jayega')}`);
+  check('SIM-02', 'Saying approval is not guaranteed is not a risk',
+    flagged('Approval is not guaranteed; it depends on the bank assessment.').length === 0, 'negated');
+  const volunteered = gatherEvidence(edu, [...said('Okay, noted.'),
+    { seq: 2, speaker: 'CUSTOMER', text: 'She applied for a scholarship.', textEn: 'She applied for a scholarship.', revealedKeys: ['scholarship'] }]);
+  check('SIM-03', 'Facts the customer volunteers earn no discovery credit',
+    !volunteered.coverage.find((c) => c.key === 'scholarship')!.asked && ruleScores(edu, volunteered).find((d) => d.key === 'cost_gap')!.score === 1, 'scholarship not credited');
+
+  // ---- WhatsApp self-registration -----------------------------------------
+  const regPhone = '+910000000461';
+  const [invite] = await sendInvites('OPS-TEST', [regPhone], 'hi');
+  await handleInviteReply({ token: invite.token }, true, 'हाँ, दिखाइए');
+  const regPayload = {
+    consent_processing: true, consent_alerts: true, full_name: 'DEMO Meera Kulkarni', email: 'meera@example.test',
+    pin_code: '411038', date_of_birth: '1998-04-12', gender: 'FEMALE', highest_qualification: 'GRADUATE',
+    experience_years: '3', current_industry: 'BFSI', current_job_role: 'Tele-caller', current_company: 'DEMO Finserv',
+    languages_known: ['mr', 'hi', 'gu'], current_salary: '16000', expected_salary: '21000',
+  };
+  const store = storageProvider();
+  const key = `resumes/${invite.token}/acceptance.pdf`;
+  await store.put(key, new TextEncoder().encode('%PDF-1.4 acceptance resume'), 'application/pdf');
+  const resumeMeta = { objectKey: key, storage: store.name, filename: 'meera.pdf', mime: 'application/pdf', sizeBytes: 26 };
+  let underage = '';
+  try { await handleFlowSubmission({ token: invite.token }, { ...regPayload, date_of_birth: '2012-01-01' }, resumeMeta, '/sign-in'); } catch (e) { underage = (e as Error).message; }
+  check('REG-01', 'The WhatsApp form refuses anyone under 18', /18/.test(underage), underage);
+  const reg = await handleFlowSubmission({ token: invite.token }, regPayload, resumeMeta, '/sign-in');
+  const [regRow] = await sql`SELECT c.status, c.mobile_verified_at, c.locality_key, c.experience_months, c.current_pay_paise, c.languages,
+      (SELECT count(*)::int FROM app.consent_record r WHERE r.candidate_id=c.id AND r.purpose='PROCESSING' AND r.withdrawn_at IS NULL) consent,
+      (SELECT count(*)::int FROM app.candidate_resume r WHERE r.candidate_id=c.id) resumes,
+      (SELECT body FROM app.message_log m WHERE m.candidate_id=c.id AND m.template_key='registration_link') link
+    FROM app.candidate c WHERE c.id=${reg.candidateId}`;
+  check('REG-02', 'A form submission registers the candidate with consent, resume and a sign-in link',
+    regRow.status === 'PROFILE_INCOMPLETE' && !!regRow.mobile_verified_at && regRow.consent === 1 && regRow.resumes === 1 && /sign-in/.test(regRow.link ?? ''),
+    `${regRow.status}, consent ${regRow.consent}, resumes ${regRow.resumes}`);
+  check('REG-03', 'Form answers land in the matching fields (pin code to locality, years to months, pay in paise)',
+    regRow.locality_key === 'kothrud' && regRow.experience_months === 36 && Number(regRow.current_pay_paise) === 1600000 && regRow.languages.includes('gu'),
+    `${regRow.locality_key}, ${regRow.experience_months} months`);
+  const again = await handleFlowSubmission({ token: invite.token }, regPayload, resumeMeta, '/sign-in');
+  const [second] = await sendInvites('OPS-TEST', [regPhone], 'en');
+  const [{ n: samePhone }] = await sql`SELECT count(*)::int n FROM app.candidate WHERE phone=${regPhone}`;
+  check('REG-04', 'A repeated submission or invite never creates a second candidate',
+    again.duplicate && second.status === 'ALREADY_REGISTERED' && samePhone === 1, `${second.status}, ${samePhone} row`);
+  check('REG-05', 'A registered candidate resumes at the profile step', (await resumePoint(reg.candidateId)).step === 'profile', '');
+
+  // The same candidate practises, so erasure can be checked across both features.
+  const { sessionId: simId } = await startSession(reg.candidateId, 'EDU_DISCOVERY_001', 'en');
+  const turn = await learnerTurn(reg.candidateId, simId, 'What is the total cost of the course, including hostel?', 'TEXT', null);
+  const [simRow] = await sql`SELECT revealed FROM app.simulation_session WHERE id=${simId}`;
+  check('SIM-04', 'The customer answers what was asked and records the disclosure',
+    !turn.ended && /14/.test(turn.reply ?? '') && 'total_cost' in simRow.revealed && !('scholarship' in simRow.revealed), Object.keys(simRow.revealed).join(', '));
+  await endSession(reg.candidateId, simId);
+  const [ev] = await sql`SELECT overall, max_score, evaluator, needs_review FROM app.simulation_evaluation WHERE session_id=${simId}`;
+  const [band] = await sql`SELECT value_text FROM app.candidate_attribute_value WHERE candidate_id=${reg.candidateId} AND attribute_key='sales_roleplay_band'`;
+  check('SIM-05', 'Ending a session stores a separate evaluation and the best result on the profile',
+    !!ev && ev.max_score === 30 && ev.evaluator === 'rules@1' && ev.needs_review && !!band?.value_text, `${ev?.overall}/30 · ${band?.value_text}`);
+  let ownerOnly = '';
+  try { await learnerTurn('CAN-001', simId, 'hello', 'TEXT', null); } catch (e) { ownerOnly = (e as Error).message; }
+  check('SIM-06', 'Another candidate cannot write into a practice session', /not found/.test(ownerOnly), ownerOnly);
+  for (const [k, v] of Object.entries(savedKeys)) if (v !== undefined) process.env[k] = v;
+
+  const erasure = await raiseDataRequest(reg.candidateId, 'ERASURE', 'acceptance');
+  await resolveDataRequest(erasure.id, 'ACTIONED');
+  const [left] = await sql`SELECT
+      (SELECT count(*)::int FROM app.simulation_session WHERE candidate_id=${reg.candidateId}) sessions,
+      (SELECT count(*)::int FROM app.simulation_turn WHERE session_id=${simId}) turns,
+      (SELECT count(*)::int FROM app.candidate_resume WHERE candidate_id=${reg.candidateId}) resumes,
+      (SELECT count(*)::int FROM app.stored_object WHERE key=${key}) files,
+      (SELECT email FROM app.candidate WHERE id=${reg.candidateId}) email`;
+  check('CAN-06', 'Erasure removes practice transcripts, resumes and the stored file',
+    left.sessions === 0 && left.turns === 0 && left.resumes === 0 && left.files === 0 && left.email === null, JSON.stringify(left));
   }
 
   // ---- put the seeded fixtures back ---------------------------------------

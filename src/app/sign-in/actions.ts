@@ -6,6 +6,7 @@ import {readQuery} from '@/lib/read-query';
 import {setIdentity,requireRole} from '@/lib/auth';
 import {hashPassword,checkPassword,tokenHash} from '@/lib/demo-password';
 import {randomBytes} from 'node:crypto';
+import {otpProvider} from '@/modules/adapters/messaging';
 const val=(f:FormData,k:string)=>String(f.get(k)||'').trim();
 async function personalSession(id:string,role:'EMPLOYER'|'PARTNER'|'CANDIDATE',version?:number){
  (await cookies()).delete('nd_admin');await setIdentity(id,role,'nd_identity',version);
@@ -59,10 +60,12 @@ export async function signIn(f:FormData){
 }
 export async function candidateSignIn(f:FormData){
  const phone=val(f,'phone');
- if(!/^\+910000[0-9]{6}$/.test(phone)||val(f,'code')!=='123456')return {error:'Use your original demo mobile number and simulated code 123456.'};
+ if(!/^\+910000[0-9]{6}$/.test(phone)||!await otpProvider().verify(phone,val(f,'code')))return {error:'Use your original demo mobile number and simulated code 123456.'};
  let candidate:any;
- try{[candidate]=await readQuery(sql`SELECT id FROM app.candidate WHERE phone=${phone} AND mobile_verified_at IS NOT NULL AND status<>'DELETED_BLOCKED'`);}catch{return {error:'Could not load your profile. Try again.'};}
+ try{[candidate]=await readQuery(sql`SELECT id,status FROM app.candidate WHERE phone=${phone} AND mobile_verified_at IS NOT NULL AND status<>'DELETED_BLOCKED'`);}catch{return {error:'Could not load your profile. Try again.'};}
  if(!candidate)return {error:'No verified demo profile found. Start a new candidate journey below.'};
- await personalSession(candidate.id,'CANDIDATE');redirect('/wa/profile');
+ // Someone who registered through the WhatsApp form lands on the journey,
+ // which resumes at the few details matching still needs.
+ await personalSession(candidate.id,'CANDIDATE');redirect(candidate.status==='PROFILE_INCOMPLETE'?'/wa':'/wa/profile');
 }
 export async function signOut(){const c=await cookies();c.delete('nd_identity');c.delete('nd_admin');redirect('/sign-in');}

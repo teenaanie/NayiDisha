@@ -47,6 +47,10 @@ const TABLE_FOR_PREFIX: Record<string, string> = {
   SCR: 'app.screening_call',
   SRN: 'app.script_run',
   SRP: 'app.script_response',
+  SIM: 'app.simulation_session',
+  SEV: 'app.simulation_evaluation',
+  RES: 'app.candidate_resume',
+  WAI: 'app.whatsapp_invite',
 };
 
 /**

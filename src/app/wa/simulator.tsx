@@ -38,6 +38,10 @@ export function Simulator({configs,attributes,localities,jobs,existing,source,re
  {step==='otp'&&<form action={f=>run(async()=>{const state=await actions.verify(String(f.get('code')));if(state.step!=='consent'){window.location.assign('/wa/profile');return;}setStep(state.step);})}>{input('code','Demo verification code')}<button className="btn btn-primary" disabled={pending}>{labels.verify}</button></form>}
  {step==='consent'&&<form action={f=>run(async()=>{await actions.saveConsent(f.has('processing'),f.has('alerts'),f.has('assistance'));setStep('profile');})}><h3>{labels.consent}</h3><p>{tr("We use your name, locality, experience, availability and answers to match jobs. Contact details are shared only after you apply, reconfirm, and the employer unlocks. You can withdraw each permission later.")}</p><label><input type="checkbox" name="processing"/>{tr("Allow processing for job matching (required)")}</label><br/><label><input type="checkbox" name="alerts"/>{tr("Send me job alerts (optional)")}</label><br/><label><input type="checkbox" name="assistance"/>{tr("Allow my sourcing partner to assist me (optional)")}</label><br/><button className="btn btn-primary" disabled={pending}>{tr("Continue")}</button></form>}
  {step==='profile'&&<>
+  {existing?.registration_channel==='WHATSAPP_FLOW'&&existing?.status==='PROFILE_INCOMPLETE'&&<div className="note mb">
+   <p>{tr('Welcome back')}, {existing.name}. {tr('We already have your WhatsApp details and resume. Add your locality, role, commute, shifts and the two declarations to start matching.')}</p>
+   <button type="button" className="btn btn-sm" onClick={()=>setStep('jobs')}>{tr('Browse jobs first')}</button>
+  </div>}
   <div className="wa-mode-switch">
    <button type="button" className={'btn'+(mode==='form'?' btn-primary':'')} onClick={()=>setMode('form')}>⌨ {tr('Fill the form')}</button>
    <button type="button" className={'btn'+(mode==='voice'?' btn-primary':'')} onClick={()=>setMode('voice')}>🎤 {tr('Answer by voice')}</button>
