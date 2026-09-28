@@ -67,8 +67,14 @@
 
 ## Not verified / not implemented
 
-**Needs credentials:**
-- **Live model adapter** (`openai_compatible`). The code path is written and shares every validator with the mock, but it has **never been called**. Live latency, JSON reliability, AT15 against a real model, and cost are unknown.
+**Live model (Gemini, `gemini-2.5-flash` via the OpenAI-compatible endpoint), verified 28 Sep 2026 on a local database:**
+- Customer replies generated live pass every output validator: "It's a private university in India." for an institution question, and an in-character, fact-free reaction to "Your loan will definitely be approved."
+- The evaluator produced a full `EvaluationCandidate`. The first attempt was rejected (an `observed` claim without a learner span); the single repair attempt passed validation. The approval promise was routed to review, and a live coaching report validated.
+- Three problems were found and fixed in doing this:
+  1. Template-only JSON instructions produced a wrapped, incomplete object; each task now sends its contract as a JSON Schema.
+  2. Reasoning tokens truncated output; `RP_LLM_REASONING_EFFORT=none` fixes this.
+  3. The evaluator took over 30 seconds; it now has its own timeout (`RP_EVAL_TIMEOUT_MS`, default 120 s), and the API route has `maxDuration = 300`.
+- **Not yet measured:** evaluator accuracy (calibration), live AT15 adversarial behaviour, latency distribution, and cost. The free tier exhausted after roughly 20 calls on `gemini-2.5-flash-lite`.
 
 **Not implemented:**
 - **Semantic (model) intent classifier.** Only deterministic matching is wired (ADR-004). Paraphrases outside the configured examples will be missed or clarified.

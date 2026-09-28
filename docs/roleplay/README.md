@@ -57,7 +57,19 @@ The requirements are Node 20+ and PostgreSQL 14+.
 | `RP_PROVIDER` | Behaviour |
 |---|---|
 | `mock` (default) | Deterministic and offline. The customer states authorised facts plainly; the evaluator applies anchors mechanically to rule evidence; the coach fills templates. **All verification in this repo used the mock.** |
-| `openai_compatible` | Any `/chat/completions` endpoint: set `RP_LLM_BASE_URL`, `RP_LLM_API_KEY`, `RP_LLM_MODEL`, and optionally `RP_LLM_MODEL_EVALUATOR`. Output passes the same validators as the mock. **Not exercised against a live endpoint; no credentials were available.** |
+| `openai_compatible` | Any `/chat/completions` endpoint: set `RP_LLM_BASE_URL`, `RP_LLM_MODEL`, and either `RP_LLM_API_KEY` or `RP_LLM_API_KEY_FROM` (the name of a variable holding the key). Optional: `RP_LLM_MODEL_EVALUATOR`, `RP_LLM_REASONING_EFFORT`. Each task's contract is sent as a JSON Schema for structured output, and the server still validates everything. **Verified live with Gemini on 28 Sep 2026** (see RELEASE_VALIDATION). |
+
+**Gemini configuration used in production:**
+
+```
+RP_PROVIDER=openai_compatible
+RP_LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+RP_LLM_API_KEY_FROM=GEMINI_API_KEY
+RP_LLM_MODEL=gemini-2.5-flash
+RP_LLM_REASONING_EFFORT=none
+```
+
+The free tier allows only a small number of calls per model per day, and a session uses about 5–15. Enable billing on the Google project for more than a couple of sessions a day. Free-tier inputs may be used by Google to improve its products, so use synthetic conversations only.
 
 Exact source fixtures and the opening line never call a model.
 

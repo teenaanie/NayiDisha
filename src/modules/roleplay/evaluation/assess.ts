@@ -6,6 +6,7 @@ import { completeWithRetry, type CompletionResult } from '../providers';
 import { scoreAssessment, ScoringError } from '../scoring';
 import { extractRuleEvidence, RULE_VERSION, type RuleEvidence } from './extract';
 import { validateCandidate, VALIDATOR_VERSION } from './validate';
+import { evaluationCandidateSchema } from '../contracts/schemas';
 
 /**
  * Assessment of one frozen transcript (spec §13 pipeline):
@@ -65,7 +66,7 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
 
   let accepted: EvaluationCandidate | null = null;
   for (let attempt = 1; attempt <= 2 && !accepted; attempt++) {
-    const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, temperature: 0, maxTokens: 6000, correlation: input.correlation });
+    const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchema, temperature: 0, maxTokens: 12000, correlation: input.correlation });
     const v = validateCandidate(res.text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids });
     outputs.push({ attempt, text: res.text, ok: v.ok, errors: v.ok ? [] : v.errors, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
     if (v.ok) accepted = v.candidate;

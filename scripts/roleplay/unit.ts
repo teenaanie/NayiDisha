@@ -9,7 +9,8 @@ import { scoreAssessment, ScoringError, qParse, cmp, q } from '../../src/modules
 import { respond } from '../../src/modules/roleplay/runtime/engine';
 import { openingFactIds } from '../../src/modules/roleplay/runtime/disclosure';
 import { validateRoleplayOutput } from '../../src/modules/roleplay/runtime/generate';
-import { completeWithRetry, ProviderError, breakerState, resetBreakers, type ModelProvider } from '../../src/modules/roleplay/providers';
+import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, type ModelProvider } from '../../src/modules/roleplay/providers';
+import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
 import { assess } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
@@ -197,6 +198,15 @@ export async function unitTests(): Promise<Check[]> {
   await completeWithRetry(req, bad400).catch(() => {});
   ok('§24', 'A non-retryable provider error is not retried', permanent === 1);
   resetBreakers();
+  const ps = providerSchema(roleplayCandidateSchema) as { properties: Record<string, any>; required: string[] };
+  ok('§22', 'Structured-output schema keeps required fields and drops refinements providers reject', ps.required.includes('used_fact_ids') && ps.properties.text.maxLength === undefined && !('additionalProperties' in ps));
+  const envBefore = { ...process.env };
+  Object.assign(process.env, { RP_PROVIDER: 'openai_compatible', RP_LLM_BASE_URL: 'https://example.invalid/v1', RP_LLM_MODEL: 'm', RP_LLM_API_KEY_FROM: 'SOME_KEY', SOME_KEY: 'k' });
+  delete process.env.RP_LLM_API_KEY;
+  let keyFrom = '';
+  try { keyFrom = providerFor('roleplay').id; } catch (e) { keyFrom = (e as Error).message; }
+  process.env = envBefore;
+  ok('§23', 'The live adapter can read its key from a named variable (no secret copying)', keyFrom === 'openai_compatible', keyFrom);
 
   // ---- offsets ---------------------------------------------------------------
   const emoji = 'Namaste 🙏🏽! मेरी बेटी? When is the first fee payment due?';

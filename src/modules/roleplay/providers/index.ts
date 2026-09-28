@@ -23,6 +23,12 @@ export interface CompletionRequest {
   data: Record<string, unknown>;
   temperature: number;
   maxTokens: number;
+  /**
+   * The contract the output must satisfy. Live adapters ask the provider for
+   * structured output against it; the server still validates every response
+   * strictly, so this improves the hit rate without weakening any check.
+   */
+  schema?: Record<string, unknown>;
   /** For budget and trace correlation only; never sent to the provider. */
   correlation: { tenant_id: string; session_id?: string; operation_id?: string; evaluation_id?: string };
 }
@@ -68,6 +74,25 @@ class MockProvider implements ModelProvider {
   }
 }
 
+/**
+ * Structured-output engines accept a subset of JSON Schema. Keep the shape
+ * (types, required fields, enums) and drop the refinements they commonly reject;
+ * the server-side validator re-applies all of them.
+ */
+export function providerSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(providerSchema);
+  if (!schema || typeof schema !== 'object') return schema;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    if (['pattern', 'uniqueItems', 'additionalProperties', 'minLength', 'maxLength', 'maxItems', 'minItems', 'minimum', 'maximum'].includes(k)) continue;
+    if (k === 'const') { out.enum = [v]; continue; }
+    out[k] = providerSchema(v);
+  }
+  // A property map with no keys means "any object"; say so explicitly.
+  if (out.type === 'object' && !out.properties) out.properties = {};
+  return out;
+}
+
 class OpenAICompatibleProvider implements ModelProvider {
   readonly id = 'openai_compatible';
   readonly live = true;
@@ -83,10 +108,17 @@ class OpenAICompatibleProvider implements ModelProvider {
           model: this.model,
           temperature: req.temperature,
           max_tokens: req.maxTokens,
-          response_format: { type: 'json_object' },
+          // Reasoning models spend output tokens thinking; turn it down where the provider allows.
+          ...(process.env.RP_LLM_REASONING_EFFORT ? { reasoning_effort: process.env.RP_LLM_REASONING_EFFORT } : {}),
+          response_format: req.schema
+            ? { type: 'json_schema', json_schema: { name: req.task, schema: providerSchema(req.schema) } }
+            : { type: 'json_object' },
           messages: [{ role: 'system', content: renderTemplate(req.template, req.data) }, { role: 'user', content: 'Return the JSON object now.' }],
         }),
-        signal: AbortSignal.timeout(Number(process.env.RP_PROVIDER_TIMEOUT_MS ?? 30000)),
+        // A customer reply must be quick; an assessment of a whole transcript may not be.
+        signal: AbortSignal.timeout(req.task === 'roleplay' || req.task === 'classify'
+          ? Number(process.env.RP_PROVIDER_TIMEOUT_MS ?? 30000)
+          : Number(process.env.RP_EVAL_TIMEOUT_MS ?? 120000)),
       });
     } catch (e) {
       throw new ProviderError(`Provider unreachable: ${(e as Error).name}`, true);
@@ -114,9 +146,12 @@ class OpenAICompatibleProvider implements ModelProvider {
  */
 export function providerFor(task: Task): ModelProvider {
   if ((process.env.RP_PROVIDER ?? 'mock') === 'openai_compatible') {
-    const base = process.env.RP_LLM_BASE_URL; const key = process.env.RP_LLM_API_KEY;
+    // RP_LLM_API_KEY_FROM names another variable holding the key (e.g. GEMINI_API_KEY),
+    // so a deployment can reuse an existing secret instead of copying it.
+    const base = process.env.RP_LLM_BASE_URL;
+    const key = process.env.RP_LLM_API_KEY || (process.env.RP_LLM_API_KEY_FROM ? process.env[process.env.RP_LLM_API_KEY_FROM] : undefined);
     const model = (task === 'evaluate' || task === 'coach') ? (process.env.RP_LLM_MODEL_EVALUATOR ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
-    if (!base || !key || !model) throw new Error('RP_PROVIDER=openai_compatible needs RP_LLM_BASE_URL, RP_LLM_API_KEY and RP_LLM_MODEL.');
+    if (!base || !key || !model) throw new Error('RP_PROVIDER=openai_compatible needs RP_LLM_BASE_URL, RP_LLM_MODEL and a key (RP_LLM_API_KEY, or RP_LLM_API_KEY_FROM naming the variable that holds it).');
     return new OpenAICompatibleProvider(base, key, model);
   }
   return new MockProvider();
