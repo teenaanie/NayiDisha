@@ -18,24 +18,22 @@ The contract is `doc/AI_Roleplay_Implementation_Specification.md` v1.0. It sits 
 
 The requirements are Node 20+ and PostgreSQL 14+.
 
-1. Point `DATABASE_URL` at a **local** database. The tests refuse to run against anything else.
+> **Warning:** `.env.local` in this repo usually points at the **shared Supabase demo database**. `db:reset` drops every schema, so always put a local `DATABASE_URL` in front of reset, seed and test commands, as below. A reset of a non-local host is refused unless you set `ALLOW_REMOTE_RESET=<that host>`.
+
+1. Start a local Postgres, and create an empty database called `frontline`.
+
+2. Rebuild both schemas and load both seeds against **that local database**: the app seed, and the roleplay seed (tenants, teams, synthetic accounts and the Education Loan scenario, published through draft → review → publish).
 
    ```bash
-   export DATABASE_URL=postgres://postgres@127.0.0.1:5432/frontline
+   DATABASE_URL=postgres://postgres@127.0.0.1:5432/frontline ALLOW_DEMO_RESET=true npm run db:reset
    ```
 
-2. Rebuild both schemas and load both seeds: the app seed and the roleplay seed, which covers tenants, teams, synthetic accounts and the Education Loan scenario, published through draft → review → publish.
-
-   ```bash
-   ALLOW_DEMO_RESET=true npm run db:reset
-   ```
-
-   To add the platform to an existing database without resetting the app, run `npm run db:migrate && npm run rp:seed`. Migration `015` creates schema `rp` only.
+   To add the platform to an existing database without resetting the app, run `npm run db:migrate && npm run rp:seed`. Migration `015` creates schema `rp` only, and the roleplay seed is idempotent.
 
 3. Run the tests. The first command runs unit tests (no database) plus integration tests. The second runs only the unit tests. Both use the mock model.
 
    ```bash
-   npm run test:roleplay
+   DATABASE_URL=postgres://postgres@127.0.0.1:5432/frontline npm run test:roleplay
    ```
 
    ```bash
@@ -45,7 +43,7 @@ The requirements are Node 20+ and PostgreSQL 14+.
 4. Run the app.
 
    ```bash
-   npm run dev
+   DATABASE_URL=postgres://postgres@127.0.0.1:5432/frontline npm run dev
    ```
 
    Then open <http://localhost:3000/roleplay>.
