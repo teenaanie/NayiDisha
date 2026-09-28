@@ -107,8 +107,55 @@ export function messagingProvider(): MessagingProvider {
   return new SimulatorMessagingProvider();
 }
 
+/**
+ * Messages on an invite thread, before any candidate exists (WhatsApp
+ * self-registration). Same templates, same modelled cost, keyed by invite.
+ * A production adapter would send these to the invite's phone number.
+ */
+export async function sendInviteTemplate(inviteId: string, templateKey: string, language: string, variables: Record<string, string> = {}) {
+  const [tpl] = await sql<{ body: string; category: TemplateCategory; buttons: string[] }[]>`
+    SELECT body, category, buttons FROM app.message_template
+     WHERE key = ${templateKey} AND language IN (${language}, 'en')
+     ORDER BY (language = ${language}) DESC LIMIT 1`;
+  if (!tpl) throw new Error(`No template ${templateKey}`);
+  const at = await now();
+  const body = render(tpl.body, variables);
+  await sql`
+    INSERT INTO app.message_log (id, invite_id, direction, template_key, language, category, body, cost_paise, created_at)
+    VALUES (${await nextId('MSG')}, ${inviteId}, 'OUTBOUND', ${templateKey}, ${language}, ${tpl.category}, ${body}, ${COST_PAISE[tpl.category]}, ${at})`;
+  return { body, buttons: tpl.buttons ?? [] };
+}
+
+export async function receiveOnInvite(inviteId: string, body: string, candidateId: string | null = null) {
+  await sql`
+    INSERT INTO app.message_log (id, invite_id, candidate_id, direction, body, cost_paise, created_at)
+    VALUES (${await nextId('MSG')}, ${inviteId}, ${candidateId}, 'INBOUND', ${body}, 0, ${await now()})`;
+}
+
+/**
+ * OTP provider. Sign-in goes through this rather than comparing a code
+ * inline, so an SMS gateway or a WhatsApp AUTHENTICATION template can replace
+ * the simulator without touching the sign-in pages. In India a real SMS OTP
+ * also needs DLT registration of the sender and template.
+ */
+export interface OtpProvider {
+  readonly name: string;
+  send(phone: string): Promise<void>;
+  verify(phone: string, code: string): Promise<boolean>;
+}
+
+class SimulatedOtpProvider implements OtpProvider {
+  readonly name = 'otp-simulator@1.0';
+  async send() { /* nothing leaves the building; the code is documented */ }
+  async verify(_phone: string, code: string) { return code === DEMO_OTP; }
+}
+
+export function otpProvider(): OtpProvider {
+  return new SimulatedOtpProvider();
+}
+
 /** OTP verification — simulated. Only the documented demo code is accepted. */
-export async function verifyOtp(code: string): Promise<boolean> {
-  return code === DEMO_OTP;
+export async function verifyOtp(code: string, phone = ''): Promise<boolean> {
+  return otpProvider().verify(phone, code);
 }
 export const DEMO_OTP = '123456';

@@ -340,3 +340,20 @@ a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
 .wa-lang-row > span { color:#54656f; margin-right:2px; }
 .wa-lang-row .wa-restart { margin-left:auto; }
 .wa-partial { font-size:12px; font-style:italic; color:#54656f; max-width:220px; }
+
+/* WhatsApp Flow sheet (self-registration) and sales practice chat. */
+.wa-flow { display:flex; flex-direction:column; gap:10px; min-width:min(330px,72vw); }
+.wa-flow-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; border-bottom:1px solid var(--line); padding-bottom:8px; }
+.wa-flow-screen { border:0; padding:0; margin:0; min-width:0; display:flex; flex-direction:column; gap:4px; }
+.wa-flow-screen[hidden] { display:none; }
+.wa-flow-screen .field input, .wa-flow-screen .field select { width:100%; }
+.wa-flow-optin { display:flex; gap:8px; align-items:flex-start; font-weight:500; line-height:1.5; margin:4px 0; }
+.wa-flow-optin input { margin-top:3px; }
+.wa-flow-error { color:var(--bad, #b3261e); font-size:.8rem; }
+.practice-chat { display:flex; flex-direction:column; gap:8px; }
+.practice-composer { display:flex; gap:8px; align-items:flex-end; }
+.practice-composer textarea { flex:1; min-height:44px; resize:vertical; }
+.practice-timer { font-family:var(--mono); font-size:.75rem; }
+.practice-timer.low { color:var(--bad, #b3261e); font-weight:700; }
+.practice-brief { max-width:760px; }
+.practice-report blockquote { border-left:3px solid var(--line-strong); margin:8px 0; padding:4px 12px; color:var(--ink-2); }

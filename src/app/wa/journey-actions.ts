@@ -40,7 +40,11 @@ export async function saveProfile(input:{education?:string;name:string;locality:
  for(const d of defs){const value=input.attributes[d.key];if(cfg.candidateAttributes.find(a=>a.key===d.key)?.required&&!value)throw new Error(d.display_name+' is required.');if(value && d.data_type==='ENUM'&&!d.allowed_values.includes(value))throw new Error('Invalid '+d.display_name);if(value && d.data_type==='BOOL'&&!['true','false'].includes(value))throw new Error('Invalid '+d.display_name);if(value && d.data_type==='INT')integer(Number(value),d.display_name);}
  integer(input.months,'Experience',0,900);integer(input.pay,'Expected pay',0,1000000);integer(input.commute,'Commute',1,240);
  if(!input.shifts.length||!input.languages.length)throw new Error('Choose languages and availability.');
- await completeProfile(c.id,{name:text(input.name,'Name'),localityKey:input.locality,age18:input.age18,workAuthorised:input.work,experienceMonths:input.months,experienceTags:input.tags.split(',').map(s=>s.trim()).filter(Boolean),languages:input.languages,currentPayPaise:null,expectedPayPaise:input.pay*100,maxCommuteMin:input.commute,shiftAvailability:input.shifts});
+ // Keep what the WhatsApp form captured that this form does not ask again:
+ // current pay, and languages beyond the three this form offers.
+ const [prior]=await sql`SELECT current_pay_paise,languages FROM app.candidate WHERE id=${c.id}`;
+ const languages=Array.from(new Set([...input.languages,...((prior?.languages||[]) as string[]).filter(l=>!['mr','hi','en'].includes(l))]));
+ await completeProfile(c.id,{name:text(input.name,'Name'),localityKey:input.locality,age18:input.age18,workAuthorised:input.work,experienceMonths:input.months,experienceTags:input.tags.split(',').map(s=>s.trim()).filter(Boolean),languages,currentPayPaise:prior?.current_pay_paise??null,expectedPayPaise:input.pay*100,maxCommuteMin:input.commute,shiftAvailability:input.shifts});
  await sql`UPDATE app.candidate SET education=${input.education||''},role_config_id=${cfg.id} WHERE id=${c.id}`;
  const at=await now();
  await mapWithConcurrency(defs.filter(d=>input.attributes[d.key]),async d=>{const v=input.attributes[d.key];

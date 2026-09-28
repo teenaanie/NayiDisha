@@ -109,7 +109,7 @@ export async function verifyAndBind(
 
 export async function grantConsent(
   candidateId: string,
-  purpose: 'PROCESSING' | 'PARTNER_ASSISTANCE' | 'JOB_ALERTS' | 'DOCUMENTS' | 'PRECISE_LOCATION',
+  purpose: 'PROCESSING' | 'PARTNER_ASSISTANCE' | 'JOB_ALERTS' | 'DOCUMENTS' | 'PRECISE_LOCATION' | 'SIMULATION_VOICE',
   noticeVersion = 'notice-v1.3-' ,
 ) {
   const at = await now();

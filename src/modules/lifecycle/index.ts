@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { storageProvider } from '@/modules/adapters/storage';
 import { choice, integer } from '@/lib/validation';
 import { now, addDays } from '@/lib/clock';
 import { nextId, randomToken } from '@/lib/ids';
@@ -365,7 +366,8 @@ export async function raiseDataRequest(
 }
 
 export async function resolveDataRequest(id:string,status:'ACTIONED'|'REFUSED',correction?:{field:string;value:string;reason:string}){
- const at=await now();return sql.begin(async tx=>{
+ const at=await now();let resumes:{object_key:string|null;storage:string}[]=[];
+ const result=await sql.begin(async tx=>{
  const [request]=await tx`SELECT * FROM app.data_request WHERE id=${id} FOR UPDATE`;
  if(!request||request.status!=='OPEN')throw new Error('Request is not open.');
  let response:Record<string,unknown>={};
@@ -380,11 +382,18 @@ export async function resolveDataRequest(id:string,status:'ACTIONED'|'REFUSED',c
   await tx`UPDATE app.candidate SET ${tx.unsafe(correction.field)}=${correction.value.trim()} WHERE id=${request.candidate_id}`;
   response={field:correction.field,value:correction.value,reason:correction.reason};
  }else if(request.kind==='ERASURE'){
-  await tx`UPDATE app.candidate SET name='Deleted candidate',phone=${'erased-'+request.candidate_id},locality_key=NULL,experience_tags='[]',languages='[]',current_pay_paise=NULL,expected_pay_paise=NULL,shift_availability='[]',pending_source=NULL,status='DELETED_BLOCKED' WHERE id=${request.candidate_id}`;
+  await tx`UPDATE app.candidate SET name='Deleted candidate',phone=${'erased-'+request.candidate_id},locality_key=NULL,experience_tags='[]',languages='[]',current_pay_paise=NULL,expected_pay_paise=NULL,shift_availability='[]',pending_source=NULL,email=NULL,pin_code=NULL,date_of_birth=NULL,gender=NULL,highest_qualification=NULL,current_industry=NULL,current_job_role=NULL,current_company=NULL,status='DELETED_BLOCKED' WHERE id=${request.candidate_id}`;
   await tx`UPDATE app.consent_record SET withdrawn_at=${at} WHERE candidate_id=${request.candidate_id}`;
   await tx`DELETE FROM app.candidate_attribute_value WHERE candidate_id=${request.candidate_id}`;
   await tx`DELETE FROM app.voice_turn WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.screening_call SET extracted='{}',summary=NULL,recording_ref=NULL WHERE candidate_id=${request.candidate_id}`;
+  // Practice transcripts and the evaluator's quotes of them are personal data; nothing transactional depends on them.
+  await tx`DELETE FROM app.simulation_turn WHERE session_id IN (SELECT id FROM app.simulation_session WHERE candidate_id=${request.candidate_id})`;
+  await tx`DELETE FROM app.simulation_evaluation WHERE session_id IN (SELECT id FROM app.simulation_session WHERE candidate_id=${request.candidate_id})`;
+  await tx`DELETE FROM app.simulation_session WHERE candidate_id=${request.candidate_id}`;
+  // Resume files are removed from storage after the transaction commits.
+  resumes=await tx`DELETE FROM app.candidate_resume WHERE candidate_id=${request.candidate_id} RETURNING object_key,storage`;
+  await tx`UPDATE app.whatsapp_invite SET phone=${'erased-'+request.candidate_id} WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.candidate_document SET object_ref=NULL WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.endorsement SET endorser_name='Removed',endorser_contact='removed',comment=NULL,raw_points=0,status='WITHDRAWN',invite_token=NULL,withdraw_token=NULL WHERE candidate_id=${request.candidate_id}`;
   await tx`UPDATE app.data_request SET detail='Erased',response=NULL WHERE candidate_id=${request.candidate_id} AND id<>${id}`;
@@ -395,6 +404,11 @@ export async function resolveDataRequest(id:string,status:'ACTIONED'|'REFUSED',c
  }
  await tx`UPDATE app.data_request SET status=${status},resolved_at=${at},response=${tx.json(response as never)} WHERE id=${id}`;
  return {ok:true};});
+ for(const storage of new Set(resumes.map(r=>r.storage))){
+  const keys=resumes.filter(r=>r.storage===storage&&r.object_key).map(r=>r.object_key!);
+  try{await storageProvider(storage).remove(keys);}catch(e){console.error('resume erasure: storage removal failed',e);}
+ }
+ return result;
 }
 
 /** PART-07 — conduct rules must be accepted, and the version is recorded. */

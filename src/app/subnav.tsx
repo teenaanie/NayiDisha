@@ -38,7 +38,7 @@ export const OPS_TABS: SubTab[] = [
   { href: '/ops', label: 'Dashboard' },
   { href: '/ops/employers', label: 'Employers', hint: '§8.1' },
   { href: '/ops/partners', label: 'Partners', hint: '§8.2' },
-  {href:'/ops/candidates',label:'Candidates'}, {href:'/ops/matches',label:'Job matches'},
+  {href:'/ops/candidates',label:'Candidates'}, {href:'/ops/whatsapp-invites',label:'WhatsApp invites'}, {href:'/ops/simulations',label:'Sales practice'}, {href:'/ops/matches',label:'Job matches'},
   {href:'/ops/exceptions',label:'Exceptions'}, {href:'/ops/credit-requests',label:'Credit requests'},
   { href: '/ops/manage', label: 'Manage & catalogue' },
   { href: '/ops/configurations', label: 'Configurations', hint: '§8.4A' },
@@ -75,7 +75,7 @@ export const FINANCE_TABS: SubTab[] = [
 ];
 
 export const CANDIDATE_TABS: SubTab[] = [
-  {href:'/wa/profile',label:'My profile'}, {href:'/wa/applications',label:'My applications'}, { href: '/wa', label: 'WhatsApp journey' },
+  {href:'/wa/profile',label:'My profile'}, {href:'/wa/applications',label:'My applications'}, { href: '/wa', label: 'WhatsApp journey' }, { href: '/wa/practice', label: 'Sales practice' },
   { href: '/wa/inbox', label: 'Alerts & messages', hint: 'ALT-04' },
   { href: '/wa/preferences', label: 'Profile & preferences', hint: 'CAN-04' },
   { href: '/wa/rights', label: 'My data', hint: 'CAN-06' },
