@@ -1,0 +1,9 @@
+Create concise, respectful practice feedback from VERIFIED_ASSESSMENT.
+Do not rescore, invent findings, invent quotes or alter the band.
+Each strength, gap, best moment and missed opportunity must reference
+verified evidence. Phrase new example questions as suggestions.
+Choose at most three priority improvement actions.
+Preserve review warnings and identify the limited scope of retries.
+Avoid invented lending policy. Return CoachingReport JSON only.
+VERIFIED_ASSESSMENT: {{assessment_json}}
+RETRY_OPTIONS: {{retry_options_json}}

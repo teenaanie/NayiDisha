@@ -357,3 +357,8 @@ a.tile:hover{border-color:var(--line-strong); background:var(--surface-2);}
 .practice-timer.low { color:var(--bad, #b3261e); font-weight:700; }
 .practice-brief { max-width:760px; }
 .practice-report blockquote { border-left:3px solid var(--line-strong); margin:8px 0; padding:4px 12px; color:var(--ink-2); }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.mt { margin-top: 12px; }
+.rp-evidence { background: var(--accent-soft); border-radius: 3px; padding: 0 2px; }
+.rp-turn:target { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rp-json { width: 100%; min-height: 420px; font-family: var(--mono); font-size: 12px; }

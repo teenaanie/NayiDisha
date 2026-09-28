@@ -1,0 +1,141 @@
+import Ajv from 'ajv';
+import type { ScenarioBundle, TranscriptTurn, RoleplayCandidate } from '../contracts/types';
+import { roleplayCandidateSchema } from '../contracts/schemas';
+import { runtimeOf } from '../config/runtime-extension';
+import { completeWithRetry, type CompletionResult } from '../providers';
+import { renderFact, numbersIn, type DisclosurePlan } from './disclosure';
+
+/**
+ * Customer turn generation (spec §10, §15).
+ *
+ * Fixture parts and the unknown/clarification replies are used verbatim. Only
+ * fact parts go to the model, which sees nothing but the facts authorised for
+ * this turn and those already disclosed. Its output is validated on the server;
+ * one retry, then the configured safe reply. Unvalidated output is never shown.
+ */
+
+export const OUTPUT_VALIDATOR_VERSION = 'roleplay-output-1.0.0';
+const ajv = new Ajv({ allErrors: true, strict: false });
+const checkShape = ajv.compile(roleplayCandidateSchema);
+
+export interface GenerationAttempt {
+  ok: boolean; reason: string | null; provider: string; model: string;
+  request_id: string | null; latency_ms: number; usage: CompletionResult['usage'];
+}
+export interface CustomerReply {
+  text: string;
+  /** Facts actually stated to the learner: fixture facts plus validated generated ones. */
+  disclosed_fact_ids: string[];
+  method: 'fixture' | 'generated' | 'mixed' | 'fallback' | 'configured';
+  attempts: GenerationAttempt[];
+}
+
+const LEAK = /(allowed_facts|persona_public_style|unknown_response|history_json|system prompt|hidden fact|rubric|evaluator|\bscore\b|as an ai\b|language model|i am an ai)/i;
+
+/** Validate one model candidate against what this turn may say. */
+export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allowedIds: string[], learnerText: string, history: TranscriptTurn[]): { ok: true; candidate: RoleplayCandidate } | { ok: false; reason: string } {
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return { ok: false, reason: 'invalid_json' }; }
+  if (!checkShape(parsed)) return { ok: false, reason: 'schema' };
+  const c = parsed as unknown as RoleplayCandidate;
+  const allowed = new Set(allowedIds);
+  if (c.used_fact_ids.some((id) => !allowed.has(id))) return { ok: false, reason: 'unauthorised_fact' };
+  if (LEAK.test(c.text)) return { ok: false, reason: 'prompt_leakage' };
+
+  const facts = new Map(bundle.facts.map((f) => [f.id, f]));
+  const allowedText = [...allowed].map((id) => renderFact(facts.get(id)!) ?? '').join(' ');
+  const context = [allowedText, learnerText, bundle.conversation.opening_text, ...history.map((t) => t.text), bundle.persona.name, bundle.scenario.learner_brief].join(' ');
+
+  // Figures: every number must already exist in authorised facts or the conversation.
+  const okNumbers = new Set(numbersIn(context));
+  if (numbersIn(c.text).some((n) => !okNumbers.has(n))) return { ok: false, reason: 'unsupported_figure' };
+
+  // Hidden facts: a known, unauthorised value must not appear, nor its distinctive words.
+  for (const f of bundle.facts) {
+    if (allowed.has(f.id) || f.knowledge !== 'known') continue;
+    const v = renderFact(f);
+    if (!v) continue;
+    if (c.text.toLowerCase().includes(v.toLowerCase())) return { ok: false, reason: `hidden_fact:${f.id}` };
+    for (const w of v.match(/\b[A-Z][a-z]{2,}\b/g) ?? []) {
+      if (c.text.includes(w) && !context.includes(w)) return { ok: false, reason: `hidden_fact:${f.id}` };
+    }
+  }
+
+  // Named entities: a capitalised word mid-sentence that appears nowhere in the permitted context.
+  const known = new Set((context.match(/\b[A-Z][\p{L}]+/gu) ?? []));
+  for (const s of c.text.split(/(?<=[.!?])\s+/)) {
+    const words = s.match(/\b[A-Z][\p{L}]+/gu) ?? [];
+    for (const w of words.slice(s.match(/^[“"']?[A-Z]/) ? 1 : 0)) {
+      if (!known.has(w) && !['I', 'EMI', 'OK'].includes(w)) return { ok: false, reason: `unsupported_entity:${w}` };
+    }
+  }
+  return { ok: true, candidate: c };
+}
+
+export interface GenerateInput {
+  bundle: ScenarioBundle;
+  plan: DisclosurePlan;
+  history: TranscriptTurn[];
+  learnerText: string;
+  template: string;
+  correlation: { tenant_id: string; session_id: string; operation_id: string };
+}
+
+export async function generateCustomerReply(input: GenerateInput): Promise<CustomerReply> {
+  const { bundle, plan } = input;
+  const conv = bundle.conversation;
+  const rt = runtimeOf(bundle);
+  const factRules = new Map(bundle.conversation.rules.map((r) => [r.id, r]));
+  const attempts: GenerationAttempt[] = [];
+
+  if (plan.kind === 'clarify') return { text: conv.clarification_response, disclosed_fact_ids: [], method: 'configured', attempts };
+
+  const fixtureFacts = plan.parts.flatMap((p) => (p.kind === 'fixture' ? factRules.get(p.rule_id)!.reveal_fact_ids.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id)) : []));
+  const answerFactIds = plan.parts.flatMap((p) => (p.kind === 'facts' ? p.fact_ids : []));
+  const needsModel = plan.kind === 'acknowledge' || answerFactIds.length > 0;
+
+  let generated: string | null = null;
+  let generatedFacts: string[] = [];
+  if (needsModel) {
+    const facts = new Map(bundle.facts.map((f) => [f.id, f]));
+    const allowedFacts = plan.allowed_fact_ids.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
+    const data = {
+      persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: bundle.persona.speaking_style },
+      allowed_facts_json: allowedFacts,
+      reaction_json: null,
+      unknown_response_json: conv.unknown_response,
+      history_json: [...input.history.map((t) => ({ speaker: t.speaker, text: t.text })), { speaker: 'learner', text: input.learnerText }],
+      // Not in the template text; the mock uses them to know what this turn answers.
+      answer_fact_ids: answerFactIds,
+      acknowledgement_json: rt.acknowledgement_text ?? conv.clarification_response,
+    };
+    for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
+      try {
+        const res = await completeWithRetry({ task: 'roleplay', template: input.template, data, temperature: 0.4, maxTokens: 300, correlation: input.correlation });
+        const v = validateRoleplayOutput(bundle, res.text, plan.allowed_fact_ids, input.learnerText, input.history);
+        attempts.push({ ok: v.ok, reason: v.ok ? null : v.reason, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
+        if (v.ok) { generated = v.candidate.text; generatedFacts = v.candidate.used_fact_ids; }
+      } catch (e) {
+        attempts.push({ ok: false, reason: `provider:${(e as Error).message.slice(0, 120)}`, provider: 'unknown', model: 'unknown', request_id: null, latency_ms: 0, usage: null });
+        throw e;
+      }
+    }
+    if (generated === null) {
+      // Two invalid candidates: say nothing unvalidated, release nothing generated.
+      const fixtureText = plan.parts.filter((p) => p.kind === 'fixture').map((p) => (p as { text: string }).text);
+      return { text: [...fixtureText, conv.clarification_response].join(' '), disclosed_fact_ids: fixtureFacts, method: 'fallback', attempts };
+    }
+  }
+
+  const pieces: string[] = [];
+  let usedGenerated = false;
+  for (const p of plan.parts) {
+    if (p.kind === 'fixture') pieces.push(p.text);
+    else if (p.kind === 'unknown') pieces.push(conv.unknown_response);
+    else if (!usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
+  }
+  if (plan.kind === 'acknowledge' && generated) pieces.push(generated);
+  const hasFixture = plan.parts.some((p) => p.kind === 'fixture');
+  const method = generated ? (hasFixture ? 'mixed' : 'generated') : hasFixture ? 'fixture' : 'configured';
+  return { text: pieces.join(' '), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
+}

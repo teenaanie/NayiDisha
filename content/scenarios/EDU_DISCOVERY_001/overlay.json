@@ -1,0 +1,686 @@
+{
+ "about": "Explicit, reviewable changes layered on source.json at seed time. Every op states why. See DISCREPANCIES.md.",
+ "source_sha256": "1883e5b40fff672d416bec952e44cdf4ad17f09c64bfe2763b629d6bbd386ccc",
+ "ops": [
+  {
+   "op": "test",
+   "path": "/conversation/rules/16/id",
+   "value": "disclose_moratorium_understanding"
+  },
+  {
+   "op": "test",
+   "path": "/extensions/careerKore/moratorium_unknown_response",
+   "value": "Could you explain what you mean by moratorium?"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/16/response_text",
+   "value": "Could you explain what you mean by moratorium?",
+   "why": "D1: spec §26 recommends this fallback; the source JSON only carries it in the scenario-specific extensions.careerKore namespace, which the platform must not read. Moved to the rule's response_text field, verbatim."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/0/id",
+   "value": "course"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/0/positive_examples/-",
+   "value": "What course is your daughter doing?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/0/positive_examples/-",
+   "value": "Which programme has she joined?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/0/positive_examples/-",
+   "value": "What will she be studying?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/1/id",
+   "value": "institution"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/1/positive_examples/-",
+   "value": "Which college or institute is it?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/1/positive_examples/-",
+   "value": "Which university has she got admission in?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/2/id",
+   "value": "admission"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/2/positive_examples/-",
+   "value": "Is the admission confirmed?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/2/positive_examples/-",
+   "value": "Has she got the offer letter?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/2/positive_examples/-",
+   "value": "Is her admission final?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/3/id",
+   "value": "study_location"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/3/positive_examples/-",
+   "value": "Where is the college located?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/3/positive_examples/-",
+   "value": "Is it in India or abroad?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/3/positive_examples/-",
+   "value": "Which city will she study in?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/4/id",
+   "value": "student_name"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/4/positive_examples/-",
+   "value": "What is her name?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/4/positive_examples/-",
+   "value": "May I know your daughter's name?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/5/id",
+   "value": "total_cost"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/5/positive_examples/-",
+   "value": "What will the whole course cost?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/5/positive_examples/-",
+   "value": "What are the total fees including hostel?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/5/positive_examples/-",
+   "value": "How much does the course cost overall?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/6/id",
+   "value": "fee_deadline"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/6/positive_examples/-",
+   "value": "When do you need to pay the fees?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/6/positive_examples/-",
+   "value": "What is the deadline for the first payment?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/6/positive_examples/-",
+   "value": "By when is the fee due?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/7/id",
+   "value": "savings"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "How much have you saved for this?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "How much can the family arrange?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "What amount can you contribute yourselves?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/8/id",
+   "value": "scholarship_status"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/8/positive_examples/-",
+   "value": "Has she applied for any scholarship?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/8/positive_examples/-",
+   "value": "Is there any scholarship or other funding?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/8/positive_examples/-",
+   "value": "Is the scholarship confirmed?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/9/id",
+   "value": "funding_gap"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/9/positive_examples/-",
+   "value": "How much loan are you looking for?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/9/positive_examples/-",
+   "value": "What loan amount do you need?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/9/positive_examples/-",
+   "value": "How much funding do you need?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/10/id",
+   "value": "expense_scope"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/10/positive_examples/-",
+   "value": "Do you want to cover only tuition or hostel and books too?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/10/positive_examples/-",
+   "value": "Which expenses should the loan cover?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/11/id",
+   "value": "co_borrower"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/11/positive_examples/-",
+   "value": "Who would be the co-applicant?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/11/positive_examples/-",
+   "value": "Will you be the co-borrower?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/12/id",
+   "value": "income_comfort"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/12/positive_examples/-",
+   "value": "What is your monthly income?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/12/positive_examples/-",
+   "value": "What is the family income?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/12/positive_examples/-",
+   "value": "What do you earn?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/13/id",
+   "value": "repayment_comfort"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/13/positive_examples/-",
+   "value": "What EMI would be comfortable for you?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/13/positive_examples/-",
+   "value": "How much can you pay every month?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/13/positive_examples/-",
+   "value": "What monthly instalment can you manage?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/14/id",
+   "value": "repayment_expectations"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/14/positive_examples/-",
+   "value": "How do you plan to repay the loan?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/14/positive_examples/-",
+   "value": "Who will repay the loan after the course?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/14/positive_examples/-",
+   "value": "What do you expect about repayment?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/15/id",
+   "value": "moratorium_understanding"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/15/positive_examples/-",
+   "value": "Do you know about the moratorium period?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/15/positive_examples/-",
+   "value": "Do you know when repayment starts?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/15/positive_examples/-",
+   "value": "Are you aware repayment usually begins after the course?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/16/id",
+   "value": "savings_decision"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/16/positive_examples/-",
+   "value": "Would you prefer to use savings or take a loan?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/16/positive_examples/-",
+   "value": "What worries you about using your savings?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/16/positive_examples/-",
+   "value": "How do you feel about using savings versus a loan?",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/17/id",
+   "value": "premature_pitch"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/17/positive_examples/-",
+   "value": "We offer a great education loan at a low interest rate, apply today.",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/17/positive_examples/-",
+   "value": "Our loan is the best option for you, just send the documents.",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/17/positive_examples/-",
+   "value": "You should apply for our loan right away.",
+   "why": "D2: paraphrase example for the deterministic classifier [R]; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/0/id",
+   "value": "guaranteed_approval"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/0/examples/-",
+   "value": "Your loan approval is guaranteed.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/0/examples/-",
+   "value": "I promise you will get the full amount.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/0/examples/-",
+   "value": "You will surely get the loan.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/1/id",
+   "value": "documents_dismissed"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/1/examples/-",
+   "value": "You don't need to worry about the paperwork.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/1/examples/-",
+   "value": "Documents are not important for this loan.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/2/id",
+   "value": "optional_as_compulsory"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/2/examples/-",
+   "value": "Taking this insurance is compulsory for the loan.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/3/id",
+   "value": "income_falsification"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/3/examples/-",
+   "value": "We can show a higher income in the application.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/4/id",
+   "value": "premature_pitch"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/4/examples/-",
+   "value": "We offer a great education loan at a low interest rate, apply today.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/4/examples/-",
+   "value": "Our loan is the best option for you.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/4/examples/-",
+   "value": "You should apply for our loan right away.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/6/id",
+   "value": "premature_documents"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/6/examples/-",
+   "value": "Please send me all your documents first.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/6/examples/-",
+   "value": "Just share the documents and we will process the loan.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "test",
+   "path": "/risk_policy/rules/5/id",
+   "value": "scholarship_assumed_confirmed"
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/5/examples/-",
+   "value": "Since she has the scholarship, the loan will be smaller.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/risk_policy/rules/5/examples/-",
+   "value": "We can reduce the loan by the scholarship amount.",
+   "why": "D3: additional phrasing for the rule candidate detector [R]; the source example is kept first."
+  },
+  {
+   "op": "add",
+   "path": "/extensions/nd_runtime",
+   "why": "D4: runtime behaviour the v1.0 schema has no field for (question-free pitch intent, discovery gate, absence checks, qualitative cues, conditional arithmetic). All [R].",
+   "value": {
+    "question_free_intents": [
+     "premature_pitch"
+    ],
+    "discovery_gate": {
+     "dimension_ids": [
+      "course_admission",
+      "cost_funding",
+      "repayment"
+     ]
+    },
+    "discovery_conditioned": [
+     "premature_pitch",
+     "premature_documents"
+    ],
+    "absence_checks": {
+     "avoids_guarantee": {
+      "risk_rule_ids": [
+       "guaranteed_approval"
+      ],
+      "requires_discovery": true
+     },
+     "avoids_misleading_claims": {
+      "risk_rule_ids": [
+       "documents_dismissed",
+       "optional_as_compulsory",
+       "income_falsification",
+       "scholarship_assumed_confirmed"
+      ],
+      "requires_discovery": true
+     },
+     "discovery_before_pitch": {
+      "risk_rule_ids": [
+       "premature_pitch",
+       "premature_documents"
+      ],
+      "requires_discovery": true
+     },
+     "simple_language": {
+      "unexplained_jargon": true,
+      "requires_discovery": true
+     },
+     "explains_jargon": {
+      "unexplained_jargon": true,
+      "requires_discovery": true
+     }
+    },
+    "check_cues": {
+     "logical_follow_up": [
+      "you mentioned",
+      "you said",
+      "since you",
+      "given that",
+      "earlier you",
+      "based on what you",
+      "coming back to"
+     ],
+     "responds_to_concern": [
+      "i understand",
+      "that is a valid concern",
+      "that's a valid concern",
+      "i hear you",
+      "understandable",
+      "let's make sure",
+      "let us make sure",
+      "we will look at"
+     ],
+     "summary_before_next_step": [
+      "to summarise",
+      "to summarize",
+      "let me summarise",
+      "let me summarize",
+      "just to recap",
+      "if i understand correctly",
+      "so far you have"
+     ],
+     "clarifies_assessment": [
+      "depends on",
+      "subject to",
+      "after assessment",
+      "cannot promise",
+      "can't promise",
+      "not guaranteed",
+      "bank will assess",
+      "eligibility check",
+      "based on the assessment"
+     ],
+     "checks_understanding": [
+      "does that make sense",
+      "is that clear",
+      "any questions",
+      "shall i explain",
+      "would you like me to explain",
+      "did that help",
+      "is that okay"
+     ],
+     "explains_jargon": [
+      "which means",
+      "that means",
+      "in simple terms",
+      "in other words",
+      "simply put"
+     ]
+    },
+    "jargon_terms": [
+     "LTV",
+     "FOIR",
+     "CIBIL",
+     "collateral",
+     "hypothecation",
+     "amortisation",
+     "amortization",
+     "margin money"
+    ],
+    "acknowledgement_text": "I see. Please go on.",
+    "derivations": [
+     {
+      "id": "gap_if_all_savings_used",
+      "operation": "subtract",
+      "input_fact_ids": [
+       "cost",
+       "savings"
+      ],
+      "assumptions": [
+       "All available savings are contributed, although the customer does not want to use everything.",
+       "No scholarship is counted; it is applied for, not confirmed, and its amount is unknown."
+      ],
+      "excluded_note": "Not the requested or approved loan amount; comfortable contribution is unknown."
+     }
+    ]
+   }
+  },
+  {
+   "op": "add",
+   "path": "/provenance/-",
+   "value": {
+    "path": "/extensions/nd_runtime",
+    "basis": "recommendation",
+    "note": "Runtime configuration added by overlay.json (D4); see DISCREPANCIES.md."
+   }
+  },
+  {
+   "op": "add",
+   "path": "/provenance/-",
+   "value": {
+    "path": "/conversation/rules/16/response_text",
+    "basis": "recommendation",
+    "source_ref": "Spec §26",
+    "note": "Moved verbatim from extensions.careerKore.moratorium_unknown_response (D1)."
+   }
+  }
+ ]
+}

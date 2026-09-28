@@ -4,9 +4,9 @@ import {usePathname,useSearchParams} from 'next/navigation';
 import {useEffect,useRef,useState} from 'react';
 import {Icon,SeedlingArt} from './ops/dashboard-icon';
 import {OpsShell} from './ops/shell';
-import {EMPLOYER_TABS,PARTNER_TABS,FINANCE_TABS,CANDIDATE_TABS} from './subnav';
-const workspaces=[['/','Platform overview','home'],['/ops','Operations','settings'],['/employer','Employer','building'],['/partner','Partner','users'],['/finance','Finance','chart'],['/wa','Candidate journey','heart'],['/demo','Demo identities','users'],['/sign-in','Sign in / out','lock']];
-const icons:Record<string,string>={'Dashboard':'home','My organisation':'building','Jobs':'job','Interviews & onboarding':'calendar','Credit requests':'file','Billing & credits':'lock','Outcomes':'chart','QR sites':'link','My candidates':'users','Job alerts':'bell','Rewards':'spark','Conduct rules':'shield','Partner balances':'users','Payout batches':'file','Reward ledger':'chart','My profile':'users','My applications':'file','WhatsApp journey':'heart','Alerts & messages':'bell','Profile & preferences':'settings','My data':'shield','Job suggestions':'spark','Sales practice':'chart'};
+import {EMPLOYER_TABS,PARTNER_TABS,FINANCE_TABS,CANDIDATE_TABS,ROLEPLAY_TABS} from './subnav';
+const workspaces=[['/','Platform overview','home'],['/ops','Operations','settings'],['/employer','Employer','building'],['/partner','Partner','users'],['/finance','Finance','chart'],['/wa','Candidate journey','heart'],['/roleplay','Practice coach','spark'],['/demo','Demo identities','users'],['/sign-in','Sign in / out','lock']];
+const icons:Record<string,string>={'Dashboard':'home','My organisation':'building','Jobs':'job','Interviews & onboarding':'calendar','Credit requests':'file','Billing & credits':'lock','Outcomes':'chart','QR sites':'link','My candidates':'users','Job alerts':'bell','Rewards':'spark','Conduct rules':'shield','Partner balances':'users','Payout batches':'file','Reward ledger':'chart','My profile':'users','My applications':'file','WhatsApp journey':'heart','Alerts & messages':'bell','Profile & preferences':'settings','My data':'shield','Job suggestions':'spark','Sales practice':'chart','Practice':'spark','My attempts':'file','Review queue':'shield','Scenario builder':'settings','Team analytics':'chart','Demo accounts':'users'};
 export function WorkspaceShell({children,role}:{children:React.ReactNode;role:string|null}){
  const path=usePathname();const params=useSearchParams();const [open,setOpen]=useState(false);const [query,setQuery]=useState('');const searchRef=useRef<HTMLDivElement>(null);
  useEffect(()=>{setOpen(false);setQuery('');},[path]);
@@ -17,8 +17,8 @@ export function WorkspaceShell({children,role}:{children:React.ReactNode;role:st
  // bare return is the only way to give the page the whole viewport.
  if(path==='/apply'||path.startsWith('/apply/'))return <>{children}</>;
  const section=path.split('/')[1];
- const tabs=section==='employer'?EMPLOYER_TABS:section==='partner'?PARTNER_TABS:section==='finance'?FINANCE_TABS:section==='wa'?[...CANDIDATE_TABS,{href:'/wa/suggestions',label:'Job suggestions'}]:null;
- const workspace=section==='employer'?'Employer':section==='partner'?'Partner':section==='finance'?'Finance':section==='wa'?'Candidate':'Platform';
+ const tabs=section==='employer'?EMPLOYER_TABS:section==='partner'?PARTNER_TABS:section==='finance'?FINANCE_TABS:section==='wa'?[...CANDIDATE_TABS,{href:'/wa/suggestions',label:'Job suggestions'}]:section==='roleplay'?ROLEPLAY_TABS:null;
+ const workspace=section==='employer'?'Employer':section==='partner'?'Partner':section==='finance'?'Finance':section==='wa'?'Candidate':section==='roleplay'?'Practice coach':'Platform';
  const home=tabs?(section==='wa'?'/wa':'/'+section):'/';
  const links=tabs?tabs.map(t=>[t.href,t.label,icons[t.label]||'file']):workspaces;
  const contextual=(href:string)=>{const key=section==='partner'?'p':section==='wa'?'c':null;const value=key?params.get(key):null;return value&&href.startsWith('/'+section)&&href!=='/wa'?href+'?'+key+'='+encodeURIComponent(value):href;};
