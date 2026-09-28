@@ -80,3 +80,12 @@ export const CANDIDATE_TABS: SubTab[] = [
   { href: '/wa/preferences', label: 'Profile & preferences', hint: 'CAN-04' },
   { href: '/wa/rights', label: 'My data', hint: 'CAN-06' },
 ];
+
+export const ROLEPLAY_TABS: SubTab[] = [
+  { href: '/roleplay', label: 'Practice' },
+  { href: '/roleplay/attempts', label: 'My attempts' },
+  { href: '/roleplay/reviews', label: 'Review queue' },
+  { href: '/roleplay/admin', label: 'Scenario builder' },
+  { href: '/roleplay/manager', label: 'Team analytics' },
+  { href: '/roleplay/demo', label: 'Demo accounts' },
+];

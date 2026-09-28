@@ -9,24 +9,30 @@
     "start": "next start -p 3000",
     "db:migrate": "tsx --env-file-if-exists=.env.local scripts/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env.local scripts/seed.ts",
-    "db:reset": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --reset && tsx --env-file-if-exists=.env.local scripts/seed.ts",
+    "db:reset": "tsx --env-file-if-exists=.env.local scripts/migrate.ts --reset && tsx --env-file-if-exists=.env.local scripts/seed.ts && tsx --env-file-if-exists=.env.local scripts/roleplay-seed.ts",
     "test": "tsx --env-file-if-exists=.env.local scripts/acceptance.ts",
     "test:serverless": "PG_POOL_MAX=1 tsx --env-file-if-exists=.env.local scripts/acceptance.ts",
-    "dev:preview": "next dev -p 3100"
+    "dev:preview": "next dev -p 3100",
+    "rp:seed": "tsx --env-file-if-exists=.env.local scripts/roleplay-seed.ts",
+    "rp:worker": "tsx --env-file-if-exists=.env.local scripts/roleplay-worker.ts",
+    "rp:purge": "tsx --env-file-if-exists=.env.local scripts/roleplay-purge.ts",
+    "test:roleplay": "tsx --env-file-if-exists=.env.local scripts/roleplay-tests.ts",
+    "rp:contracts": "tsx scripts/roleplay-contracts.ts"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "next": "^15.5.25",
     "postgres": "3.4.5",
+    "qrcode": "^1.5.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "qrcode": "^1.5.4"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "19.0.2",
     "@types/react-dom": "19.0.2",
     "tsx": "4.19.2",
-    "typescript": "5.7.2",
-    "@types/qrcode": "^1.5.6"
+    "typescript": "5.7.2"
   }
 }

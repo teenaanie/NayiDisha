@@ -1,0 +1,593 @@
+{
+ "schema_version": "1.0",
+ "scenario": {
+  "id": "SYNTH_HEALTH_COVER_001",
+  "version": "1.0.0",
+  "title": "[SYNTHETIC TEST] Family Health Cover Discovery",
+  "product": "Health Insurance (synthetic)",
+  "skill": "Needs Discovery",
+  "difficulty": "Beginner",
+  "locale": "en-IN",
+  "learner_role": "Insurance Advisor (synthetic test role)",
+  "learner_brief": "SYNTHETIC PLATFORM TEST SCENARIO. You are speaking with Ms. Rao, who wants health cover for her family. Understand who needs cover, what cover exists today, and what yearly premium feels affordable before suggesting anything.",
+  "target_minutes": {
+   "min": 5,
+   "max": 8
+  },
+  "objective_ids": [
+   "family_members",
+   "existing_cover",
+   "health_conditions",
+   "premium_budget",
+   "needs_summary",
+   "avoids_claim_guarantee"
+  ],
+  "success_criteria": [
+   "Understand family members, existing cover and budget before suggesting a plan.",
+   "Summarise the need back to the customer.",
+   "Never guarantee that claims will be paid."
+  ]
+ },
+ "persona": {
+  "id": "synthetic_rao",
+  "version": "1.0.0",
+  "name": "Anita Rao (synthetic)",
+  "role": "Parent seeking family health cover",
+  "relationships": {
+   "children": "Two children (synthetic)"
+  },
+  "initial_emotion": "Curious but busy",
+  "speaking_style": "Short, direct answers.",
+  "concerns": [
+   {
+    "id": "premium_cost",
+    "text": "Premium cost every year",
+    "fact_refs": [
+     "budget"
+    ]
+   }
+  ],
+  "forbidden_inventions": [
+   "Medical history details",
+   "Existing policy number",
+   "Premium quotes"
+  ]
+ },
+ "facts": [
+  {
+   "id": "family",
+   "type": "text",
+   "value": "Myself, my husband and our two children",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "family_members"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": null
+  },
+  {
+   "id": "current_cover",
+   "type": "status",
+   "value": "Only my husband's employer cover",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "existing_cover"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": null
+  },
+  {
+   "id": "budget",
+   "type": "money",
+   "value": {
+    "amount_minor": 2500000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "premium_budget"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": null
+  },
+  {
+   "id": "conditions",
+   "type": "text",
+   "value": null,
+   "knowledge": "unknown",
+   "visibility": "on_intent",
+   "release_intents": [
+    "health_conditions"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": null
+  }
+ ],
+ "conversation": {
+  "opening_text": "Hi, I want some health insurance for my family. What do you have?",
+  "intents": [
+   {
+    "id": "family_members",
+    "description": "Detect a learner question about family members to cover.",
+    "positive_examples": [
+     "Who in the family needs cover?",
+     "How many people should the policy cover?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information."
+    ]
+   },
+   {
+    "id": "existing_cover",
+    "description": "Detect a learner question about existing health cover.",
+    "positive_examples": [
+     "Do you have any health cover today?",
+     "Is anyone already insured?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information."
+    ]
+   },
+   {
+    "id": "health_conditions",
+    "description": "Detect a learner question about health conditions.",
+    "positive_examples": [
+     "Does anyone have an existing health condition?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information."
+    ]
+   },
+   {
+    "id": "premium_budget",
+    "description": "Detect a learner question about premium budget.",
+    "positive_examples": [
+     "What yearly premium would be affordable?",
+     "How much can you spend on the premium each year?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information."
+    ]
+   },
+   {
+    "id": "premature_pitch",
+    "description": "Detect a premature product recommendation.",
+    "positive_examples": [
+     "You should buy our gold plan today.",
+     "Our premium plan is the best, sign up now."
+    ],
+    "negative_examples": [
+     "Customer volunteers this information."
+    ]
+   }
+  ],
+  "rules": [
+   {
+    "id": "r_family",
+    "priority": 50,
+    "intent_ids": [
+     "family_members"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "family"
+    ]
+   },
+   {
+    "id": "r_cover",
+    "priority": 50,
+    "intent_ids": [
+     "existing_cover"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "current_cover"
+    ]
+   },
+   {
+    "id": "r_budget",
+    "priority": 100,
+    "intent_ids": [
+     "premium_budget"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "budget"
+    ],
+    "response_text": "Around ₹25,000 a year, not much more."
+   },
+   {
+    "id": "r_conditions",
+    "priority": 50,
+    "intent_ids": [
+     "health_conditions"
+    ],
+    "match": "any",
+    "reveal_fact_ids": []
+   },
+   {
+    "id": "r_pitch",
+    "priority": 100,
+    "intent_ids": [
+     "premature_pitch"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [],
+    "response_text": "Wait, you don't even know who needs cover yet."
+   }
+  ],
+  "unknown_response": "I'd rather not go into that right now.",
+  "clarification_response": "Sorry, what do you mean?",
+  "multi_intent_mode": "answer_asked_only",
+  "off_topic_mode": "brief_redirect",
+  "injection_mode": "stay_in_character",
+  "max_new_facts_per_turn": 3
+ },
+ "rubric": {
+  "id": "synthetic_health_rubric",
+  "version": "1.0.0",
+  "title": "Synthetic health cover rubric",
+  "dimensions": [
+   {
+    "id": "needs_discovery",
+    "name": "Needs discovery",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Does not explore the family's needs",
+      "basis": "recommendation"
+     },
+     {
+      "score": 2,
+      "description": "Asks one need question",
+      "basis": "recommendation"
+     },
+     {
+      "score": 3,
+      "description": "Asks about members or cover but misses some",
+      "basis": "recommendation"
+     },
+     {
+      "score": 4,
+      "description": "Explores most needs with one gap",
+      "basis": "recommendation"
+     },
+     {
+      "score": 5,
+      "description": "Explores members, existing cover and health conditions",
+      "basis": "recommendation"
+     }
+    ],
+    "check_ids": [
+     "family_members",
+     "existing_cover",
+     "health_conditions"
+    ],
+    "evaluation_method": "hybrid",
+    "applicability": "required"
+   },
+   {
+    "id": "budget_discovery",
+    "name": "Budget discovery",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Ignores budget",
+      "basis": "recommendation"
+     },
+     {
+      "score": 2,
+      "description": "Mentions cost only",
+      "basis": "recommendation"
+     },
+     {
+      "score": 3,
+      "description": "Asks budget vaguely",
+      "basis": "recommendation"
+     },
+     {
+      "score": 4,
+      "description": "Asks budget clearly",
+      "basis": "recommendation"
+     },
+     {
+      "score": 5,
+      "description": "Asks budget and confirms comfort",
+      "basis": "recommendation"
+     }
+    ],
+    "check_ids": [
+     "premium_budget"
+    ],
+    "evaluation_method": "hybrid",
+    "applicability": "required"
+   },
+   {
+    "id": "needs_summary",
+    "name": "Summarises the need (new dimension)",
+    "min_score": 1,
+    "max_score": 4,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "No summary",
+      "basis": "recommendation"
+     },
+     {
+      "score": 2,
+      "description": "Partial summary",
+      "basis": "recommendation"
+     },
+     {
+      "score": 3,
+      "description": "Summarises most of the need",
+      "basis": "recommendation"
+     },
+     {
+      "score": 4,
+      "description": "Summarises the need and confirms it",
+      "basis": "recommendation"
+     }
+    ],
+    "check_ids": [
+     "needs_summary"
+    ],
+    "evaluation_method": "hybrid",
+    "applicability": "required"
+   },
+   {
+    "id": "responsible",
+    "name": "Responsible advice",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Guarantees claims",
+      "basis": "recommendation"
+     },
+     {
+      "score": 2,
+      "description": "Overstates certainty often",
+      "basis": "recommendation"
+     },
+     {
+      "score": 3,
+      "description": "Mostly careful",
+      "basis": "recommendation"
+     },
+     {
+      "score": 4,
+      "description": "Careful with a minor overstatement",
+      "basis": "recommendation"
+     },
+     {
+      "score": 5,
+      "description": "Careful and accurate",
+      "basis": "recommendation"
+     }
+    ],
+    "check_ids": [
+     "avoids_claim_guarantee"
+    ],
+    "evaluation_method": "hybrid",
+    "applicability": "required"
+   }
+  ],
+  "checks": [
+   {
+    "id": "family_members",
+    "description": "Asks who needs cover",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "family_members"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "family"
+    ]
+   },
+   {
+    "id": "existing_cover",
+    "description": "Asks about existing cover",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "existing_cover"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "current_cover"
+    ]
+   },
+   {
+    "id": "health_conditions",
+    "description": "Asks about health conditions",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "health_conditions"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "conditions"
+    ]
+   },
+   {
+    "id": "premium_budget",
+    "description": "Asks about an affordable premium",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "premium_budget"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "budget"
+    ]
+   },
+   {
+    "id": "needs_summary",
+    "description": "Summarises the family's need",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "avoids_claim_guarantee",
+    "description": "Avoids guaranteeing claims",
+    "category": "compliance",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   }
+  ],
+  "evidence_categories": [
+   "coverage",
+   "conversation",
+   "compliance"
+  ]
+ },
+ "risk_policy": {
+  "id": "synthetic_health_risks",
+  "version": "1.0.0",
+  "rules": [
+   {
+    "id": "guaranteed_claim",
+    "description": "Guarantees that claims will be paid",
+    "category": "selling",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "Every claim will definitely be paid.",
+     "All your claims are guaranteed."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Question without affirmative assertion"
+    ],
+    "consequence": "review",
+    "dimension_ids": [
+     "responsible"
+    ]
+   }
+  ]
+ },
+ "scoring": {
+  "id": "synthetic_weighted",
+  "version": "1.0.0",
+  "mode": "weighted_percent",
+  "weights": {
+   "needs_discovery": 40,
+   "budget_discovery": 30,
+   "needs_summary": 10,
+   "responsible": 20
+  },
+  "bands": [
+   {
+    "id": "practice",
+    "label": "Needs practice",
+    "lower": 0,
+    "upper": 50,
+    "upper_inclusive": false
+   },
+   {
+    "id": "developing",
+    "label": "Developing",
+    "lower": 50,
+    "upper": 80,
+    "upper_inclusive": false
+   },
+   {
+    "id": "ready",
+    "label": "Ready for supervised calls",
+    "lower": 80,
+    "upper": 100,
+    "upper_inclusive": true
+   }
+  ],
+  "band_scale": "percent",
+  "display_decimals": 1,
+  "risk_effect": "cap",
+  "risk_effect_parameters": {
+   "rule_ids": [
+    "guaranteed_claim"
+   ],
+   "max_percent": 49
+  }
+ },
+ "prompts": {
+  "roleplay": "roleplay_v1",
+  "evaluator": "evaluator_v1",
+  "coach": "coach_v1"
+ },
+ "retry": {
+  "full_enabled": true,
+  "focused_enabled": false,
+  "focused_target_check_ids": [],
+  "focused_scoring": "checks_only",
+  "instruction": "Start again and summarise the family's need before suggesting any plan.",
+  "version_policy": "pin_parent"
+ },
+ "provenance": [
+  {
+   "path": "/",
+   "basis": "recommendation",
+   "note": "SYNTHETIC platform test content. Not a real product, customer or policy; exists to prove configuration-only extensibility (AT24)."
+  },
+  {
+   "path": "/facts/3/value",
+   "basis": "unspecified",
+   "note": "Deliberately unknown to exercise the unknown-response path."
+  }
+ ],
+ "extensions": {
+  "nd_runtime": {
+   "question_free_intents": [
+    "premature_pitch"
+   ],
+   "discovery_gate": {
+    "dimension_ids": [
+     "needs_discovery"
+    ]
+   },
+   "discovery_conditioned": [
+    "premature_pitch"
+   ],
+   "absence_checks": {
+    "avoids_claim_guarantee": {
+     "risk_rule_ids": [
+      "guaranteed_claim"
+     ],
+     "requires_discovery": true
+    }
+   },
+   "check_cues": {
+    "needs_summary": [
+     "to summarise",
+     "to summarize",
+     "so you have",
+     "let me recap",
+     "so the family"
+    ]
+   },
+   "jargon_terms": [
+    "co-pay",
+    "sub-limit"
+   ],
+   "acknowledgement_text": "Okay.",
+   "derivations": []
+  }
+ }
+}
