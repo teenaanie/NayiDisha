@@ -111,7 +111,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     };
     for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
       try {
-        const res = await completeWithRetry({ task: 'roleplay', template: input.template, data, temperature: 0.4, maxTokens: 300, correlation: input.correlation });
+        const res = await completeWithRetry({ task: 'roleplay', template: input.template, data, schema: roleplayCandidateSchema, temperature: 0.4, maxTokens: 400, correlation: input.correlation });
         const v = validateRoleplayOutput(bundle, res.text, plan.allowed_fact_ids, input.learnerText, input.history);
         attempts.push({ ok: v.ok, reason: v.ok ? null : v.reason, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
         if (v.ok) { generated = v.candidate.text; generatedFacts = v.candidate.used_fact_ids; }

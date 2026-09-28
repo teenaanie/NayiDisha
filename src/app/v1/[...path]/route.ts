@@ -12,6 +12,8 @@ import { idempotent } from '@/modules/roleplay/service/guards';
  * (facts, prompts, provider bodies) ever appears in a response or a log line.
  */
 export const dynamic = 'force-dynamic';
+// A live evaluator can take tens of seconds, and it runs in after() on the request that queued it.
+export const maxDuration = 300;
 
 type Params = { params: Promise<{ path: string[] }> };
 type Handler = (a: Actor, m: string[], req: Request, body: any, url: URL) => Promise<{ status?: number; body: unknown; drain?: boolean }>;

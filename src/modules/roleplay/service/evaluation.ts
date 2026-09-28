@@ -4,6 +4,7 @@ import { assess, EVALUATOR_VERSION, rubricVersionOf, type AssessResult } from '.
 import { scoreAssessment } from '../scoring';
 import { buildCoachInput, validateCoaching, focusedCheckpoint, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
 import { completeWithRetry } from '../providers';
+import { coachingCandidateSchema } from '../contracts/schemas';
 import { ApiError, audit, conflict, forbidden, metric, notFound, requireRole, type Actor } from './context';
 import { enqueue, registerHandler, PermanentJobError, type Job } from './jobs';
 import { spendProviderBudget, idempotent } from './guards';
@@ -128,7 +129,7 @@ async function processCoach(job: Job) {
   try {
     await spendProviderBudget(s.tenant_id);
     for (let i = 0; i < 2 && !(coach?.ok); i++) {
-      const res = await completeWithRetry({ task: 'coach', template: template.content, data: input as never, temperature: 0.3, maxTokens: 2000, correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id } });
+      const res = await completeWithRetry({ task: 'coach', template: template.content, data: input as never, schema: coachingCandidateSchema, temperature: 0.3, maxTokens: 4000, correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id } });
       coach = validateCoaching(res.text, full.candidate.evidence, snap.content);
       attempts.push({ ok: coach.ok, errors: coach.ok ? [] : coach.errors, provider: res.provider, model: res.model, request_id: res.request_id });
     }
