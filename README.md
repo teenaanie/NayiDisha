@@ -135,7 +135,8 @@ already sets `prepare: false`, so this works, but do not remove that setting.
 From your machine, using the **session pooler** string:
 
 ```bash
-DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require" npm run db:reset
+DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require" \
+  ALLOW_DEMO_RESET=true ALLOW_REMOTE_RESET=aws-0-ap-south-1.pooler.supabase.com npm run db:reset
 DATABASE_URL="...same string..." npm test
 ```
 
