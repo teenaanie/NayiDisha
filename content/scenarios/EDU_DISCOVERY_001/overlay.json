@@ -1097,6 +1097,104 @@
    "path": "/scenario/version",
    "value": "2.0.0",
    "why": "D7: rubric meaning changed, so a major version; sessions already started stay on theirs."
+  },
+  {
+   "op": "add",
+   "path": "/extensions/nd_runtime/translations",
+   "value": {
+    "hi": {
+     "label": "हिन्दी",
+     "review_status": "draft",
+     "opening_text": "नमस्ते, मेरी बेटी को MBA में दाख़िला मिल गया है, और किसी ने बताया कि मैं एजुकेशन लोन ले सकता हूँ। मैं बस यह जानना चाहता हूँ कि हमें कितना लोन मिल सकता है।",
+     "learner_brief": "आप श्री शर्मा से बात कर रहे हैं, जिनकी बेटी को पोस्टग्रेजुएट कोर्स में दाख़िला मिला है। वे समझना चाहते हैं कि एजुकेशन लोन उनके लिए सही है या नहीं। आपका लक्ष्य तुरंत बेचना नहीं है। आपका लक्ष्य सही सवाल पूछकर छात्रा की पढ़ाई की योजना, फ़ंडिंग की कमी, EMI भरने की क्षमता और परिवार की चिंताओं को समझना है।",
+     "unknown_response": "यह जानकारी अभी मेरे पास नहीं है।",
+     "clarification_response": "आप क्या कहना चाह रहे हैं, थोड़ा समझाएँगे?",
+     "acknowledgement_text": "अच्छा। आगे बताइए।",
+     "rule_responses": {
+      "respond_funding_gap": "पक्का नहीं पता। कोर्स लगभग ₹14 लाख का है, लेकिन हमारे पास कुछ बचत है।",
+      "respond_savings": "हम लगभग ₹4 लाख का इंतज़ाम कर सकते हैं, लेकिन मैं पूरी बचत इस्तेमाल नहीं करना चाहता।",
+      "respond_scholarship_status": "उसने एक स्कॉलरशिप के लिए आवेदन किया है, लेकिन अभी नतीजा नहीं पता।",
+      "respond_fee_deadline": "पहली फ़ीस लगभग तीन हफ़्ते में भरनी है।",
+      "respond_repayment_comfort": "यही तो मेरी चिंता है। मैं नहीं चाहता कि बाद में EMI बहुत भारी हो।",
+      "respond_premature_pitch": "लेकिन उससे पहले मैं समझना चाहता हूँ कि कहीं यह हमारे लिए बहुत ज़्यादा बोझ तो नहीं बन जाएगा।",
+      "disclose_moratorium_understanding": "मोरेटोरियम से आपका क्या मतलब है, थोड़ा समझाएँगे?"
+     },
+     "intent_examples": {
+      "course": "उसे किस कोर्स में दाख़िला मिला है?",
+      "institution": "यह कौन-सी यूनिवर्सिटी है?",
+      "admission": "क्या उसका दाख़िला पक्का हो गया है?",
+      "study_location": "वह कहाँ पढ़ेगी?",
+      "student_name": "आपकी बेटी का नाम क्या है?",
+      "total_cost": "पढ़ाई का कुल ख़र्च कितना है?",
+      "fee_deadline": "पहली फ़ीस कब भरनी है?",
+      "savings": "आपका परिवार आराम से कितना पैसा लगा सकता है?",
+      "scholarship_status": "क्या स्कॉलरशिप पक्की हो गई है?",
+      "funding_gap": "आपको कितने लोन की ज़रूरत है?",
+      "expense_scope": "क्या सिर्फ़ ट्यूशन फ़ीस के लिए पैसा चाहिए या बाक़ी ख़र्चों के लिए भी?",
+      "co_borrower": "को-बॉरोअर कौन होगा?",
+      "income_comfort": "कितनी आमदनी से EMI आराम से भरी जा सकती है?",
+      "repayment_comfort": "हर महीने कितनी EMI आपको ठीक लगेगी?",
+      "repayment_expectations": "लोन चुकाने को लेकर आपकी क्या उम्मीदें हैं?",
+      "moratorium_understanding": "क्या आपको पता है कि लोन चुकाना कब से शुरू होगा?",
+      "savings_decision": "बचत इस्तेमाल करने और लोन लेने के बारे में आप क्या सोचते हैं?"
+     },
+     "retry_lead": "बातचीत का बीच वाला हिस्सा फिर से करें। इस बार कोई भी प्रोडक्ट बताने से पहले वे बातें पूछें जो छूट गई थीं। उदाहरण के लिए:",
+     "reply_instruction": "Reply only in Hindi, written in Devanagari script, as a middle-class father would speak. Keep the everyday English banking words people use (EMI, loan, MBA, fees). Write amounts with Western digits, for example ₹4 लाख.",
+     "feedback_instruction": "Write every text and suggested_question field in simple Hindi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."
+    },
+    "mr": {
+     "label": "मराठी",
+     "review_status": "draft",
+     "opening_text": "नमस्कार, माझ्या मुलीला MBA ला प्रवेश मिळाला आहे, आणि कोणीतरी सांगितलं की मी एज्युकेशन लोन घेऊ शकतो. आम्हाला किती लोन मिळू शकेल, एवढंच मला जाणून घ्यायचं आहे.",
+     "learner_brief": "तुम्ही श्री. शर्मा यांच्याशी बोलत आहात. त्यांच्या मुलीला पदव्युत्तर अभ्यासक्रमात प्रवेश मिळाला आहे. एज्युकेशन लोन त्यांच्यासाठी योग्य आहे का, हे त्यांना समजून घ्यायचं आहे. तुमचं उद्दिष्ट लगेच विक्री करणं नाही. योग्य प्रश्न विचारून विद्यार्थिनीची शिक्षणाची योजना, निधीतील तूट, EMI भरण्याची क्षमता आणि कुटुंबाच्या चिंता समजून घेणं हे तुमचं उद्दिष्ट आहे.",
+     "unknown_response": "ही माहिती आत्ता माझ्याकडे नाही.",
+     "clarification_response": "तुम्हाला नेमकं काय म्हणायचं आहे, जरा समजावून सांगाल का?",
+     "acknowledgement_text": "बरं. पुढे सांगा.",
+     "rule_responses": {
+      "respond_funding_gap": "नक्की माहीत नाही. कोर्स साधारण ₹14 लाखांचा आहे, पण आमच्याकडे थोडी बचत आहे.",
+      "respond_savings": "आम्ही साधारण ₹4 लाखांची व्यवस्था करू शकतो, पण मला सगळी बचत वापरायची नाही.",
+      "respond_scholarship_status": "तिने एका स्कॉलरशिपसाठी अर्ज केला आहे, पण अजून निकाल कळलेला नाही.",
+      "respond_fee_deadline": "पहिली फी साधारण तीन आठवड्यांत भरायची आहे.",
+      "respond_repayment_comfort": "हीच तर माझी काळजी आहे. नंतर EMI खूप जड व्हायला नको.",
+      "respond_premature_pitch": "पण त्याआधी मला हे समजून घ्यायचं आहे की हे आमच्यासाठी खूप मोठं ओझं तर होणार नाही ना.",
+      "disclose_moratorium_understanding": "मोरेटोरियम म्हणजे काय, जरा समजावून सांगाल का?"
+     },
+     "intent_examples": {
+      "course": "तिला कोणत्या कोर्सला प्रवेश मिळाला आहे?",
+      "institution": "हे कोणतं विद्यापीठ आहे?",
+      "admission": "तिचा प्रवेश निश्चित झाला आहे का?",
+      "study_location": "ती कुठे शिकणार आहे?",
+      "student_name": "तुमच्या मुलीचं नाव काय आहे?",
+      "total_cost": "शिक्षणाचा एकूण खर्च किती आहे?",
+      "fee_deadline": "पहिली फी कधी भरायची आहे?",
+      "savings": "तुमचं कुटुंब आरामात किती पैसे घालू शकतं?",
+      "scholarship_status": "स्कॉलरशिप निश्चित झाली आहे का?",
+      "funding_gap": "तुम्हाला किती लोन लागेल?",
+      "expense_scope": "फक्त ट्यूशन फीसाठी पैसे हवे आहेत की इतर खर्चांसाठीही?",
+      "co_borrower": "को-बॉरोअर कोण असेल?",
+      "income_comfort": "किती उत्पन्नातून EMI आरामात भरता येईल?",
+      "repayment_comfort": "दर महिन्याला किती EMI तुम्हाला योग्य वाटेल?",
+      "repayment_expectations": "लोन फेडण्याबद्दल तुमच्या काय अपेक्षा आहेत?",
+      "moratorium_understanding": "लोनची परतफेड कधीपासून सुरू होईल हे तुम्हाला माहीत आहे का?",
+      "savings_decision": "बचत वापरणं आणि लोन घेणं याबद्दल तुम्हाला काय वाटतं?"
+     },
+     "retry_lead": "संभाषणाचा मधला भाग पुन्हा करा. या वेळी कोणतंही प्रॉडक्ट सांगण्याआधी जे विचारायचं राहिलं ते विचारा. उदाहरणार्थ:",
+     "reply_instruction": "Reply only in Marathi, written in Devanagari script, as a middle-class father from Maharashtra would speak. Keep the everyday English banking words people use (EMI, loan, MBA, fees). Write amounts with Western digits, for example ₹4 लाख.",
+     "feedback_instruction": "Write every text and suggested_question field in simple Marathi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."
+    }
+   },
+   "why": "D8: Hindi and Marathi conversations at the scenario owner's request (29 Sep 2026). Draft translations by the implementer, marked review_status 'draft' until a fluent reviewer signs them off; facts, rules and scoring are unchanged."
+  },
+  {
+   "op": "test",
+   "path": "/scenario/version",
+   "value": "2.0.0"
+  },
+  {
+   "op": "replace",
+   "path": "/scenario/version",
+   "value": "2.1.0",
+   "why": "D8: translations only; no fact, rule or scoring change, so a minor version."
   }
  ]
 }

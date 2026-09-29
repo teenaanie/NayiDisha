@@ -16,6 +16,7 @@ import { assess } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
+import { isQuestion } from '../../src/modules/roleplay/runtime/text';
 import { cpLength, cpSlice, sentences } from '../../src/modules/roleplay/runtime/text';
 import type { ScenarioBundle, TranscriptTurn } from '../../src/modules/roleplay/contracts/types';
 import { check, type Check } from './harness';
@@ -44,7 +45,7 @@ export async function unitTests(): Promise<Check[]> {
   ok('§25', 'Overlay leaves source rubric anchors (outside D7 listening) and bands unchanged', notListening(src2.rubric.dimensions) === notListening(b.rubric.dimensions) && JSON.stringify(src2.scoring) === JSON.stringify(b.scoring));
   const lis = b.rubric.dimensions.find((d) => d.id === 'listening')!;
   ok('D7', 'Listening anchors cover a learner who never pitches, and the rubric is a new major version',
-    /ignore the customer's answers/.test(lis.anchors.find((a) => a.score === 1)!.description) && /build on the customer's answers/.test(lis.anchors.find((a) => a.score === 5)!.description) && b.rubric.version === '2.0.0' && b.scenario.version === '2.0.0',
+    /ignore the customer's answers/.test(lis.anchors.find((a) => a.score === 1)!.description) && /build on the customer's answers/.test(lis.anchors.find((a) => a.score === 5)!.description) && b.rubric.version === '2.0.0' && b.scenario.version.startsWith('2.'),
     lis.anchors.map((a) => a.score + ': ' + a.description).join(' | '));
 
   const bad = (mut: (x: any) => void) => { const x = clone(pkg.bundle) as any; mut(x); return compile(x); };
@@ -96,6 +97,14 @@ export async function unitTests(): Promise<Check[]> {
   ok('§12', 'A cap applies once, keeps base and final separately, and re-bands', capped.base_percent === 100 && capped.final_percent === 40 && capped.adjustments.length === 1 && capped.band_id === 'guided', `${capped.base_percent}→${capped.final_percent} ${capped.band_id}`);
   const gated = scoreAssessment(b.rubric, { ...b.scoring, risk_effect: 'gate', risk_effect_parameters: { rule_ids: ['guaranteed_approval'], outcome_label: 'Not ready' } }, scores([5, 5, 5, 5, 5, 5]), { confirmedRiskRuleIds: ['guaranteed_approval'] });
   ok('§12', 'A gate sets an outcome without changing the number', gated.final_percent === 100 && gated.gate?.outcome === 'Not ready');
+
+  // ---- conversation language: translation pack validation --------------------------
+  const noRule = bad((x) => { delete x.extensions.nd_runtime.translations.hi.rule_responses.respond_savings; });
+  ok('LANG', 'A translation missing a verbatim customer line is rejected', !noRule.ok && noRule.errors.some((e) => /Missing translation for rule "respond_savings"/.test(e.message)));
+  const ta = bad((x) => { x.extensions.nd_runtime.translations.ta = x.extensions.nd_runtime.translations.hi; });
+  ok('LANG', 'An unsupported translation language is rejected', !ta.ok && ta.errors.some((e) => /Unsupported language "ta"/.test(e.message)));
+  const qs: [string, boolean][] = [['पढ़ाई का कुल ख़र्च कितना है', true], ['मेरी बेटी का नाम रिया है', false], ['तिचा प्रवेश निश्चित झाला आहे का', true], ['हे कोणतं विद्यापीठ आहे', true], ['fees kab bharni hai', true], ['आम्ही ₹4 लाखांची व्यवस्था करू शकतो', false]];
+  ok('LANG', 'Hindi, Marathi and Hinglish questions are recognised without a question mark (and statements are not)', qs.every(([t, w]) => isQuestion(t) === w), qs.filter(([t, w]) => isQuestion(t) !== w).map(([t]) => t).join(' | '));
 
   // ---- disclosure (AT01–AT05, AT15) ------------------------------------------
   const template = loadPrompt('roleplay_v1');
@@ -293,8 +302,17 @@ export async function unitTests(): Promise<Check[]> {
     const simpleOk = clone(at.candidate); const sl = simpleOk.evidence.find((e) => e.check_id === 'simple_language');
     if (sl) { sl.status = 'observed'; sl.learner_spans = at.candidate.evidence.find((e) => e.check_id === 'course')!.learner_spans; }
     ok('§20', 'An absence check affirmed with a quote ("used simple language") counts as met, not violated', !sl || evidenceOutcomes(b, simpleOk).get(sl.id) === 'met');
+    const four = { ...good, improvement_areas: [0, 1, 2, 3].map(() => good.improvement_areas[0] ?? { text: 'x', evidence_ids: [evOf('total_cost')], suggested_question: null }) };
+    const v4 = validateCoaching(JSON.stringify(four), at.candidate.evidence, turns14, outs);
+    const seven = { ...four, strengths: Array.from({ length: 7 }, () => good.strengths[0] ?? { text: 'y', evidence_ids: [evOf('course')], suggested_question: null }) };
+    const v7 = validateCoaching(JSON.stringify(seven), at.candidate.evidence, turns14, outs);
+    ok('§20', 'Lists past their cap (4th improvement, 7th strength) are trimmed, not a failed report', v4.ok && v4.candidate.improvement_areas.length === 3 && v7.ok && v7.candidate.strengths.length === 6, v4.ok && v7.ok ? '' : [...(v4.ok ? [] : v4.errors), ...(v7.ok ? [] : v7.errors)].join(' '));
     ok('§20', 'The coach is given the learner\'s messages and the outcome rules', coachIn.assessment_json.learner_messages?.length === 2 && (coachIn.assessment_json.rules ?? []).some((r) => /Strengths and the best moment may cite only evidence whose outcome is met/.test(r)));
 
+    const hiIn = buildCoachInput(b, at.candidate, 'full', [], {}, turns14, 'hi');
+    ok('LANG', 'Hindi coaching is told to write in Hindi and suggests Hindi questions', (hiIn.assessment_json.rules ?? []).some((r) => /in simple Hindi/.test(r)) && hiIn.assessment_json.checks.some((c) => c.suggested_question === 'आपकी बेटी का नाम क्या है?'));
+    const hiRetry = retryInstruction(b, personalRetryTargets(b, at.candidate).check_ids, true, 'hi');
+    ok('LANG', 'A Hindi retry instruction uses the Hindi lead and Hindi example questions', /^बातचीत का बीच वाला हिस्सा/.test(hiRetry) && /“[^”]*[\u0900-\u097F][^”]*”/.test(hiRetry), hiRetry);
     // Retry: targets come from this learner's gaps, not the fixed scenario list.
     const rt = personalRetryTargets(b, at.candidate);
     const covMissed = (id: string) => cat.get(id) === 'coverage' && outs.get(evOf(id)) === 'missed';

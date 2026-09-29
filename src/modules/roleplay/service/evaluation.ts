@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import type { Language } from '../runtime/language';
 import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, CoachingReport } from '../contracts/types';
 import { assess, EVALUATOR_VERSION, rubricVersionOf, type AssessResult } from '../evaluation/assess';
 import { scoreAssessment } from '../scoring';
@@ -59,7 +60,7 @@ async function processEvaluate(job: Job) {
     recordedIntents: new Map(recorded.map((r) => [r.turn_id, r.intents])),
     bundle, turns: snap.content, session_id: s.id, transcript_hash: snap.hash, mode: run.mode,
     target_check_ids: s.retry_scope?.target_check_ids ?? [], template: template.content,
-    correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id },
+    correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id }, language: s.language ?? 'en',
   });
   await storeAssessment(run.id, s, bundle, result, String(job.payload.operation_id));
   await metric('evaluation_ms', Date.now() - started, { status: result.status, mode: run.mode, rejected_outputs: result.outputs.filter((o) => !o.ok).length }, s.tenant_id);
@@ -115,9 +116,9 @@ registerHandler('evaluate', processEvaluate, async (job) => {
 
 // ---- coaching ---------------------------------------------------------------------
 
-function retryOptions(bundle: ScenarioBundle, candidate: EvaluationCandidate) {
+function retryOptions(bundle: ScenarioBundle, candidate: EvaluationCandidate, lang: Language) {
   const t = personalRetryTargets(bundle, candidate);
-  return { full_enabled: bundle.retry.full_enabled, focused_enabled: bundle.retry.focused_enabled, focused_target_check_ids: t.check_ids, instruction: retryInstruction(bundle, t.check_ids, t.personal) };
+  return { full_enabled: bundle.retry.full_enabled, focused_enabled: bundle.retry.focused_enabled, focused_target_check_ids: t.check_ids, instruction: retryInstruction(bundle, t.check_ids, t.personal, lang) };
 }
 
 async function processCoach(job: Job) {
@@ -126,7 +127,7 @@ async function processCoach(job: Job) {
   if (!['coaching', 'review_required', 'report_partial'].includes(full.status)) return;
   const provisional = full.status === 'review_required';
   const targets = s.retry_scope?.target_check_ids ?? [];
-  const input = buildCoachInput(bundle, full.candidate, run.mode, targets, retryOptions(bundle, full.candidate), snap.content);
+  const input = buildCoachInput(bundle, full.candidate, run.mode, targets, retryOptions(bundle, full.candidate, s.language ?? 'en'), snap.content, s.language ?? 'en');
   const outcomes = evidenceOutcomes(bundle, full.candidate);
   const template = await promptContent(s.prompt_versions.coach.id);
   let coach = null as ReturnType<typeof validateCoaching> | null;
@@ -182,7 +183,7 @@ async function ensureRetryPlans(runId: string, s: SessionRow, bundle: ScenarioBu
   type Plan = NonNullable<CoachingReport['retry_plan']>;
   const out: { full: Plan | null; focused: Plan | null } = { full: null, focused: null };
   const targets = personalRetryTargets(bundle, c);
-  const instruction = retryInstruction(bundle, targets.check_ids, targets.personal);
+  const instruction = retryInstruction(bundle, targets.check_ids, targets.personal, s.language ?? 'en');
   if (bundle.retry.full_enabled) {
     const [p] = await sql`INSERT INTO rp.retry_plan (tenant_id, run_id, session_id, mode, target_check_ids, instruction)
       VALUES (${s.tenant_id}, ${runId}, ${s.id}, 'full', '[]', ${instruction}) ON CONFLICT (run_id, mode) DO UPDATE SET instruction = EXCLUDED.instruction RETURNING *`;
@@ -364,7 +365,7 @@ export async function startRetry(actor: Actor, sessionId: string, input: RetryIn
   const prefix = input.mode === 'focused'
     ? (await sql<TranscriptTurn[]>`SELECT id, sequence, speaker, text, origin FROM rp.turn WHERE session_id = ${parent.id} AND sequence <= ${plan.checkpoint_sequence ?? 0} ORDER BY sequence`)
     : undefined;
-  return startSession(actor, { scenario_id: parent.scenario_id }, { session_id: parent.id, scope, prefix, version_id: versionId });
+  return startSession(actor, { scenario_id: parent.scenario_id }, { session_id: parent.id, scope, prefix, version_id: versionId, language: parent.language ?? 'en' });
 }
 
 export { idempotent };

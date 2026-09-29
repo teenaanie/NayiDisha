@@ -19,6 +19,6 @@ export default async function PracticeSession({ params }: { params: Promise<{ id
   return <main className="page">
     <div className="page-head"><div className="nd-section-kicker">{brief.product} · {brief.skill}{session.is_preview ? ' · PREVIEW (test session, not counted)' : ''}</div><h1>{brief.title}</h1></div>
     <WhoAmI actor={actor} />
-    <PracticeClient initial={JSON.parse(JSON.stringify(session))} brief={brief} />
+    <PracticeClient initial={JSON.parse(JSON.stringify(session))} brief={{ ...brief, learner_brief: session.learner_brief ?? brief.learner_brief }} />
   </main>;
 }

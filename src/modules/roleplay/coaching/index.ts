@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import { localized, type Language } from '../runtime/language';
 import type { CoachingCandidate, Evidence, EvaluationCandidate, ScenarioBundle, TranscriptTurn, Finding } from '../contracts/types';
 import { coachingCandidateSchema } from '../contracts/schemas';
 import { runtimeOf } from '../config/runtime-extension';
@@ -9,7 +10,7 @@ import type { CoachInput } from './mock-coach';
  *
  * The coach may only rephrase verified findings. Its output is rejected if a
  * finding cites evidence the assessment does not contain, if it quotes words
- * the learner never said, or if it offers more than three priority actions.
+ * the learner never said; improvements beyond the first three are dropped.
  */
 
 export const COACH_SCHEMA_VERSION = 'coaching-report-1.0';
@@ -40,6 +41,9 @@ export function evidenceOutcomes(bundle: ScenarioBundle, candidate: EvaluationCa
 }
 
 export const MAX_MISSED_QUESTIONS = 5;
+const LIST_CAPS: Record<string, number> = Object.fromEntries(
+  Object.entries((coachingCandidateSchema as { properties: Record<string, { maxItems?: number }> }).properties)
+    .filter(([, v]) => typeof v?.maxItems === 'number').map(([k, v]) => [k, v.maxItems!]));
 
 /** Evidence for discovery-question (coverage) checks: the only kind a "missed question" may cite. */
 export function coverageEvidenceIds(bundle: ScenarioBundle, candidate: EvaluationCandidate): Set<string> {
@@ -66,23 +70,25 @@ export function personalRetryTargets(bundle: ScenarioBundle, candidate: Evaluati
   return picked.length ? { check_ids: picked, personal: true } : { check_ids: [...bundle.retry.focused_target_check_ids], personal: false };
 }
 
-export function retryInstruction(bundle: ScenarioBundle, targetCheckIds: string[], personal: boolean): string {
+export function retryInstruction(bundle: ScenarioBundle, targetCheckIds: string[], personal: boolean, lang: Language = 'en'): string {
+  const L = localized(bundle, lang);
   if (!personal) return bundle.retry.instruction;
   const checks = new Map(bundle.rubric.checks.map((c) => [c.id, c]));
   const ask = targetCheckIds.map((id) => {
     const c = checks.get(id)!;
-    const ex = c.accepted_intents.map((i) => bundle.conversation.intents.find((x) => x.id === i)?.positive_examples[0]).find(Boolean);
+    const ex = c.accepted_intents.map((i) => L.intentExample(i)).find(Boolean);
     return ex ? `“${ex}”` : c.description.replace(/^./, (x) => x.toLowerCase());
   });
-  return `Repeat the middle part of the conversation. This time, find out what you missed before explaining any product. For example: ${ask.join(' ')}`;
+  return `${L.retry_lead ?? 'Repeat the middle part of the conversation. This time, find out what you missed before explaining any product. For example:'} ${ask.join(' ')}`;
 }
 
-export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCandidate, mode: 'full' | 'focused', targetCheckIds: string[], retryOptions: unknown, turns: TranscriptTurn[] = []): CoachInput {
+export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCandidate, mode: 'full' | 'focused', targetCheckIds: string[], retryOptions: unknown, turns: TranscriptTurn[] = [], lang: Language = 'en'): CoachInput {
   const rt = runtimeOf(bundle);
   const outcomes = evidenceOutcomes(bundle, candidate);
+  const L = localized(bundle, lang);
   const exampleFor = (intentIds: string[]) => {
     for (const id of intentIds) {
-      const ex = bundle.conversation.intents.find((i) => i.id === id)?.positive_examples[0];
+      const ex = L.intentExample(id);
       if (ex) return ex;
     }
     return null;
@@ -102,6 +108,7 @@ export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCan
         'Strengths and the best moment may cite only evidence whose outcome is met.',
         'Missed questions, improvements and the missed opportunity may cite only evidence whose outcome is missed or violated (improvements may also cite unclear).',
         'Never say the learner did not ask something that appears in learner_messages, and do not credit behaviour the evidence does not show.',
+        ...(L.feedback_instruction ? [L.feedback_instruction] : []),
         `List at most ${MAX_MISSED_QUESTIONS} missed questions, the most important first. Missed questions cite only coverage (discovery question) checks; conversation skills go under improvements.`,
       ],
       checks: bundle.rubric.checks.map((c) => ({ id: c.id, description: c.description, category: c.category, suggested_question: exampleFor(c.accepted_intents), absence: c.id in rt.absence_checks })),
@@ -114,6 +121,11 @@ export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCan
 export function validateCoaching(raw: string, evidence: Evidence[], turns: TranscriptTurn[], outcomes?: Map<string, Outcome>, coverageEvidenceIds?: Set<string>): { ok: true; candidate: CoachingCandidate } | { ok: false; errors: string[] } {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'] }; }
+  // Lists come in priority order; items past a list's cap (a 4th improvement or 7th strength
+  // in live Hindi runs, 29 Sep 2026) are dropped rather than failing the whole report.
+  // Everything kept is still validated below. Caps come from the report contract.
+  const p = parsed as Record<string, unknown>;
+  for (const [k, max] of Object.entries(LIST_CAPS)) if (Array.isArray(p?.[k]) && (p[k] as unknown[]).length > max) p[k] = (p[k] as unknown[]).slice(0, max);
   if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`) };
   const c = parsed as unknown as CoachingCandidate;
   const ids = new Set(evidence.map((e) => e.id));
@@ -152,7 +164,6 @@ export function validateCoaching(raw: string, evidence: Evidence[], turns: Trans
     const other = f.evidence_ids.filter((id) => ids.has(id) && !coverageEvidenceIds.has(id));
     if (other.length) errors.push(`missed_questions[${i}]: cites ${other.map((id) => `"${id}"`).join(', ')}, which is not a discovery question; put conversation skills under improvement_areas.`);
   });
-  if (c.improvement_areas.length > 3) errors.push('At most three priority improvements.');
   return errors.length ? { ok: false, errors } : { ok: true, candidate: c };
 }
 

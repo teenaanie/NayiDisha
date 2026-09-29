@@ -405,6 +405,30 @@ export async function integrationTests(): Promise<Check[]> {
     ok('VOICE', 'The frozen snapshot records which turns were spoken', snapV.content.filter((t) => t.input_mode === 'voice').length === 2);
   }
 
+  // ---- conversation language (Hindi, Marathi) ------------------------------------------
+  {
+    const hs = (await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', language: 'hi' })).session;
+    const hv = await rp.getSession(asha, hs.session_id);
+    ok('LANG', 'A Hindi session opens with the Hindi opening line and Hindi brief', hv.language === 'hi' && /^नमस्ते/.test(hv.transcript[0].text) && /श्री शर्मा/.test(hv.learner_brief), hv.transcript[0].text);
+    ok('LANG', 'Voice in a Hindi session listens and speaks hi-IN', hv.voice.language === 'hi-IN', hv.voice.language);
+    const reply = await say(asha, hs.session_id, 'When is the first fee payment due?');
+    ok('LANG', 'The customer\'s verbatim line comes from the Hindi translation', reply === 'पहली फ़ीस लगभग तीन हफ़्ते में भरनी है।', reply);
+    const ms = (await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', language: 'mr' })).session;
+    ok('LANG', 'A Marathi session opens in Marathi', /^नमस्कार/.test(ms.transcript[0].text), ms.transcript[0].text);
+    let bad = '';
+    try { await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', language: 'ta' }); } catch (e) { bad = (e as rp.ApiError).code; }
+    ok('LANG', 'A language the scenario does not offer is refused', bad === 'LANGUAGE_UNAVAILABLE', bad);
+    const hrep = await finishAndReport(asha, hs.session_id);
+    const hb = hrep.body as unknown as { report: { retry_plans: { full: { id: string } }; retry_plan: { instruction: string } }; assessment_id?: string };
+    const [hrun] = await sql<{ id: string }[]>`SELECT current_run_id AS id FROM rp.session WHERE id = ${hs.session_id}`;
+    ok('LANG', 'The retry instruction is in Hindi', /बातचीत का बीच वाला हिस्सा/.test(hb.report.retry_plan.instruction), hb.report.retry_plan.instruction);
+    const hr = await rp.startRetry(asha, hs.session_id, { mode: 'full', retry_plan_id: hb.report.retry_plans.full.id, expected_assessment_id: hrun.id });
+    const [hrs] = await sql<{ language: string }[]>`SELECT language FROM rp.session WHERE id = ${hr.session.session_id}`;
+    ok('LANG', 'A retry keeps the parent\'s language', hrs.language === 'hi' && /^नमस्ते/.test(hr.session.transcript[0].text), hrs.language);
+    const brief = await rp.getBrief(asha, 'EDU_DISCOVERY_001');
+    ok('LANG', 'The brief lists English, Hindi and Marathi, with the translations marked draft', JSON.stringify(brief.languages.map((l) => `${l.id}:${l.review_status}`)) === JSON.stringify(['en:source', 'hi:draft', 'mr:draft']));
+  }
+
   // ---- audit and metrics ------------------------------------------------------------
   const [aud] = await sql<{ n: number }[]>`SELECT count(DISTINCT action)::int n FROM rp.audit_event WHERE action IN ('session.started','session.finished','scenario.published','evaluation.reviewed','retention.purged')`;
   ok('FR12', 'Audit events record starts, finishes, publications, reviews and purges', aud.n === 5, `${aud.n}/5 kinds`);

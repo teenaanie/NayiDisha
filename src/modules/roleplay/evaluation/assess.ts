@@ -1,4 +1,5 @@
 import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult } from '../contracts/types';
+import { englishName, type Language } from '../runtime/language';
 import { runtimeOf } from '../config/runtime-extension';
 import { computeDerivations } from '../config/patch';
 import { renderFact } from '../runtime/disclosure';
@@ -29,6 +30,8 @@ export interface AssessInput {
   correlation: { tenant_id: string; session_id: string; evaluation_id: string };
   /** Intents the runtime acted on per learner turn, so scoring matches what the customer understood. */
   recordedIntents?: Map<string, RecordedIntent[]>;
+  /** Conversation language; quotes stay in it, explanations are written in English. */
+  language?: Language;
 }
 export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; /** Mechanical slips the validator normalised (see validate.ts). */ notes?: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
 export type AssessResult =
@@ -66,6 +69,8 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     contract_json: {
       contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion,
       offsets: 'unicode code points, start inclusive, end exclusive',
+      conversation_language: englishName(input.language ?? 'en'),
+      language_rule: (input.language ?? 'en') === 'en' ? null : `The conversation is in ${englishName(input.language ?? 'en')}. Judge it by the same rubric. Quote learner and customer words exactly as written, in their original script; write rationales and explanations in English.`,
       // Live runs (29 Sep 2026) gave score 2 with anchor_score 1 and were rejected; state the rule outright.
       dimension_score_rule: 'For each dimension choose exactly one RUBRIC anchor that best fits the evidence, and set BOTH score and anchor_score to that anchor\'s score. Never award a value between anchors or different from the chosen anchor.',
       allowed_scores: Object.fromEntries(bundle.rubric.dimensions.map((d) => [d.id, d.anchors.map((a) => a.score).sort((x, y) => x - y)])),
