@@ -9,7 +9,7 @@ import { scoreAssessment, ScoringError, qParse, cmp, q } from '../../src/modules
 import { respond } from '../../src/modules/roleplay/runtime/engine';
 import { openingFactIds } from '../../src/modules/roleplay/runtime/disclosure';
 import { validateRoleplayOutput } from '../../src/modules/roleplay/runtime/generate';
-import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, type ModelProvider } from '../../src/modules/roleplay/providers';
+import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
 import { assess } from '../../src/modules/roleplay/evaluation/assess';
@@ -220,6 +220,17 @@ export async function unitTests(): Promise<Check[]> {
     sp2.quote = elsewhere; sp2.end = sp2.start + elsewhere.length;
     const f4 = validateCandidate(JSON.stringify(otherTurn), ctx);
     ok('AT14', 'A real quote attributed to the wrong turn is still rejected', !f4.ok && f4.errors.some((e) => /quote does not match|outside the turn/.test(e)));
+    // Live runs, 29 Sep 2026: score 2 with anchor_score 1. The contract now states the rule and each dimension's levels.
+    let seenContract: any = null;
+    overrideProvider('evaluate', { id: 'spy', model: 'spy', live: false, complete: async (req) => { seenContract = (req.data as any).contract_json; return { text: JSON.stringify(at.candidate), provider: 'spy', model: 'spy', request_id: null, usage: null, latency_ms: 1 }; } });
+    try { await assess({ bundle: b, turns: turns14, session_id: 's14', transcript_hash: 'h14', mode: 'full', target_check_ids: [], template: loadPrompt('evaluator_v1'), correlation: { tenant_id: 't', session_id: 's14', evaluation_id: 'e' } }); }
+    finally { overrideProvider('evaluate', null); }
+    ok('§14', 'The evaluator contract states the one-anchor rule and each dimension\'s allowed scores',
+      !!seenContract && /BOTH score and anchor_score/.test(seenContract.dimension_score_rule) && b.rubric.dimensions.every((d) => JSON.stringify(seenContract.allowed_scores[d.id]) === JSON.stringify(d.anchors.map((a) => a.score).sort((x, y) => x - y))),
+      seenContract ? JSON.stringify(seenContract.allowed_scores) : 'no request');
+    const between = clone(at.candidate); between.dimension_scores[0].score = between.dimension_scores[0].anchor_score === 1 ? 2 : 1;
+    const fb = validateCandidate(JSON.stringify(between), ctx);
+    ok('§14', 'A score that disagrees with its anchor is rejected with a message that names the fix', !fb.ok && fb.errors.some((e) => /Set both to the one anchor that fits/.test(e)));
     const noDim = clone(at.candidate); noDim.dimension_scores.pop();
     const f2 = validateCandidate(JSON.stringify(noDim), ctx);
     ok('AT14', 'A missing dimension rejects the candidate', !f2.ok && f2.errors.some((e) => /Missing required dimension/.test(e)));

@@ -63,7 +63,14 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     risk_policy_json: bundle.risk_policy,
     knowledge_status_json: { pack: (bundle.extensions as { knowledge_pack?: unknown } | undefined)?.knowledge_pack ?? 'absent', product_policy_accuracy: 'not_assessed' },
     transcript_json: input.turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text, ...(t.input_mode === 'voice' ? { input_mode: 'voice (learner-checked transcript)' } : {}) })),
-    contract_json: { contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, offsets: 'unicode code points, start inclusive, end exclusive', previous_errors: [] as string[] },
+    contract_json: {
+      contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion,
+      offsets: 'unicode code points, start inclusive, end exclusive',
+      // Live runs (29 Sep 2026) gave score 2 with anchor_score 1 and were rejected; state the rule outright.
+      dimension_score_rule: 'For each dimension choose exactly one RUBRIC anchor that best fits the evidence, and set BOTH score and anchor_score to that anchor\'s score. Never award a value between anchors or different from the chosen anchor.',
+      allowed_scores: Object.fromEntries(bundle.rubric.dimensions.map((d) => [d.id, d.anchors.map((a) => a.score).sort((x, y) => x - y)])),
+      previous_errors: [] as string[],
+    },
   };
 
   let accepted: EvaluationCandidate | null = null;

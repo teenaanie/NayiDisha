@@ -136,7 +136,7 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
     if (seen.has(d.dimension_id)) e(`${w}: dimension scored twice.`);
     seen.add(d.dimension_id);
     if (d.score < def.min_score || d.score > def.max_score) e(`${w}: score ${d.score} outside ${def.min_score}–${def.max_score}.`);
-    if (d.anchor_score !== d.score || !def.anchors.some((a) => a.score === d.anchor_score)) e(`${w}: anchor_score must be the defined anchor for the awarded score.`);
+    if (d.anchor_score !== d.score || !def.anchors.some((a) => a.score === d.anchor_score)) e(`${w}: anchor_score must be the defined anchor for the awarded score (got score ${d.score}, anchor_score ${d.anchor_score}; allowed ${def.anchors.map((a) => a.score).join(', ')}). Set both to the one anchor that fits.`);
     for (const id of d.evidence_ids) if (!ids.has(id)) e(`${w}: cites unknown evidence "${id}".`);
   }
   for (const d of dims) if (d.applicability === 'required' && !seen.has(d.id)) e(`Missing required dimension "${d.id}".`);
