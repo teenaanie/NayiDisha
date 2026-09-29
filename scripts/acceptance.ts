@@ -648,6 +648,97 @@ async function main() {
     (mcq.inputs.assessment as { source?: string })?.source === 'TEST',
     JSON.stringify(mcq.inputs.assessment));
 
+  // ---- WhatsApp Cloud API ------------------------------------------------
+  // The registration webhook accepts normalised events on the stated
+  // assumption that something translates Meta's payload first. That
+  // translation now exists and shares the endpoint, so what needs proving is
+  // that the two signature schemes cannot be used against each other, and that
+  // Meta's retries and out-of-order receipts stay harmless.
+  {
+    process.env.WHATSAPP_APP_SECRET = 'meta-secret';
+    process.env.WHATSAPP_WEBHOOK_SECRET = 'internal-secret';
+    const { createHmac } = await import('node:crypto');
+    const wh = await import('../src/app/api/whatsapp/webhook/route');
+    const metaSig = (r: string) => 'sha256=' + createHmac('sha256', 'meta-secret').update(r, 'utf8').digest('hex');
+    const intSig = (r: string) => createHmac('sha256', 'internal-secret').update(r).digest('hex');
+    const send = (obj: unknown, headers: Record<string, string>) =>
+      wh.POST(new Request('https://x/api/whatsapp/webhook', { method: 'POST', body: JSON.stringify(obj), headers }));
+    const asMeta = (obj: unknown) => send(obj, { 'x-hub-signature-256': metaSig(JSON.stringify(obj)) });
+    const wrap = (v: unknown) => ({ object: 'whatsapp_business_account', entry: [{ changes: [{ value: v }] }] });
+
+    const crossed = wrap({ statuses: [] });
+    check('§13', 'A Meta payload signed with the internal secret is refused',
+      (await send(crossed, { 'x-hub-signature-256': intSig(JSON.stringify(crossed)) })).status === 401, '401');
+    const internalEvt = { type: 'invite_reply', phone: '+910000009999', accepted: true, text: 'yes' };
+    check('§13', 'An internal event signed with the Meta secret is refused',
+      (await send(internalEvt, { 'x-whatsapp-signature': metaSig(JSON.stringify(internalEvt)) })).status === 401, '401');
+
+    const ref = 'wamid.ACC' + Date.now();
+    const mid = await nextId('MSG');
+    await sql`INSERT INTO app.message_log (id,candidate_id,direction,template_key,language,category,body,cost_paise,created_at,delivery_status,provider_ref,provider,status_at)
+              VALUES (${mid},'CAN-001','OUTBOUND','welcome','en','SERVICE','hi',0,${SEED_INSTANT},'ACCEPTED',${ref},'whatsapp-cloud-api@1.0',${SEED_INSTANT})`;
+    await asMeta(wrap({ statuses: [{ id: ref, status: 'delivered', pricing: { category: 'utility' } }] }));
+    await asMeta(wrap({ statuses: [{ id: ref, status: 'sent' }] }));   // Meta delivers these out of order.
+    const [ladder] = await sql<{ delivery_status: string; billed_category: string }[]>`
+      SELECT delivery_status, billed_category FROM app.message_log WHERE id=${mid}`;
+    check('§13', 'A late receipt never walks a message back down the delivery ladder',
+      ladder.delivery_status === 'DELIVERED', ladder.delivery_status);
+    check('§16.2', 'What Meta actually billed is recorded beside the modelled cost',
+      ladder.billed_category === 'utility', String(ladder.billed_category));
+
+    const inRef = 'wamid.ACCIN' + Date.now();
+    const inbound = wrap({ messages: [{ id: inRef, from: '910000000001', type: 'text', text: { body: 'hello' } }] });
+    await asMeta(inbound);
+    await asMeta(inbound);   // Meta retries anything it believes failed.
+    const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM app.inbound_message WHERE provider_ref=${inRef}`;
+    check('§13', 'A retried inbound message is stored exactly once', n === 1, `${n} row(s)`);
+    const [linked] = await sql<{ candidate_id: string }[]>`SELECT candidate_id FROM app.inbound_message WHERE provider_ref=${inRef}`;
+    check('§13', 'An inbound message is matched to its candidate by phone number',
+      linked?.candidate_id === 'CAN-001', String(linked?.candidate_id));
+
+    // The send cannot be exercised against Meta, so the payload is pinned here:
+    // a wrong template name or a misordered variable is a silent rejection at
+    // Meta, not something the adapter would notice.
+    const realFetch = globalThis.fetch;
+    let captured: { url: string; body: Record<string, any> } | null = null;
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      captured = { url: String(url), body: JSON.parse(String(init?.body ?? '{}')) };
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.STUB' }] }), { status: 200 });
+    }) as typeof fetch;
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '123';
+    process.env.WHATSAPP_ACCESS_TOKEN = 'tok';
+    const mm = await import('../src/modules/adapters/messaging');
+    check('§21.2', 'Credentials alone do not switch on real messaging',
+      mm.messagingProvider().name === 'whatsapp-simulator@1.0', mm.messagingProvider().name);
+
+    const provider = new mm.CloudApiMessagingProvider(mm.cloudApiConfig()!);
+    await provider.send({ candidateId: 'CAN-001', templateKey: 'application_confirm', language: 'en', variables: { employer: 'Sahyadri Bank' } });
+    const sent = captured as unknown as { url: string; body: Record<string, any> };
+    // CAN-001 chose Marathi and the call passes 'en'; the candidate must win.
+    check('§10.1', "A send uses the candidate's own language, not the caller's",
+      sent.url.includes('/123/messages') && sent.body.template.name === 'application_confirm_mr',
+      String(sent.body.template.name));
+    check('§10.1', 'Named template variables are sent to Meta positionally',
+      sent.body.template.components?.[0]?.parameters?.[0]?.text === 'Sahyadri Bank',
+      JSON.stringify(sent.body.template.components?.[0]?.parameters));
+
+    globalThis.fetch = (async () => new Response(JSON.stringify({ error: { message: 'Template not approved' } }), { status: 400 })) as typeof fetch;
+    let threw = '';
+    try { await provider.send({ candidateId: 'CAN-001', templateKey: 'welcome', language: 'en' }); }
+    catch (e) { threw = e instanceof Error ? e.message : String(e); }
+    const [failedRow] = await sql<{ failure_reason: string; cost_paise: string }[]>`
+      SELECT failure_reason, cost_paise::text FROM app.message_log
+       WHERE candidate_id='CAN-001' AND delivery_status='FAILED' ORDER BY created_at DESC LIMIT 1`;
+    check('§13', "A refused send is recorded with Meta's reason and charged nothing",
+      threw.includes('Template not approved') && failedRow?.failure_reason === 'Template not approved' && failedRow.cost_paise === '0',
+      `${failedRow?.failure_reason} / ${failedRow?.cost_paise}p`);
+
+    globalThis.fetch = realFetch;
+    await sql`DELETE FROM app.inbound_message WHERE provider_ref=${inRef}`;
+    await sql`DELETE FROM app.message_log WHERE provider_ref IN (${ref},${inRef},'wamid.STUB') OR (candidate_id='CAN-001' AND delivery_status='FAILED')`;
+    for (const k of ['WHATSAPP_APP_SECRET','WHATSAPP_WEBHOOK_SECRET','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN']) delete process.env[k];
+  }
+
   // ---- §24: the unlock is the money path ---------------------------------
   // The unlock is the money path and the largest transaction in the app, so it
   // gets the same proof rather than an argument from code reading.

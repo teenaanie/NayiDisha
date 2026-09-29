@@ -99,11 +99,143 @@ export class SimulatorMessagingProvider implements MessagingProvider {
   }
 }
 
+// ---------------------------------------------------------------------------
+// WhatsApp Cloud API
+// ---------------------------------------------------------------------------
+
+const GRAPH_VERSION = process.env.WHATSAPP_GRAPH_VERSION || 'v21.0';
+
+export interface CloudApiConfig { phoneNumberId: string; accessToken: string; wabaId?: string }
+
+/** Configured only when every value a real send needs is present. */
+export function cloudApiConfig(): CloudApiConfig | null {
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  if (!phoneNumberId || !accessToken) return null;
+  return { phoneNumberId, accessToken, wabaId: process.env.WHATSAPP_WABA_ID };
+}
+
+/**
+ * Template variables are named here ({{employer}}) and positional at Meta
+ * ({{1}}). The seeded body is the contract: the order its placeholders first
+ * appear is the order Meta substitutes, so both sides read that order off the
+ * same string rather than keeping a second list in step with it.
+ */
+export function orderedPlaceholders(body: string): string[] {
+  const seen: string[] = [];
+  for (const m of body.matchAll(/\{\{(\w+)\}\}/g)) if (!seen.includes(m[1])) seen.push(m[1]);
+  return seen;
+}
+
+/** Meta's template names: lowercase, digits and underscores only. */
+export const metaTemplateName = (key: string, language: string) =>
+  `${key}_${language}`.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+
+/**
+ * Real WhatsApp, through Meta's Cloud API.
+ *
+ * Emits the simulator's normalised events and writes the same message_log row,
+ * so nothing downstream can tell which one ran. What differs is certainty: the
+ * simulator knew a message arrived, this one only knows Meta accepted it. A row
+ * starts ACCEPTED and the webhook moves it along as receipts come in.
+ */
+export class CloudApiMessagingProvider implements MessagingProvider {
+  readonly name = 'whatsapp-cloud-api@1.0';
+  constructor(private cfg: CloudApiConfig) {}
+
+  async send(msg: OutboundMessage): Promise<NormalisedEvent> {
+    const [candidate] = await sql<{ language: string; phone: string; status: string }[]>`
+      SELECT language, phone, status FROM app.candidate WHERE id = ${msg.candidateId}
+    `;
+    if (!candidate) throw new Error(`Unknown candidate ${msg.candidateId}`);
+    // A deleted or blocked profile is never messaged, whatever asked.
+    if (candidate.status === 'DELETED_BLOCKED') throw new Error('This profile is no longer active.');
+
+    // The candidate's own language wins over the caller's: somebody who chose
+    // Marathi must not be sent English because a call site hard-coded it.
+    const language = candidate.language || msg.language;
+    const [tpl] = await sql<{ body: string; category: TemplateCategory }[]>`
+      SELECT body, category FROM app.message_template WHERE key = ${msg.templateKey} AND language = ${language}
+    `;
+    const [fallback] = await sql<{ body: string; category: TemplateCategory }[]>`
+      SELECT body, category FROM app.message_template WHERE key = ${msg.templateKey} AND language = 'en'
+    `;
+    const chosen = tpl ?? fallback;
+    if (!chosen) throw new Error(`No template ${msg.templateKey} in ${language} or en`);
+
+    const at = await now();
+    const id = await nextId('MSG');
+    const body = render(chosen.body, msg.variables);
+    const params = orderedPlaceholders(chosen.body).map((k) => ({ type: 'text', text: msg.variables?.[k] ?? '' }));
+
+    let providerRef: string | null = null;
+    let status = 'ACCEPTED';
+    let failure: string | null = null;
+    try {
+      const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${this.cfg.phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.cfg.accessToken}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: candidate.phone.replace(/[^0-9]/g, ''),
+          type: 'template',
+          template: {
+            name: metaTemplateName(msg.templateKey, language),
+            language: { code: language },
+            ...(params.length ? { components: [{ type: 'body', parameters: params }] } : {}),
+          },
+        }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const json: Record<string, any> = await res.json().catch(() => ({}));
+      if (res.ok) providerRef = json?.messages?.[0]?.id ?? null;
+      else {
+        status = 'FAILED';
+        // Meta's own words, so an operator is not decoding a status code.
+        failure = String(json?.error?.message ?? `HTTP ${res.status}`).slice(0, 300);
+      }
+    } catch (e) {
+      status = 'FAILED';
+      failure = e instanceof Error && e.name === 'TimeoutError' ? 'Cloud API timed out' : 'Cloud API unreachable';
+    }
+
+    // The row is written whatever happened: a message that failed to send is a
+    // fact the funnel needs, not something to discard.
+    await sql`
+      INSERT INTO app.message_log
+        (id, candidate_id, direction, template_key, language, category, body,
+         cost_paise, created_at, delivery_status, failure_reason, provider_ref, provider, status_at)
+      VALUES
+        (${id}, ${msg.candidateId}, 'OUTBOUND', ${msg.templateKey}, ${language}, ${chosen.category}, ${body},
+         ${status === 'FAILED' ? 0 : COST_PAISE[chosen.category]}, ${at}, ${status}, ${failure},
+         ${providerRef}, ${this.name}, ${at})
+    `;
+    if (status === 'FAILED') throw new Error(failure ?? 'WhatsApp send failed');
+    return { id, candidateId: msg.candidateId, direction: 'OUTBOUND', body, category: chosen.category, createdAt: at };
+  }
+
+  /** Inbound arrives by webhook; this records one the way the simulator does. */
+  async receive(candidateId: string, body: string): Promise<NormalisedEvent> {
+    const at = await now();
+    const id = await nextId('MSG');
+    await sql`
+      INSERT INTO app.message_log (id, candidate_id, direction, body, cost_paise, created_at, provider, status_at)
+      VALUES (${id}, ${candidateId}, 'INBOUND', ${body}, 0, ${at}, ${this.name}, ${at})
+    `;
+    return { id, candidateId, direction: 'INBOUND', body, category: null, createdAt: at };
+  }
+}
+
+/**
+ * Real WhatsApp only when it is both configured and explicitly switched on.
+ *
+ * Credentials alone are not enough. WHATSAPP_LIVE=true is a second, deliberate
+ * act, because the failure mode here is messaging real people from a demo, and
+ * a stray environment variable should not be able to cause that by itself.
+ */
 export function messagingProvider(): MessagingProvider {
-  // WhatsApp Cloud API adapter would be selected here by environment.
-  // It is deliberately absent: shipping it would require a Meta business
-  // account, an approved WABA and template review, none of which a prototype
-  // needs (§21.3).
+  const cfg = cloudApiConfig();
+  if (cfg && process.env.WHATSAPP_LIVE === 'true') return new CloudApiMessagingProvider(cfg);
   return new SimulatorMessagingProvider();
 }
 

@@ -17,7 +17,8 @@
     "rp:worker": "tsx --env-file-if-exists=.env.local scripts/roleplay-worker.ts",
     "rp:purge": "tsx --env-file-if-exists=.env.local scripts/roleplay-purge.ts",
     "test:roleplay": "tsx --env-file-if-exists=.env.local scripts/roleplay-tests.ts",
-    "rp:contracts": "tsx scripts/roleplay-contracts.ts"
+    "rp:contracts": "tsx scripts/roleplay-contracts.ts",
+    "whatsapp:templates": "tsx --env-file-if-exists=.env.local scripts/whatsapp-templates.ts"
   },
   "dependencies": {
     "ajv": "^8.20.0",

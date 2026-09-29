@@ -1,5 +1,6 @@
 import { handleInviteReply, handleFlowSubmission, verifyWebhook } from '@/modules/registration';
 import { FormError } from '@/modules/registration/flow';
+import { verifyMetaSignature, isMetaPayload, handleMetaPayload } from '@/modules/adapters/whatsapp-meta';
 
 /**
  * WhatsApp registration webhook.
@@ -12,6 +13,13 @@ import { FormError } from '@/modules/registration/flow';
  * translating Meta's payload (and downloading the Flow's DocumentPicker media
  * into storage), so there is one trusted path into a profile, not two. Nothing
  * in the payload may name a candidate: the invite does that.
+ *
+ * Meta now posts here too, in its own shape, signed its own way. That payload is
+ * translated in `@/modules/adapters/whatsapp-meta` and handed to the very same
+ * handlers, so the normalised path above is unchanged and remains the only way
+ * a profile is written. The two are told apart by which signature header is
+ * present, and each is verified against its own secret — neither can be used to
+ * smuggle a request past the other.
  */
 
 // Meta's one-time subscription handshake, for when a real number is connected.
@@ -28,6 +36,28 @@ const KNOWN = new Set(['UNKNOWN_INVITE', 'INVITE_NOT_ACCEPTED', 'PROFILE_BLOCKED
 
 export async function POST(request: Request) {
   const raw = await request.text();
+
+  // Meta's own webhook, signed with the app secret. Anything carrying this
+  // header is verified as Meta or refused — it is never allowed to fall
+  // through to the internal path and be checked against the other secret.
+  const metaSignature = request.headers.get('x-hub-signature-256');
+  if (metaSignature) {
+    if (!verifyMetaSignature(raw, metaSignature)) {
+      return Response.json({ error: 'BAD_SIGNATURE' }, { status: 401 });
+    }
+    let metaBody: unknown;
+    try { metaBody = JSON.parse(raw); } catch { return Response.json({ error: 'BAD_JSON' }, { status: 400 }); }
+    if (!isMetaPayload(metaBody)) return Response.json({ error: 'UNKNOWN_EVENT' }, { status: 400 });
+    try {
+      // Always 200 once signed: a non-2xx makes Meta retry the whole batch,
+      // including the parts that already applied.
+      return Response.json({ ok: true, ...(await handleMetaPayload(metaBody)) });
+    } catch (e) {
+      console.error('whatsapp meta webhook failed', e);
+      return Response.json({ ok: false, error: 'FAILED' });
+    }
+  }
+
   if (!verifyWebhook(raw, request.headers.get('x-whatsapp-signature'))) {
     return Response.json({ error: 'BAD_SIGNATURE' }, { status: 401 });
   }
