@@ -3,6 +3,7 @@ import { classify, CLASSIFIER_VERSION, type Classification } from './intents';
 import { classifyWithModel, modelClassifierAvailable } from './model-classifier';
 import { resolveDisclosure, discoveryComplete, type DisclosurePlan } from './disclosure';
 import { generateCustomerReply, OUTPUT_VALIDATOR_VERSION, type CustomerReply } from './generate';
+import type { Language } from './language';
 
 /**
  * One customer turn, start to finish, with no I/O beyond the model call.
@@ -17,6 +18,8 @@ export interface TurnInput {
   askedIntentIds: Set<string>;
   template: string;
   correlation: { tenant_id: string; session_id: string; operation_id: string };
+  /** Conversation language; the customer replies in it. Default English. */
+  language?: Language;
 }
 export interface TurnOutput {
   classification: Classification;
@@ -40,7 +43,7 @@ export async function respond(input: TurnInput): Promise<TurnOutput> {
     }
   }
   const plan = resolveDisclosure(input.bundle, classification, input.disclosed);
-  const reply = await generateCustomerReply({ bundle: input.bundle, plan, history: input.history, learnerText: input.learnerText, template: input.template, correlation: input.correlation });
+  const reply = await generateCustomerReply({ bundle: input.bundle, plan, history: input.history, learnerText: input.learnerText, template: input.template, correlation: input.correlation, language: input.language ?? 'en' });
   return { classification, plan, reply, engine: { classifier_version: classification.classifier_version, output_validator_version: OUTPUT_VALIDATOR_VERSION, classifier_fallback: classifierFallback } };
 }
 

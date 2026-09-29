@@ -4,6 +4,7 @@ import { roleplayCandidateSchema } from '../contracts/schemas';
 import { runtimeOf } from '../config/runtime-extension';
 import { completeWithRetry, type CompletionResult } from '../providers';
 import { renderFact, numbersIn, type DisclosurePlan } from './disclosure';
+import { localized, type Language } from './language';
 
 /**
  * Customer turn generation (spec §10, §15).
@@ -85,6 +86,7 @@ export interface GenerateInput {
   learnerText: string;
   template: string;
   correlation: { tenant_id: string; session_id: string; operation_id: string };
+  language?: Language;
 }
 
 export async function generateCustomerReply(input: GenerateInput): Promise<CustomerReply> {
@@ -93,8 +95,10 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   const rt = runtimeOf(bundle);
   const factRules = new Map(bundle.conversation.rules.map((r) => [r.id, r]));
   const attempts: GenerationAttempt[] = [];
+  // Verbatim lines come from the scenario's translation for the session language (source text otherwise).
+  const L = localized(bundle, input.language ?? 'en');
 
-  if (plan.kind === 'clarify') return { text: conv.clarification_response, disclosed_fact_ids: [], method: 'configured', attempts };
+  if (plan.kind === 'clarify') return { text: L.clarification_response, disclosed_fact_ids: [], method: 'configured', attempts };
 
   const fixtureFacts = plan.parts.flatMap((p) => (p.kind === 'fixture' ? factRules.get(p.rule_id)!.reveal_fact_ids.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id)) : []));
   const answerFactIds = plan.parts.flatMap((p) => (p.kind === 'facts' ? p.fact_ids : []));
@@ -107,14 +111,14 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     const facts = new Map(bundle.facts.map((f) => [f.id, f]));
     const allowedFacts = plan.allowed_fact_ids.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
     const data = {
-      persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: bundle.persona.speaking_style },
+      persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: [bundle.persona.speaking_style, L.reply_instruction].filter(Boolean).join(' ') },
       allowed_facts_json: allowedFacts,
       reaction_json: null,
-      unknown_response_json: conv.unknown_response,
+      unknown_response_json: L.unknown_response,
       history_json: [...input.history.map((t) => ({ speaker: t.speaker, text: t.text })), { speaker: 'learner', text: input.learnerText }],
       // Not in the template text; the mock uses them to know what this turn answers.
       answer_fact_ids: answerFactIds,
-      acknowledgement_json: rt.acknowledgement_text ?? conv.clarification_response,
+      acknowledgement_json: L.acknowledgement_text ?? L.clarification_response,
     };
     for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
       try {
@@ -129,7 +133,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
         // Nothing here is invented: each sentence is a fact value the rules released.
         const facts = new Map(bundle.facts.map((f) => [f.id, f]));
         const plain = answerFactIds.map((id) => renderFact(facts.get(id)!)).filter((x): x is string => !!x).map((v) => v.charAt(0).toUpperCase() + v.slice(1)).map((v) => (/[.!?]$/.test(v) ? v : v + '.'));
-        generated = plain.length ? plain.join(' ') : (rt.acknowledgement_text ?? conv.clarification_response);
+        generated = plain.length ? plain.join(' ') : (L.acknowledgement_text ?? L.clarification_response);
         generatedFacts = plain.length ? answerFactIds : [];
         degraded = true;
         break;
@@ -137,16 +141,16 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     }
     if (generated === null) {
       // Two invalid candidates: say nothing unvalidated, release nothing generated.
-      const fixtureText = plan.parts.filter((p) => p.kind === 'fixture').map((p) => (p as { text: string }).text);
-      return { text: [...fixtureText, conv.clarification_response].join(' '), disclosed_fact_ids: fixtureFacts, method: 'fallback', attempts };
+      const fixtureText = plan.parts.filter((p) => p.kind === 'fixture').map((p) => L.ruleResponse((p as { rule_id: string }).rule_id, (p as { text: string }).text));
+      return { text: [...fixtureText, L.clarification_response].join(' '), disclosed_fact_ids: fixtureFacts, method: 'fallback', attempts };
     }
   }
 
   const pieces: string[] = [];
   let usedGenerated = false;
   for (const p of plan.parts) {
-    if (p.kind === 'fixture') pieces.push(p.text);
-    else if (p.kind === 'unknown') pieces.push(conv.unknown_response);
+    if (p.kind === 'fixture') pieces.push(L.ruleResponse(p.rule_id, p.text));
+    else if (p.kind === 'unknown') pieces.push(L.unknown_response);
     else if (!usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
   }
   if (plan.kind === 'acknowledge' && generated) pieces.push(generated);

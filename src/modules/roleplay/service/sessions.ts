@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { bcp47, isLanguage, languagesOf, localized, type Language } from '../runtime/language';
 import { canonicalJson, sha256 } from '../config/compile';
 import type { ScenarioBundle, TranscriptTurn } from '../contracts/types';
 import { respond, ENGINE_VERSION } from '../runtime/engine';
@@ -25,6 +26,8 @@ export interface SessionRow {
   bundle_hash: string; rubric_version: string; scoring_version: string; prompt_versions: Record<string, { id: string; digest: string }>;
   state: string; revision: number; parent_session_id: string | null; retry_scope: RetryScope | null; is_preview: boolean;
   started_at: Date; last_activity_at: Date; completed_at: Date | null; learner_turn_count: number; transcript_hash: string | null; current_run_id: string | null;
+  /** Conversation language (migration 017); retries inherit it. */
+  language: Language;
 }
 export interface RetryScope { mode: 'full' | 'focused'; plan_id: string; parent_run_id: string; checkpoint_sequence: number | null; target_check_ids: string[]; comparable: boolean }
 
@@ -62,7 +65,7 @@ export async function loadSessionFor(actor: Actor, sessionId: string, access: 'o
 
 export function publicSession(s: SessionRow, turns: { id: string; sequence: number; speaker: string; text: string; origin: string; created_at: Date; input_mode?: string }[], pending: { id: string; status: string } | null) {
   return {
-    session_id: s.id, scenario_id: s.scenario_id, scenario_version: s.scenario_version, state: s.state, revision: s.revision,
+    session_id: s.id, scenario_id: s.scenario_id, scenario_version: s.scenario_version, state: s.state, revision: s.revision, language: s.language ?? 'en',
     is_preview: s.is_preview, parent_session_id: s.parent_session_id,
     retry_scope: s.retry_scope ? { mode: s.retry_scope.mode, comparable: s.retry_scope.comparable, target_check_ids: s.retry_scope.target_check_ids } : null,
     started_at: s.started_at, completed_at: s.completed_at, learner_turn_count: s.learner_turn_count,
@@ -79,9 +82,9 @@ async function pendingOp(sessionId: string, conn: Tx = sql) {
 
 // ---- start --------------------------------------------------------------------
 
-export interface StartInput { scenario_id: string; scenario_version?: string; preview_version_id?: string }
+export interface StartInput { scenario_id: string; scenario_version?: string; preview_version_id?: string; language?: string }
 
-export async function startSession(actor: Actor, input: StartInput, parent?: { session_id: string; scope: RetryScope; prefix?: TranscriptTurn[]; version_id: string }) {
+export async function startSession(actor: Actor, input: StartInput, parent?: { session_id: string; scope: RetryScope; prefix?: TranscriptTurn[]; version_id: string; language?: Language }) {
   const preview = !!input.preview_version_id;
   if (preview) requireRole(actor, 'author', 'reviewer'); else requireRole(actor, 'learner');
   await rateLimit(actor, 'start');
@@ -97,13 +100,17 @@ export async function startSession(actor: Actor, input: StartInput, parent?: { s
   // Retiring stops new starts; a retry of a pinned session may still use its version (spec §19).
   if (v.status !== 'published' && !parent) throw conflict('SCENARIO_RETIRED', 'This scenario version has been retired and cannot be started.');
   const b = v.bundle as ScenarioBundle;
+  // A retry keeps the parent's language; otherwise the learner's choice, which the scenario must offer.
+  const language: Language = parent?.language ?? (input.language === undefined ? 'en' : (isLanguage(input.language) && languagesOf(b).some((l) => l.id === input.language) ? input.language : (() => {
+    throw new ApiError(422, 'LANGUAGE_UNAVAILABLE', `This scenario is available in ${languagesOf(b).map((l) => l.label).join(', ')}.`);
+  })()));
 
   const started = await sql.begin(async (tx) => {
     const [s] = await tx<SessionRow[]>`
       INSERT INTO rp.session (tenant_id, learner_id, scenario_version_id, scenario_id, scenario_version, bundle_hash, rubric_version, scoring_version,
-        prompt_versions, engine_version, state, revision, parent_session_id, retry_scope, is_preview)
+        prompt_versions, engine_version, state, revision, parent_session_id, retry_scope, is_preview, language)
       VALUES (${actor.tenant_id}, ${actor.user_id}, ${v.id}, ${b.scenario.id}, ${v.version}, ${v.bundle_hash}, ${v.rubric_version}, ${v.scoring_version},
-        ${tx.json(v.prompt_versions as never)}, ${v.engine_version}, 'active', 0, ${parent?.session_id ?? null}, ${parent ? tx.json(parent.scope as never) : null}, ${preview || v.preview_only})
+        ${tx.json(v.prompt_versions as never)}, ${v.engine_version}, 'active', 0, ${parent?.session_id ?? null}, ${parent ? tx.json(parent.scope as never) : null}, ${preview || v.preview_only}, ${language})
       RETURNING *`;
     let seq = 0;
     let openingId: string;
@@ -132,7 +139,7 @@ export async function startSession(actor: Actor, input: StartInput, parent?: { s
       }
     } else {
       // The exact configured opening is committed as turn 0 without a model call (spec §5 step 3).
-      const [o] = await tx<{ id: string }[]>`INSERT INTO rp.turn (tenant_id, session_id, sequence, speaker, text, origin) VALUES (${actor.tenant_id}, ${s.id}, 0, 'customer', ${b.conversation.opening_text}, 'opening') RETURNING id`;
+      const [o] = await tx<{ id: string }[]>`INSERT INTO rp.turn (tenant_id, session_id, sequence, speaker, text, origin) VALUES (${actor.tenant_id}, ${s.id}, 0, 'customer', ${localized(b, language).opening_text}, 'opening') RETURNING id`;
       openingId = o.id; seq = 1;
       for (const f of openingFactIds(b)) {
         await tx`INSERT INTO rp.disclosure_event (tenant_id, session_id, fact_id, method, customer_turn_id, classifier_version) VALUES (${actor.tenant_id}, ${s.id}, ${f}, 'opening', ${o.id}, ${CLASSIFIER_VERSION})`;
@@ -164,7 +171,8 @@ export async function getSession(actor: Actor, sessionId: string) {
   s = await expireIfIdle(s);
   const { voiceCapabilities, hasVoiceConsent } = await import('./voice');
   const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
-  return { ...publicSession(s, await transcript(s.id), await pendingOp(s.id)), voice: { ...voiceCapabilities(bundle.scenario.locale), consent: await hasVoiceConsent(actor) } };
+  const lang = s.language ?? 'en';
+  return { ...publicSession(s, await transcript(s.id), await pendingOp(s.id)), learner_brief: localized(bundle, lang).learner_brief, voice: { ...voiceCapabilities(bcp47(lang)), consent: await hasVoiceConsent(actor) } };
 }
 
 export async function listMySessions(actor: Actor) {
@@ -195,7 +203,7 @@ export async function submitTurn(actor: Actor, sessionId: string, body: TurnInpu
   if (voice) {
     if (!(await hasVoiceConsent(actor))) throw new ApiError(403, 'VOICE_CONSENT_REQUIRED', 'Allow voice practice before sending a spoken message.');
     const pre = await loadSessionFor(actor, sessionId);
-    voiceLanguage = (await loadBundle(pre.tenant_id, pre.scenario_version_id, pre.bundle_hash)).scenario.locale;
+    voiceLanguage = bcp47(pre.language ?? 'en');
   }
 
   const result = await sql.begin(async (tx) => {
@@ -258,7 +266,7 @@ async function processCustomerTurn(job: Job) {
   if (template.digest !== s.prompt_versions.roleplay.digest) throw new PermanentJobError('Pinned roleplay prompt digest mismatch.');
   const started = Date.now();
   const out = await respond({
-    bundle, history, learnerText: learner.text,
+    bundle, history, learnerText: learner.text, language: s.language ?? 'en',
     disclosed: new Set(disclosed.map((d) => d.fact_id)), askedIntentIds: new Set(asked.map((a) => a.intent_id)),
     template: template.content, correlation: { tenant_id: s.tenant_id, session_id: s.id, operation_id: op.id },
   });

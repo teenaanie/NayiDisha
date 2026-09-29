@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { languagesOf, localized } from '../runtime/language';
 import { compile, digestOf, sha256, parseStrictJson, type Issue } from '../config/compile';
 import { loadPrompt } from '../config/content';
 import { runtimeOf } from '../config/runtime-extension';
@@ -283,6 +284,8 @@ export function publicBrief(versionId: string, b: ScenarioBundle) {
   return {
     ...publicSummary(versionId, b),
     learner_brief: b.scenario.learner_brief,
+    // Conversation languages on offer, each with the brief in that language (drafts are labelled).
+    languages: languagesOf(b).map((l) => ({ ...l, learner_brief: localized(b, l.id).learner_brief })),
     success_criteria: b.scenario.success_criteria,
     customer: { name: b.persona.name, role: b.persona.role },
     retry: { full_enabled: b.retry.full_enabled, focused_enabled: b.retry.focused_enabled },

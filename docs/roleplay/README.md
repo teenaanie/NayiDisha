@@ -89,6 +89,17 @@ Exact source fixtures and the opening line never call a model.
 - **Scoring** credits the intents the runtime actually acted on, so paraphrases that the customer understood also count.
 - **Model per task.** `RP_LLM_MODEL_CLASSIFIER` can point the classifier at a cheaper model.
 
+## Conversation languages
+
+A scenario can offer Hindi and Marathi alongside its source language (`extensions.nd_runtime.translations`, see AUTHORING.md). The learner chooses on the start card; the brief switches with the choice, and the whole session stays in that language, including retries (`rp.session.language`, migration 018).
+
+- The customer's verbatim lines (opening, fixed answers, "I don't have that detail", clarification) come from the translation. Generated replies follow the translation's `reply_instruction` (Devanagari, everyday English banking words, Western digits for amounts so the figure checks still apply).
+- Voice listens and speaks in `hi-IN` / `mr-IN` (Sarvam or the browser).
+- Learners may type in Devanagari or Roman Hinglish. Questions without a "?" are recognised by Hindi, Marathi and Hinglish question words.
+- The evaluator quotes the conversation exactly in its script and writes rationales in English. Scores, rubric names and page labels stay in English so managers can compare across languages. Coaching text and suggested questions are in the session language.
+- Translations carry `review_status`. Until a fluent reviewer changes it to `reviewed`, the picker labels the language "Draft translation".
+- The deterministic phrase matcher only knows the source language, so without a live model a Hindi or Marathi question gets a neutral acknowledgement instead of an answer.
+
 ## Demo walkthrough (about 10 minutes)
 
 1. **Learner (Farah):** Practice, then Education Loan, then Start. Ask "How much loan do you need?" and you get the source partial answer. Then ask about savings, scholarship, deadline and repayment. Finish, and the report shows six anchored dimensions with evidence that jumps to highlighted transcript spans.

@@ -30,11 +30,41 @@ export interface RuntimeExtension {
    * to the evaluator as context; never spoken by the customer, never a loan offer.
    */
   derivations: { id: string; operation: 'subtract'; input_fact_ids: string[]; assumptions: string[]; excluded_note: string }[];
+  /**
+   * Extra conversation languages (the source language is always available). Every
+   * text the customer says verbatim is given here; generated replies follow
+   * `reply_instruction`. Anything missing falls back to the source text.
+   */
+  translations: Record<string, Translation>;
 }
+
+export interface Translation {
+  /** Shown in the language picker, in that language. */
+  label: string;
+  /** 'draft' until a fluent reviewer signs it off; the picker says so. */
+  review_status: 'draft' | 'reviewed';
+  opening_text: string;
+  learner_brief: string;
+  unknown_response: string;
+  clarification_response: string;
+  acknowledgement_text?: string;
+  /** Exact translations of rules' response_text, by rule ID. */
+  rule_responses: Record<string, string>;
+  /** One example learner question per intent, for coaching and retry suggestions. */
+  intent_examples: Record<string, string>;
+  /** Lead sentence of a personalised retry instruction. */
+  retry_lead: string;
+  /** Appended to the customer's speaking style for generated replies. */
+  reply_instruction: string;
+  /** Tells the coach which language to write feedback in. */
+  feedback_instruction: string;
+}
+
+export const TRANSLATABLE_LANGUAGES = ['hi', 'mr'] as const;
 
 export const EMPTY_RUNTIME: RuntimeExtension = {
   question_free_intents: [], discovery_gate: null, discovery_conditioned: [], absence_checks: {},
-  check_cues: {}, jargon_terms: [], acknowledgement_text: null, derivations: [],
+  check_cues: {}, jargon_terms: [], acknowledgement_text: null, derivations: [], translations: {},
 };
 
 export function runtimeOf(b: ScenarioBundle): RuntimeExtension {
@@ -83,6 +113,26 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
     if (!strings(d.assumptions) || !d.assumptions.length) err(`${P}/derivations/${i}/assumptions`, 'A derivation must state its assumptions.');
   });
   if (x.acknowledgement_text !== null && (typeof x.acknowledgement_text !== 'string' || !x.acknowledgement_text.trim())) err(`${P}/acknowledgement_text`, 'Must be text or null.');
+  const rules = new Map(b.conversation.rules.map((r) => [r.id, r]));
+  const text = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+  for (const [lang, t] of Object.entries(x.translations ?? {})) {
+    const T = `${P}/translations/${lang}`;
+    if (!(TRANSLATABLE_LANGUAGES as readonly string[]).includes(lang)) { err(T, `Unsupported language "${lang}" (supported: ${TRANSLATABLE_LANGUAGES.join(', ')}).`); continue; }
+    for (const k of ['label', 'opening_text', 'learner_brief', 'unknown_response', 'clarification_response', 'retry_lead', 'reply_instruction', 'feedback_instruction'] as const) if (!text(t[k])) err(`${T}/${k}`, 'Required text.');
+    if (!['draft', 'reviewed'].includes(t.review_status)) err(`${T}/review_status`, 'Must be "draft" or "reviewed".');
+    if (t.acknowledgement_text !== undefined && !text(t.acknowledgement_text)) err(`${T}/acknowledgement_text`, 'Must be text when given.');
+    for (const [rid, v] of Object.entries(t.rule_responses ?? {})) {
+      if (!rules.has(rid)) err(`${T}/rule_responses/${rid}`, `Unknown rule "${rid}".`);
+      else if (!rules.get(rid)!.response_text) err(`${T}/rule_responses/${rid}`, `Rule "${rid}" has no response_text to translate.`);
+      if (!text(v)) err(`${T}/rule_responses/${rid}`, 'Required text.');
+    }
+    // Every verbatim line must be translated, or a session would switch language mid-conversation.
+    for (const r of b.conversation.rules) if (r.response_text && !t.rule_responses?.[r.id]) err(`${T}/rule_responses`, `Missing translation for rule "${r.id}".`);
+    for (const [iid, v] of Object.entries(t.intent_examples ?? {})) {
+      if (!intents.has(iid)) err(`${T}/intent_examples/${iid}`, `Unknown intent "${iid}".`);
+      if (!text(v)) err(`${T}/intent_examples/${iid}`, 'Required text.');
+    }
+  }
 }
 
 export type { Issue };

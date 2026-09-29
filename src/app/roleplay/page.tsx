@@ -22,8 +22,7 @@ export default async function PracticeHome() {
       <div className="card-body">
         <div className="tags mb"><Pill tone="info">{b.product}</Pill><Pill>{b.skill}</Pill><Pill>{b.difficulty}</Pill><Pill>{b.target_minutes.min}–{b.target_minutes.max} min</Pill><Pill>v{b.version}</Pill></div>
         <p><strong>You are:</strong> {b.learner_role}. <strong>Customer:</strong> {b.customer.name}, {b.customer.role.toLowerCase()}.</p>
-        <p>{b.learner_brief}</p>
-        <StartButton scenarioId={b.scenario_id} />
+        {b.languages?.length ? <StartButton scenarioId={b.scenario_id} languages={b.languages} /> : <><p>{b.learner_brief}</p><StartButton scenarioId={b.scenario_id} /></>}
       </div>
     </section>)}</div>
     <p className="mt"><Link href="/roleplay/attempts">See all my attempts →</Link></p>

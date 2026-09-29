@@ -44,11 +44,17 @@ export function sentences(text: string): Sentence[] {
 }
 
 const WH = /^(what|which|when|where|who|whom|whose|why|how|is|are|was|were|do|does|did|has|have|had|can|could|would|will|shall|should|may|might|any|tell me|could you|would you|can you)\b/i;
+// Question words; Devanagari has no \b, so match them as whole space-separated words.
+const INDIC_Q = /(^|[\s,।])(क्या|कब|कितना|कितनी|कितने|कौन|कौनसा|कौन-सा|कौन-सी|कहाँ|कहां|कैसे|क्यों|किस|किसे|किसको|बताइए|बताइये|बताएँ|बताएं|काय|कधी|किती|कोण|कोणता|कोणती|कोणते|कोणतं|कोणत्या|कोणाला|कोणाचं|कोणाचे|कधीपासून|कशासाठी|कशाला|कसं|कुठे|कसे|कसा|कशी|सांगा|सांगाल)(?=$|[\s,?।])/;
+const HINGLISH_Q = /\b(kya|kab|kitna|kitni|kitne|kaun|kaunsa|kahan|kahaan|kaise|kyun|kyon|kis|kisko|bataiye|batao|kay|kadhi|kiti|kon|kuthe)\b/i;
 /** A sentence that asks something, as opposed to one that merely mentions a topic. */
 export function isQuestion(sentence: string): boolean {
   const s = sentence.trim();
   if (!s) return false;
-  if (s.endsWith('?')) return true;
+  if (s.endsWith('?') || s.endsWith('？')) return true;
+  // Hindi, Marathi and Roman Hinglish questions, often spoken without a question mark.
+  // Marathi "…आहे का" asks only at the end; mid-sentence Hindi "का" means "of".
+  if (INDIC_Q.test(s) || HINGLISH_Q.test(s) || /(^|\s)का[\s।]*$/.test(s)) return true;
   // "I'd like to understand ..." / "Please tell me ..." ask without a question mark.
   return WH.test(s) || /^(please\s+)?(tell|share|explain|help me understand|let me understand|i('d| would) like to (know|understand))\b/i.test(s);
 }
