@@ -8,7 +8,7 @@ import { actorFor, type Actor } from '../../src/modules/roleplay/service/context
 import { idempotent } from '../../src/modules/roleplay/service/guards';
 import { seedRoleplay } from '../../src/modules/roleplay/service/seed';
 import { loadScenarioPackage } from '../../src/modules/roleplay/config/content';
-import { overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
+import { overrideProvider, ProviderError, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { scoreAssessment } from '../../src/modules/roleplay/scoring';
 import type { ScenarioBundle } from '../../src/modules/roleplay/contracts/types';
 import { check, type Check } from './harness';
@@ -27,6 +27,7 @@ export async function integrationTests(): Promise<Check[]> {
   const as = async (t: string, subject: string) => (await actorFor(t, subject))!;
   const asha = await as(nd.id, 'synthetic:learner.asha');
   const vikram = await as(nd.id, 'synthetic:learner.vikram');
+  const dev = await as(nd.id, 'synthetic:learner.dev');
   const neha = await as(nd.id, 'synthetic:manager.neha');
   const sanjay = await as(nd.id, 'synthetic:manager.sanjay');
   const meera = await as(nd.id, 'synthetic:author.meera');
@@ -281,6 +282,110 @@ export async function integrationTests(): Promise<Check[]> {
   await rp.purgeExpired(null, nd.id, { sessionIds: [purgeTarget] });
   const [gone] = await sql<{ n: number }[]>`SELECT (SELECT count(*) FROM rp.session WHERE id = ${purgeTarget}) + (SELECT count(*) FROM rp.turn WHERE session_id = ${purgeTarget}) + (SELECT count(*) FROM rp.disclosure_event WHERE session_id = ${purgeTarget}) AS n`;
   ok('AT25', 'Retention purge removes the session and everything derived from it', Number(gone.n) === 0);
+
+  // ---- live-model understanding (semantic classifier) and graceful degradation ---------
+  {
+    const fakeLive = (fn: (data: any) => string): ModelProvider => ({ id: 'fake_live', model: 'fake-live-1', live: true, complete: async (req) => ({ text: fn(req.data), provider: 'fake_live', model: 'fake-live-1', request_id: null, usage: null, latency_ms: 1 }) });
+    const kiran = await as(nd.id, 'synthetic:learner.kiran');
+    const ks = (await rp.startSession(kiran, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session.session_id;
+    // The model says the message asks two things (plus one invented intent, which must be dropped).
+    overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'fee_deadline', confidence: 0.95 }, { intent_id: 'total_cost', confidence: 0.9 }, { intent_id: 'made_up_intent', confidence: 0.99 }], is_question: true })));
+    const r1 = await say(kiran, ks, 'when is the fee due and how much is the fee amount');
+    ok('LIVE', 'A two-part question understood by the model gets both answers', /three weeks/.test(r1) && /14 lakh/.test(r1), r1);
+    const [an] = await sql<{ intents: { intent_id: string }[]; classifier_version: string }[]>`SELECT a.intents, a.classifier_version FROM rp.turn_analysis a JOIN rp.turn t ON t.id = a.turn_id WHERE t.session_id = ${ks} ORDER BY t.sequence DESC LIMIT 1`;
+    ok('LIVE', 'Only configured intents survive; the classifier version is recorded', an.intents.every((i) => i.intent_id !== 'made_up_intent') && an.classifier_version.startsWith('classifier_v1:'), an.classifier_version);
+    // A paraphrase the phrase matcher cannot read, understood by the model as a repayment-comfort question.
+    overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'repayment_comfort', confidence: 0.9 }], is_question: true })));
+    const r2 = await say(kiran, ks, 'What sort of monthly outgo would sit easily with your household budget?');
+    ok('LIVE', 'A paraphrase the model understands reaches the right fixture', r2 === 'That is what worries me. I do not want a very heavy EMI later.', r2);
+    // Classifier outage: the phrase matcher takes over and the conversation continues.
+    overrideProvider('classify', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 429', false); } });
+    const r3 = await say(kiran, ks, 'Has the scholarship been confirmed?');
+    ok('LIVE', 'If the classifier fails, the phrase matcher answers instead', r3 === 'She has applied for one, but we do not know the result yet.', r3);
+    // Roleplay model outage: authorised facts are stated plainly instead of failing the turn.
+    overrideProvider('classify', null);
+    overrideProvider('roleplay', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 429', false); } });
+    const r4 = await say(kiran, ks, 'Which university is it?');
+    overrideProvider('roleplay', null);
+    const [g4] = await sql<{ method: string }[]>`SELECT a.generation->>'method' AS method FROM rp.turn_analysis a JOIN rp.turn t ON t.id = a.turn_id WHERE t.session_id = ${ks} ORDER BY t.sequence DESC LIMIT 1`;
+    ok('LIVE', 'If the reply model is down, the customer still answers from configured facts', r4 === 'Private university in India.' && g4.method === 'fallback', `${r4} (${g4.method})`);
+    const kv = await rp.getSession(kiran, ks);
+    await rp.finishSession(kiran, ks, { expected_revision: kv.revision });
+    await drain();
+    const [krun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT r.candidate FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${ks}`;
+    const st = (c: string) => krun.candidate.evidence.find((e) => e.check_id === c)?.status;
+    ok('LIVE', 'Scoring credits what the customer understood, including paraphrases', st('repayment_comfort') === 'observed' && st('total_cost') === 'observed' && st('fee_deadline') === 'observed', `repayment ${st('repayment_comfort')}, cost ${st('total_cost')}`);
+  }
+
+  // ---- voice (spec §3: same turn contract, ASR provenance, learner correction) --------
+  {
+    delete process.env.SARVAM_API_KEY;
+    await rp.setVoiceConsent(dev, false);
+    const vs = (await rp.startSession(dev, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session.session_id;
+    const view = await rp.getSession(dev, vs);
+    ok('VOICE', 'Without a server speech provider, sessions offer browser recognition and speech', view.voice.recognition === 'browser' && view.voice.speech === 'browser' && view.voice.language === 'en-IN' && view.voice.consent === false);
+    const heard = { mode: 'voice', asr_provider: 'browser:webspeech', asr_text: 'when is the first fee payment do', asr_confidence: 0.82 };
+    let noConsent = '';
+    try { await rp.submitTurn(dev, vs, { client_message_id: 'v1', text: 'When is the first fee payment due?', expected_revision: view.revision, input: heard }); } catch (e) { noConsent = (e as rp.ApiError).code; }
+    ok('VOICE', 'A spoken turn is refused until the learner consents to voice', noConsent === 'VOICE_CONSENT_REQUIRED', noConsent);
+    await rp.setVoiceConsent(dev, true);
+    const r1 = await rp.submitTurn(dev, vs, { client_message_id: 'v1', text: 'When is the first fee payment due?', expected_revision: view.revision, input: heard });
+    await drain();
+    const op1 = await rp.getOperation(dev, r1.body.operation_id);
+    const [prov] = await sql<{ asr_provider: string; asr_text: string; edited: boolean; language: string }[]>`SELECT asr_provider, asr_text, edited, language FROM rp.turn_input WHERE turn_id = ${r1.body.accepted_turn_id}`;
+    ok('VOICE', 'The learner-corrected text is the turn; the raw transcript is kept as provenance', op1.customer_turn?.text === 'The first payment is due in about three weeks.' && prov?.asr_text === heard.asr_text && prov.edited === true && prov.language === 'en-IN', `${prov?.asr_provider} edited=${prov?.edited}`);
+    const v2 = await rp.getSession(dev, vs);
+    const r2 = await rp.submitTurn(dev, vs, { client_message_id: 'v2', text: 'Has the scholarship been confirmed?', expected_revision: v2.revision, input: { ...heard, asr_text: 'Has the scholarship been confirmed?' } });
+    await drain();
+    const [prov2] = await sql<{ edited: boolean }[]>`SELECT edited FROM rp.turn_input WHERE turn_id = ${r2.body.accepted_turn_id}`;
+    ok('VOICE', 'An uncorrected transcript is recorded as not edited', prov2?.edited === false);
+    const badInputs: [string, unknown][] = [['BAD_ASR_PROVIDER', { ...heard, asr_provider: 'evil' }], ['BAD_ASR_TEXT', { ...heard, asr_text: '' }], ['BAD_ASR_CONFIDENCE', { ...heard, asr_confidence: 7 }], ['BAD_INPUT_MODE', { ...heard, mode: 'video' }]];
+    const codes: string[] = [];
+    for (const [, input] of badInputs) { try { await rp.submitTurn(dev, vs, { client_message_id: 'bad' + codes.length, text: 'x?', expected_revision: (await rp.getSession(dev, vs)).revision, input }); codes.push('accepted'); } catch (e) { codes.push((e as rp.ApiError).code); } }
+    ok('VOICE', 'Malformed voice provenance is rejected', JSON.stringify(codes) === JSON.stringify(badInputs.map((b) => b[0])), codes.join(','));
+    let unavailable = '';
+    try { await rp.transcribe(dev, vs, new Blob([new Uint8Array(10)])); } catch (e) { unavailable = (e as rp.ApiError).code; }
+    ok('VOICE', 'Server transcription reports unavailable when no provider is configured', unavailable === 'VOICE_UNAVAILABLE');
+    const view3 = await rp.getSession(dev, vs);
+    ok('VOICE', 'The session transcript marks spoken turns', view3.transcript.filter((t) => t.input_mode === 'voice').length === 2);
+
+    // Server path (Sarvam) with the network stubbed: no key exists here, so no call leaves the machine.
+    const realFetch = globalThis.fetch;
+    const calls: string[] = [];
+    process.env.SARVAM_API_KEY = 'test-only';
+    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url);
+      if (u.includes('/speech-to-text')) { calls.push('stt'); return Response.json({ transcript: 'Who will be the co-borrower?' }); }
+      if (u.includes('/text-to-speech')) { calls.push('tts:' + JSON.parse(String(init?.body)).text); return Response.json({ audios: ['UklGRg=='] }); }
+      return realFetch(url as never, init);
+    }) as typeof fetch;
+    try {
+      const caps = (await rp.getSession(dev, vs)).voice;
+      const tr = await rp.transcribe(dev, vs, new Blob([new Uint8Array(2048)], { type: 'audio/webm' }));
+      ok('VOICE', 'With Sarvam configured, recognition runs on the server and returns an editable transcript', caps.recognition === 'server' && tr.transcript === 'Who will be the co-borrower?' && tr.asr_provider === 'sarvam:saarika');
+      const [audioRows] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM information_schema.columns WHERE table_schema = 'rp' AND data_type = 'bytea'`;
+      ok('VOICE', 'Audio is never stored (no binary columns in the platform schema)', audioRows.n === 0);
+      const custTurn = (await rp.getSession(dev, vs)).transcript.filter((t) => t.speaker === 'customer').pop()!;
+      const sp = await rp.speak(dev, vs, custTurn.turn_id);
+      ok('VOICE', 'Read-aloud speaks exactly a committed customer turn', sp.audio_base64 === 'UklGRg==' && calls.includes('tts:' + custTurn.text));
+      const learnerTurn = (await rp.getSession(dev, vs)).transcript.find((t) => t.speaker === 'learner')!;
+      const denied2 = async (fn: () => Promise<unknown>) => { try { await fn(); return 'allowed'; } catch (e) { return String((e as rp.ApiError).status); } };
+      ok('VOICE', 'Read-aloud refuses learner turns and other learners\' sessions', await denied2(() => rp.speak(dev, vs, learnerTurn.turn_id)) === '404' && await denied2(() => rp.speak(vikram, vs, custTurn.turn_id)) === '404');
+      await rp.setVoiceConsent(dev, false);
+      ok('VOICE', 'Withdrawing consent stops server transcription', await denied2(() => rp.transcribe(dev, vs, new Blob([new Uint8Array(2048)]))) === '403');
+    } finally {
+      globalThis.fetch = realFetch;
+      delete process.env.SARVAM_API_KEY;
+    }
+    await rp.setVoiceConsent(dev, true);
+    const vsv = await rp.getSession(dev, vs);
+    await rp.finishSession(dev, vs, { expected_revision: vsv.revision });
+    await drain();
+    const vrep = (await rp.getReport(dev, vs)).body as unknown as { transcript: { input_mode: string; asr_edited: boolean | null }[]; dimensions: unknown[] };
+    ok('VOICE', 'A voice session is assessed like any other; the report marks spoken and corrected turns', vrep.dimensions.length === 6 && vrep.transcript.some((t) => t.input_mode === 'voice' && t.asr_edited === true));
+    const [snapV] = await sql<{ content: { input_mode?: string }[] }[]>`SELECT content FROM rp.transcript_snapshot WHERE session_id = ${vs}`;
+    ok('VOICE', 'The frozen snapshot records which turns were spoken', snapV.content.filter((t) => t.input_mode === 'voice').length === 2);
+  }
 
   // ---- audit and metrics ------------------------------------------------------------
   const [aud] = await sql<{ n: number }[]>`SELECT count(DISTINCT action)::int n FROM rp.audit_event WHERE action IN ('session.started','session.finished','scenario.published','evaluation.reviewed','retention.purged')`;

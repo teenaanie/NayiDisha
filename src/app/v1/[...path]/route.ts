@@ -40,6 +40,16 @@ const routes: [string, RegExp, Handler][] = [
     const r = await idempotent(a, `POST /sessions/${m[1]}/retries`, req.headers.get('idempotency-key'), body, async () => ({ status: 201, body: await rp.startRetry(a, m[1], body ?? {}) }));
     return { status: r.status, body: r.body };
   }],
+  ['GET', /^voice\/consent$/, async (a) => ({ body: { granted: await rp.hasVoiceConsent(a) } })],
+  ['PUT', /^voice\/consent$/, async (a, _m, _r, body) => ({ body: await rp.setVoiceConsent(a, body?.granted === true) })],
+  ['POST', /^sessions\/([^/]+)\/transcribe$/, async (a, m, req) => {
+    let form: FormData;
+    try { form = await req.formData(); } catch { throw new ApiError(400, 'BAD_UPLOAD', 'Send the recording as multipart form data with an "audio" field.'); }
+    const audio = form.get('audio');
+    if (!(audio instanceof Blob)) throw new ApiError(400, 'NO_AUDIO', 'No recording was received.');
+    return { body: await rp.transcribe(a, m[1], audio) };
+  }],
+  ['POST', /^sessions\/([^/]+)\/speech$/, async (a, m, _r, body) => ({ body: await rp.speak(a, m[1], String(body?.turn_id ?? '')) })],
   ['GET', /^manager\/teams$/, async (a) => ({ body: { items: await rp.managedTeams(a) } })],
   ['GET', /^manager\/analytics$/, async (a, _m, _r, _b, url) => ({ body: await rp.managerAnalytics(a, { team_id: url.searchParams.get('team_id') ?? '', from: url.searchParams.get('from') ?? undefined, to: url.searchParams.get('to') ?? undefined, scenario_id: url.searchParams.get('scenario_id') ?? undefined }) })],
   ['GET', /^admin\/scenarios$/, async (a) => ({ body: { drafts: await rp.listDrafts(a), versions: await rp.listVersions(a) } })],
@@ -79,7 +89,7 @@ async function handle(method: string, req: Request, { params }: Params) {
     const route = routes.find(([m, re]) => m === method && re.test(path));
     if (!route) throw new ApiError(404, 'NOT_FOUND', 'No such endpoint.');
     let body: unknown = null;
-    if (method !== 'GET' && !path.match(/^admin\/scenarios$/)) {
+    if (method !== 'GET' && !path.match(/^admin\/scenarios$|\/transcribe$/)) {
       const text = await req.text();
       if (text) { try { body = JSON.parse(text); } catch { throw new ApiError(400, 'INVALID_JSON', 'Request body is not valid JSON.'); } }
     }
@@ -100,3 +110,4 @@ async function handle(method: string, req: Request, { params }: Params) {
 export const GET = (req: Request, ctx: Params) => handle('GET', req, ctx);
 export const POST = (req: Request, ctx: Params) => handle('POST', req, ctx);
 export const PATCH = (req: Request, ctx: Params) => handle('PATCH', req, ctx);
+export const PUT = (req: Request, ctx: Params) => handle('PUT', req, ctx);

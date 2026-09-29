@@ -51,7 +51,14 @@ function negatesMatch(sentence: string, matchAt: number, example: string): boole
   return isNegatedBefore(clause, cpLength(clause));
 }
 
-export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][] } = {}): RuleEvidence {
+export interface RecordedIntent { intent_id: string; question: boolean; start?: number; end?: number }
+
+/**
+ * `recordedIntents` are the intents the runtime acted on when the turn was live
+ * (from turn_analysis). Using them keeps scoring consistent with what the
+ * customer understood; turns without a record fall back to the phrase matcher.
+ */
+export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; recordedIntents?: Map<string, RecordedIntent[]> } = {}): RuleEvidence {
   const rt = runtimeOf(bundle);
   const excluded = new Set(opts.excludeOrigins ?? []);
   const learner = turns.filter((t) => t.speaker === 'learner');
@@ -70,7 +77,8 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     for (const i of c.accepted_intents) checksByIntent.set(i, [...(checksByIntent.get(i) ?? []), c.id]);
   }
   for (const t of learner) {
-    const cls = classify(bundle, t.text, { discoveryComplete: discoveryComplete(bundle, asked) });
+    const recorded = opts.recordedIntents?.get(t.id);
+    const cls = recorded ? { hits: recorded.map((r) => ({ intent_id: r.intent_id, question: r.question, sentence: recordedSentence(t.text, r) })) } : classify(bundle, t.text, { discoveryComplete: discoveryComplete(bundle, asked) });
     const intents: string[] = [];
     for (const h of cls.hits) {
       if (!h.question) continue;
@@ -168,6 +176,16 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
   }
 
   return { evidence, risk_candidates: risk, assessable_learner_turn_ids: assessableIds, asked_by_turn: askedByTurn, unexplained_jargon: jargon };
+}
+
+/** The cited sentence for a recorded intent: its stored span, else the first sentence that asks something. */
+function recordedSentence(text: string, r: RecordedIntent): Sentence {
+  const all = sentences(text);
+  if (r.start !== undefined && r.end !== undefined) {
+    const exact = all.find((s) => s.start <= r.start! && r.end! <= s.end);
+    if (exact) return exact;
+  }
+  return all.find((s) => isQuestion(s.text)) ?? all[0] ?? { text, start: 0, end: cpLength(text) };
 }
 
 function firstMatchedWord(rule: RiskRule, sentence: string, example?: string): number {

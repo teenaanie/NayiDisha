@@ -53,7 +53,10 @@ async function processEvaluate(job: Job) {
   const template = await promptContent(s.prompt_versions.evaluator.id);
   if (template.digest !== s.prompt_versions.evaluator.digest) throw new PermanentJobError('Pinned evaluator prompt digest mismatch.');
   const started = Date.now();
+  const recorded = await sql<{ turn_id: string; intents: { intent_id: string; question: boolean; start?: number; end?: number }[] }[]>`
+    SELECT turn_id, intents FROM rp.turn_analysis WHERE session_id = ${s.id}`;
   const result = await assess({
+    recordedIntents: new Map(recorded.map((r) => [r.turn_id, r.intents])),
     bundle, turns: snap.content, session_id: s.id, transcript_hash: snap.hash, mode: run.mode,
     target_check_ids: s.retry_scope?.target_check_ids ?? [], template: template.content,
     correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id },
@@ -238,7 +241,7 @@ export async function getReport(actor: Actor, sessionId: string) {
     sql`SELECT dimension_id, score, anchor_score, evidence_ids, rationale, status FROM rp.dimension_score WHERE run_id = ${run.id} ORDER BY dimension_id`,
     sql`SELECT id, check_id, category, status, learner_spans, context_spans, explanation, method, confidence FROM rp.evidence WHERE run_id = ${run.id}`,
     sql`SELECT rule_id, status, evidence_ids, severity, consequence, reviewer_decision FROM rp.risk_finding WHERE run_id = ${run.id}`,
-    sql`SELECT id AS turn_id, sequence, speaker, text, origin FROM rp.turn WHERE session_id = ${s.id} ORDER BY sequence`,
+    sql`SELECT t.id AS turn_id, t.sequence, t.speaker, t.text, t.origin, COALESCE(i.mode, 'text') AS input_mode, i.edited AS asr_edited FROM rp.turn t LEFT JOIN rp.turn_input i ON i.turn_id = t.id WHERE t.session_id = ${s.id} ORDER BY t.sequence`,
   ]);
   const dimOrder = bundle.rubric.dimensions.map((d) => d.id);
   return {

@@ -36,8 +36,11 @@ export async function loadBundle(tenantId: string, versionId: string, expectedHa
   return v.bundle;
 }
 
-export async function transcript(sessionId: string, conn: Tx = sql): Promise<(TranscriptTurn & { created_at: Date })[]> {
-  return conn<(TranscriptTurn & { created_at: Date })[]>`SELECT id, sequence, speaker, text, origin, created_at FROM rp.turn WHERE session_id = ${sessionId} ORDER BY sequence`;
+export async function transcript(sessionId: string, conn: Tx = sql): Promise<(TranscriptTurn & { created_at: Date; input_mode: 'text' | 'voice' })[]> {
+  return conn<(TranscriptTurn & { created_at: Date; input_mode: 'text' | 'voice' })[]>`
+    SELECT t.id, t.sequence, t.speaker, t.text, t.origin, t.created_at, COALESCE(i.mode, 'text') AS input_mode
+      FROM rp.turn t LEFT JOIN rp.turn_input i ON i.turn_id = t.id
+     WHERE t.session_id = ${sessionId} ORDER BY t.sequence`;
 }
 
 /** Owner, a manager of the learner's team, or (for preview sessions) the author who started it. */
@@ -57,13 +60,13 @@ export async function loadSessionFor(actor: Actor, sessionId: string, access: 'o
   throw notFound('Session');   // 404, not 403: existence is not disclosed
 }
 
-export function publicSession(s: SessionRow, turns: { id: string; sequence: number; speaker: string; text: string; origin: string; created_at: Date }[], pending: { id: string; status: string } | null) {
+export function publicSession(s: SessionRow, turns: { id: string; sequence: number; speaker: string; text: string; origin: string; created_at: Date; input_mode?: string }[], pending: { id: string; status: string } | null) {
   return {
     session_id: s.id, scenario_id: s.scenario_id, scenario_version: s.scenario_version, state: s.state, revision: s.revision,
     is_preview: s.is_preview, parent_session_id: s.parent_session_id,
     retry_scope: s.retry_scope ? { mode: s.retry_scope.mode, comparable: s.retry_scope.comparable, target_check_ids: s.retry_scope.target_check_ids } : null,
     started_at: s.started_at, completed_at: s.completed_at, learner_turn_count: s.learner_turn_count,
-    transcript: turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, text: t.text, origin: t.origin, created_at: t.created_at })),
+    transcript: turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, text: t.text, origin: t.origin, created_at: t.created_at, input_mode: t.input_mode ?? 'text' })),
     pending_operation: pending,
     limits: LIMITS,
   };
@@ -159,7 +162,9 @@ async function expireIfIdle(s: SessionRow): Promise<SessionRow> {
 export async function getSession(actor: Actor, sessionId: string) {
   let s = await loadSessionFor(actor, sessionId);
   s = await expireIfIdle(s);
-  return publicSession(s, await transcript(s.id), await pendingOp(s.id));
+  const { voiceCapabilities, hasVoiceConsent } = await import('./voice');
+  const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
+  return { ...publicSession(s, await transcript(s.id), await pendingOp(s.id)), voice: { ...voiceCapabilities(bundle.scenario.locale), consent: await hasVoiceConsent(actor) } };
 }
 
 export async function listMySessions(actor: Actor) {
@@ -175,7 +180,7 @@ export async function listMySessions(actor: Actor) {
 
 // ---- turns ----------------------------------------------------------------------
 
-export interface TurnInputBody { client_message_id: string; text: string; expected_revision: number }
+export interface TurnInputBody { client_message_id: string; text: string; expected_revision: number; input?: unknown }
 
 export async function submitTurn(actor: Actor, sessionId: string, body: TurnInputBody) {
   if (typeof body?.client_message_id !== 'string' || !/^[A-Za-z0-9_.:-]{1,80}$/.test(body.client_message_id)) throw new ApiError(400, 'BAD_CLIENT_MESSAGE_ID', 'client_message_id is required.');
@@ -183,6 +188,15 @@ export async function submitTurn(actor: Actor, sessionId: string, body: TurnInpu
   if (body.text.length > LIMITS.max_message_chars) throw new ApiError(422, 'MESSAGE_TOO_LONG', `Messages are limited to ${LIMITS.max_message_chars} characters.`);
   if (!Number.isInteger(body.expected_revision)) throw new ApiError(400, 'REVISION_REQUIRED', 'expected_revision is required.');
   await rateLimit(actor, 'turn');
+  // A spoken turn carries its provenance; the text is still what the learner confirmed.
+  const { parseVoiceInput, hasVoiceConsent } = await import('./voice');
+  const voice = parseVoiceInput(body.input);
+  let voiceLanguage = 'en-IN';
+  if (voice) {
+    if (!(await hasVoiceConsent(actor))) throw new ApiError(403, 'VOICE_CONSENT_REQUIRED', 'Allow voice practice before sending a spoken message.');
+    const pre = await loadSessionFor(actor, sessionId);
+    voiceLanguage = (await loadBundle(pre.tenant_id, pre.scenario_version_id, pre.bundle_hash)).scenario.locale;
+  }
 
   const result = await sql.begin(async (tx) => {
     let s = await loadSessionFor(actor, sessionId, 'owner', tx as never, true);
@@ -202,6 +216,12 @@ export async function submitTurn(actor: Actor, sessionId: string, body: TurnInpu
     const [t] = await tx<{ id: string }[]>`
       INSERT INTO rp.turn (tenant_id, session_id, sequence, speaker, text, client_message_id, origin)
       VALUES (${actor.tenant_id}, ${s.id}, ${next}, 'learner', ${body.text}, ${body.client_message_id}, 'live') RETURNING id`;
+    if (voice) {
+      await tx`
+        INSERT INTO rp.turn_input (turn_id, tenant_id, session_id, mode, asr_provider, asr_text, asr_confidence, language, edited)
+        VALUES (${t.id}, ${actor.tenant_id}, ${s.id}, 'voice', ${voice.asr_provider}, ${voice.asr_text}, ${voice.asr_confidence}, ${voiceLanguage},
+                ${voice.asr_text.trim() !== body.text.trim()})`;
+    }
     const [op] = await tx<{ id: string }[]>`
       INSERT INTO rp.operation (tenant_id, session_id, kind, status, learner_turn_id) VALUES (${actor.tenant_id}, ${s.id}, 'customer_turn', 'pending', ${t.id}) RETURNING id`;
     await enqueue(tx as never, actor.tenant_id, 'customer_turn', `customer_turn:${op.id}:1`, { operation_id: op.id, session_id: s.id });
@@ -272,12 +292,14 @@ async function processCustomerTurn(job: Job) {
       VALUES (${learner.id}, ${s.tenant_id}, ${s.id},
         ${tx.json(out.classification.hits.map((h) => ({ intent_id: h.intent_id, confidence: h.confidence, question: h.question, start: h.sentence.start, end: h.sentence.end })) as never)},
         ${out.classification.low_confidence}, ${out.engine.classifier_version}, ${tx.json(out.plan as never)},
-        ${tx.json({ generation_id: generationId, method: out.reply.method, attempts: out.reply.attempts, validator: out.engine.output_validator_version, engine: ENGINE_VERSION, latency_ms: Date.now() - started } as never)})`;
+        ${tx.json({ generation_id: generationId, method: out.reply.method, attempts: out.reply.attempts, validator: out.engine.output_validator_version, engine: ENGINE_VERSION, latency_ms: Date.now() - started, classifier_fallback: out.engine.classifier_fallback } as never)})`;
     await tx`UPDATE rp.operation SET status = 'succeeded', customer_turn_id = ${ct.id}, attempts = ${job.attempts}, updated_at = now() WHERE id = ${op.id}`;
     await tx`UPDATE rp.session SET revision = revision + 1, last_activity_at = now() WHERE id = ${s.id}`;
   });
   const rejected = out.reply.attempts.filter((a) => !a.ok).length;
   await metric('customer_turn_ms', Date.now() - new Date(learner.created_at).getTime(), { scenario: s.scenario_id, method: out.reply.method, rejected_candidates: rejected }, s.tenant_id);
+  if (out.engine.classifier_fallback) await metric('classifier_fallback', 1, { scenario: s.scenario_id }, s.tenant_id);
+  if (out.reply.method === 'fallback') await metric('roleplay_model_unavailable', 1, { scenario: s.scenario_id }, s.tenant_id);
   if (rejected) await metric('roleplay_output_rejected', rejected, { reasons: out.reply.attempts.filter((a) => !a.ok).map((a) => a.reason).join(',').slice(0, 80) }, s.tenant_id);
 }
 
@@ -338,7 +360,7 @@ export async function finishSession(actor: Actor, sessionId: string, body: { exp
     const hash = await snapshotHash(turns);
     const [snap] = await tx<{ id: string }[]>`
       INSERT INTO rp.transcript_snapshot (tenant_id, session_id, last_sequence, content, hash)
-      VALUES (${s.tenant_id}, ${s.id}, ${turns[turns.length - 1].sequence}, ${tx.json(turns.map((t) => ({ id: t.id, sequence: t.sequence, speaker: t.speaker, text: t.text, origin: t.origin })) as never)}, ${hash})
+      VALUES (${s.tenant_id}, ${s.id}, ${turns[turns.length - 1].sequence}, ${tx.json(turns.map((t) => ({ id: t.id, sequence: t.sequence, speaker: t.speaker, text: t.text, origin: t.origin, input_mode: t.input_mode })) as never)}, ${hash})
       RETURNING id`;
     await tx`UPDATE rp.session SET state = 'completed', completed_at = now(), transcript_hash = ${hash}, revision = revision + 1,
                    elapsed_ms = (EXTRACT(EPOCH FROM (now() - started_at)) * 1000)::bigint WHERE id = ${s.id}`;

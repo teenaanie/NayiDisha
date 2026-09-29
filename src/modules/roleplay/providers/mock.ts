@@ -15,7 +15,9 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
   switch (req.task) {
     case 'roleplay': {
       const allowed = (req.data.allowed_facts_json ?? []) as { id: string; value: string; new_this_turn: boolean }[];
-      const now = allowed.filter((f) => f.new_this_turn || (req.data.answer_fact_ids as string[] | undefined)?.includes(f.id));
+      // State exactly the facts this reply answers; fixture parts already said theirs.
+      const answer = req.data.answer_fact_ids as string[] | undefined;
+      const now = allowed.filter((f) => (answer ? answer.includes(f.id) : f.new_this_turn));
       if (!now.length) {
         return JSON.stringify({ text: String(req.data.acknowledgement_json ?? req.data.unknown_response_json), used_fact_ids: [], requested_end: false });
       }

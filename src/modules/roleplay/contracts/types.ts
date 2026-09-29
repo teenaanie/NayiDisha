@@ -114,4 +114,6 @@ export interface CoachingReport extends CoachingCandidate {
 export interface TranscriptTurn {
   id: string; sequence: number; speaker: 'learner' | 'customer'; text: string;
   origin: 'live' | 'opening' | 'retry_prefix';
+  /** How the learner produced the turn; spoken turns were checked by the learner before sending. */
+  input_mode?: 'text' | 'voice';
 }

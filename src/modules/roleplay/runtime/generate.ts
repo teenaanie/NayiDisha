@@ -96,6 +96,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
 
   let generated: string | null = null;
   let generatedFacts: string[] = [];
+  let degraded = false;
   if (needsModel) {
     const facts = new Map(bundle.facts.map((f) => [f.id, f]));
     const allowedFacts = plan.allowed_fact_ids.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
@@ -117,7 +118,15 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
         if (v.ok) { generated = v.candidate.text; generatedFacts = v.candidate.used_fact_ids; }
       } catch (e) {
         attempts.push({ ok: false, reason: `provider:${(e as Error).message.slice(0, 120)}`, provider: 'unknown', model: 'unknown', request_id: null, latency_ms: 0, usage: null });
-        throw e;
+        // Model unavailable (quota, outage, paused breaker): say the authorised facts
+        // plainly, in configured wording, rather than leaving the learner with no reply.
+        // Nothing here is invented: each sentence is a fact value the rules released.
+        const facts = new Map(bundle.facts.map((f) => [f.id, f]));
+        const plain = answerFactIds.map((id) => renderFact(facts.get(id)!)).filter((x): x is string => !!x).map((v) => (/[.!?]$/.test(v) ? v : v + '.'));
+        generated = plain.length ? plain.join(' ') : (rt.acknowledgement_text ?? conv.clarification_response);
+        generatedFacts = plain.length ? answerFactIds : [];
+        degraded = true;
+        break;
       }
     }
     if (generated === null) {
@@ -136,6 +145,6 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   }
   if (plan.kind === 'acknowledge' && generated) pieces.push(generated);
   const hasFixture = plan.parts.some((p) => p.kind === 'fixture');
-  const method = generated ? (hasFixture ? 'mixed' : 'generated') : hasFixture ? 'fixture' : 'configured';
+  const method = degraded ? 'fallback' : generated ? (hasFixture ? 'mixed' : 'generated') : hasFixture ? 'fixture' : 'configured';
   return { text: pieces.join(' '), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
 }

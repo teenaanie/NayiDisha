@@ -73,6 +73,22 @@ The free tier allows only a small number of calls per model per day, and a sessi
 
 Exact source fixtures and the opening line never call a model.
 
+## Voice practice
+
+- **How a spoken turn works.** Press 🎤, speak, then press Stop. What was heard appears in the message box. Correct it, then press Send. A spoken turn is never sent automatically, so assessment only sees words the learner confirmed (spec §3).
+- **What is recorded.** The recogniser, the raw transcript and whether it was edited are stored as provenance (`rp.turn_input`). Audio is never stored.
+- **Recognition.** By default this is the browser's own speech service (Chrome, Edge, Safari; Firefox has none, so learners type there). With `SARVAM_API_KEY`, recognition and read-aloud run on the server through Sarvam, which handles Indian accents better.
+- **Consent.** The first use asks for voice consent (`PUT /v1/voice/consent`), with a notice saying where audio goes.
+- **Read-aloud.** Tick "Read replies aloud" to hear the customer.
+
+## Understanding the learner
+
+- **With a live model,** each learner message is first classified by the model into the scenario's configured intents (multi-part questions included). Unknown IDs are discarded, and the model never sees facts.
+- **The phrase matcher** is the fallback. It splits "X and Y?" into two questions.
+- **If the reply model is unavailable** (quota, outage), the customer states the authorised facts plainly instead of failing the turn.
+- **Scoring** credits the intents the runtime actually acted on, so paraphrases that the customer understood also count.
+- **Model per task.** `RP_LLM_MODEL_CLASSIFIER` can point the classifier at a cheaper model.
+
 ## Demo walkthrough (about 10 minutes)
 
 1. **Learner (Farah):** Practice, then Education Loan, then Start. Ask "How much loan do you need?" and you get the source partial answer. Then ask about savings, scholarship, deadline and repayment. Finish, and the report shows six anchored dimensions with evidence that jumps to highlighted transcript spans.
