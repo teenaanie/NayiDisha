@@ -30,7 +30,7 @@ export interface AssessInput {
   /** Intents the runtime acted on per learner turn, so scoring matches what the customer understood. */
   recordedIntents?: Map<string, RecordedIntent[]>;
 }
-export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
+export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; /** Mechanical slips the validator normalised (see validate.ts). */ notes?: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
 export type AssessResult =
   | { status: 'scored'; candidate: EvaluationCandidate; rule: RuleEvidence; score: ScoreResult | null; focused: FocusedResult | null; review_reasons: string[]; outputs: ProviderOutput[] }
   | { status: 'failed'; reason: string; rule: RuleEvidence; outputs: ProviderOutput[] }
@@ -70,7 +70,7 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   for (let attempt = 1; attempt <= 2 && !accepted; attempt++) {
     const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchema, temperature: 0, maxTokens: 12000, correlation: input.correlation });
     const v = validateCandidate(res.text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids });
-    outputs.push({ attempt, text: res.text, ok: v.ok, errors: v.ok ? [] : v.errors, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
+    outputs.push({ attempt, text: res.text, ok: v.ok, errors: v.ok ? [] : v.errors, notes: v.notes, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
     if (v.ok) accepted = v.candidate;
     // One repair request with the same evidence snapshot, told what was wrong.
     else data.contract_json.previous_errors = v.errors.slice(0, 30);

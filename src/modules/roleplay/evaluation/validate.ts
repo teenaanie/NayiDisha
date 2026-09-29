@@ -1,7 +1,8 @@
 import Ajv from 'ajv';
 import type { EvaluationCandidate, ScenarioBundle, TranscriptTurn, Span } from '../contracts/types';
 import { evaluationCandidateSchema } from '../contracts/schemas';
-import { cpLength, cpSlice, sentences, isQuestion } from '../runtime/text';
+import { cpLength, cpSlice, codePoints, sentences, isQuestion } from '../runtime/text';
+import { runtimeOf } from '../config/runtime-extension';
 
 /**
  * Evaluation candidate validation (spec §14).
@@ -9,11 +10,55 @@ import { cpLength, cpSlice, sentences, isQuestion } from '../runtime/text';
  * Parsing is not acceptance. A candidate is accepted only when its schema,
  * pinned identifiers, dimension set, score bounds, evidence references,
  * speaker attribution and every quotation check out against the frozen
- * transcript. Quotes must match the committed text exactly at the stated
- * code-point offsets; a paraphrased or invented quote rejects the candidate.
+ * transcript. Quotes must match the committed text exactly; a paraphrased or
+ * invented quote rejects the candidate.
+ *
+ * Two mechanical slips are normalised before validation, and each is recorded
+ * (live runs, 29 Sep 2026, failed on exactly these):
+ *  - a verbatim quote at wrong offsets is moved to where it occurs in the same
+ *    turn (models count characters badly; the words are what matter);
+ *  - an absence check ("avoids guarantees") reported as `observed` with no
+ *    learner span is recorded as `not_observed` over every assessable turn, the
+ *    platform's convention for "the violation was not seen". A claimed violation
+ *    still needs a quote (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.0.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.1.0';
+
+/** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
+function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
+  if (!quote) return null;
+  const cps = codePoints(text); const q = codePoints(quote);
+  let best: number | null = null;
+  for (let i = 0; i + q.length <= cps.length; i++) {
+    let ok = true;
+    for (let j = 0; j < q.length && ok; j++) ok = cps[i + j] === q[j];
+    if (ok && (best === null || Math.abs(i - start) < Math.abs(best - start))) best = i;
+  }
+  return best === null ? null : { start: best, end: best + q.length };
+}
+
+export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContext): string[] {
+  const notes: string[] = [];
+  const turns = new Map(ctx.turns.map((t) => [t.id, t]));
+  const fix = (sp: Span, where: string) => {
+    const t = turns.get(sp.turn_id);
+    if (!t || cpSlice(t.text, sp.start, sp.end) === sp.quote) return;
+    const at = relocate(t.text, sp.quote, sp.start);
+    if (at) { notes.push(`${where}: quote moved ${sp.start}–${sp.end} → ${at.start}–${at.end}.`); sp.start = at.start; sp.end = at.end; }
+  };
+  const absence = runtimeOf(ctx.bundle).absence_checks;
+  for (const [i, ev] of c.evidence.entries()) {
+    ev.learner_spans.forEach((sp, j) => fix(sp, `evidence[${i}] ${ev.id} learner_spans[${j}]`));
+    ev.context_spans.forEach((sp, j) => fix(sp, `evidence[${i}] ${ev.id} context_spans[${j}]`));
+    if (ev.check_id && ev.check_id in absence && ev.status === 'observed' && !ev.learner_spans.length) {
+      ev.status = 'not_observed';
+      ev.searched_turn_ids = [...ctx.assessable_learner_turn_ids];
+      notes.push(`evidence[${i}] ${ev.id}: absence check reported as observed without a quote; recorded as not_observed.`);
+    }
+  }
+  return notes;
+}
 const ajv = new Ajv({ allErrors: true, strict: false });
 const checkShape = ajv.compile(evaluationCandidateSchema);
 
@@ -27,11 +72,12 @@ export interface ValidationContext {
   assessable_learner_turn_ids: string[];
 }
 
-export function validateCandidate(raw: string, ctx: ValidationContext): { ok: true; candidate: EvaluationCandidate } | { ok: false; errors: string[] } {
+export function validateCandidate(raw: string, ctx: ValidationContext): { ok: true; candidate: EvaluationCandidate; notes: string[] } | { ok: false; errors: string[]; notes: string[] } {
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'] }; }
-  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`) };
+  try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'], notes: [] }; }
+  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`), notes: [] };
   const c = parsed as unknown as EvaluationCandidate;
+  const notes = normalizeCandidate(c, ctx);
   const errors: string[] = [];
   const e = (m: string) => errors.push(m);
 
@@ -110,5 +156,5 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
     }
   }
 
-  return errors.length ? { ok: false, errors } : { ok: true, candidate: c };
+  return errors.length ? { ok: false, errors, notes } : { ok: true, candidate: c, notes };
 }
