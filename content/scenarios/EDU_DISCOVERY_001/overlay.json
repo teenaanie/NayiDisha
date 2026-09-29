@@ -975,6 +975,128 @@
    "path": "/scenario/version",
    "value": "1.1.0",
    "why": "D6: facts and disclosure rules changed, rubric and scoring did not: a minor version."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/dimensions/3/id",
+   "value": "listening"
+  },
+  {
+   "op": "test",
+   "path": "/rubric/dimensions/3/anchors/0/description",
+   "value": "Gives product pitch too early"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/0/description",
+   "value": "Pitches a product too early, or asks scattered questions that ignore the customer's answers",
+   "why": "D7: the source anchors all describe pitching, so a learner who never pitched fitted no level and live assessments scored the same evidence 1 or 5. Reworded at the scenario owner's request (29 Sep 2026)."
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/0/basis",
+   "value": "recommendation",
+   "why": "D7: reworded, so no longer verbatim source text."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/dimensions/3/anchors/2/description",
+   "value": "Mixes questions and product explanation"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/2/description",
+   "value": "Mixes questions and product explanation, or builds on the customer's answers only occasionally",
+   "why": "D7: the source anchors all describe pitching, so a learner who never pitched fitted no level and live assessments scored the same evidence 1 or 5. Reworded at the scenario owner's request (29 Sep 2026)."
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/2/basis",
+   "value": "recommendation",
+   "why": "D7: reworded, so no longer verbatim source text."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/dimensions/3/anchors/4/description",
+   "value": "Asks logical follow-up questions before pitching"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/4/description",
+   "value": "Asks follow-up questions that build on the customer's answers, and does not pitch before discovery",
+   "why": "D7: the source anchors all describe pitching, so a learner who never pitched fitted no level and live assessments scored the same evidence 1 or 5. Reworded at the scenario owner's request (29 Sep 2026)."
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/dimensions/3/anchors/4/basis",
+   "value": "recommendation",
+   "why": "D7: reworded, so no longer verbatim source text."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/checks/16/description",
+   "value": "Uses logical follow-up questions"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/checks/16/description",
+   "value": "Uses logical follow-up questions: a question that builds on the customer's previous answer (e.g. after hearing \"we can arrange around ₹4 lakh\", asking how much of it can be used comfortably). A new, unrelated topic is not a follow-up.",
+   "why": "D7: one-line check descriptions were too vague to judge consistently; live assessments missed clear follow-ups. Definition and example added, same intent."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/checks/18/description",
+   "value": "Responds to the customer concern"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/checks/18/description",
+   "value": "Responds to the customer concern: when the customer voices a worry (e.g. a heavy EMI, not wanting to use all savings), the learner acknowledges it or asks about it before moving on.",
+   "why": "D7: one-line check descriptions were too vague to judge consistently; live assessments missed clear follow-ups. Definition and example added, same intent."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/checks/19/description",
+   "value": "Summarizes before the next step"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/checks/19/description",
+   "value": "Summarizes before the next step: restates what the customer has shared (e.g. cost, savings, deadline) before proposing what happens next.",
+   "why": "D7: one-line check descriptions were too vague to judge consistently; live assessments missed clear follow-ups. Definition and example added, same intent."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/checks/17/description",
+   "value": "Discovers needs before recommending a product"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/checks/17/description",
+   "value": "Discovers needs before recommending a product: no product, amount or application step is recommended before the customer's course, cost, funding and repayment situation has been explored.",
+   "why": "D7: one-line check descriptions were too vague to judge consistently; live assessments missed clear follow-ups. Definition and example added, same intent."
+  },
+  {
+   "op": "test",
+   "path": "/rubric/version",
+   "value": "1.0.0"
+  },
+  {
+   "op": "replace",
+   "path": "/rubric/version",
+   "value": "2.0.0",
+   "why": "D7: anchor wording changes scoring meaning, so the rubric gets a major version."
+  },
+  {
+   "op": "test",
+   "path": "/scenario/version",
+   "value": "1.1.0"
+  },
+  {
+   "op": "replace",
+   "path": "/scenario/version",
+   "value": "2.0.0",
+   "why": "D7: rubric meaning changed, so a major version; sessions already started stay on theirs."
   }
  ]
 }

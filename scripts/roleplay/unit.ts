@@ -14,6 +14,8 @@ import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/sc
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
 import { assess } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
+import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds } from '../../src/modules/roleplay/coaching';
+import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
 import { cpLength, cpSlice, sentences } from '../../src/modules/roleplay/runtime/text';
 import type { ScenarioBundle, TranscriptTurn } from '../../src/modules/roleplay/contracts/types';
 import { check, type Check } from './harness';
@@ -37,7 +39,13 @@ export async function unitTests(): Promise<Check[]> {
   const D6 = ['income', 'co_borrower_identity', 'comfortable_contribution', 'emi_range', 'expense_breakdown'];
   ok('§25', 'Overlay leaves every source-known fact unchanged', JSON.stringify(src2.facts.filter((f) => !D6.includes(f.id))) === JSON.stringify(b.facts.filter((f) => !D6.includes(f.id))), 'facts byte-equal outside D6');
   ok('§25', 'D6 only fills facts the source marked unknown', D6.every((id) => src2.facts.find((f) => f.id === id)!.knowledge === 'unknown' && src2.facts.find((f) => f.id === id)!.value === null && b.facts.find((f) => f.id === id)!.knowledge === 'known'));
-  ok('§25', 'Overlay leaves source rubric anchors and bands unchanged', JSON.stringify(src2.rubric.dimensions) === JSON.stringify(b.rubric.dimensions) && JSON.stringify(src2.scoring) === JSON.stringify(b.scoring));
+  // D7 rewords only the listening anchors (owner decision); every other dimension, band and weight stays source.
+  const notListening = (ds: any[]) => JSON.stringify(ds.filter((d) => d.id !== 'listening'));
+  ok('§25', 'Overlay leaves source rubric anchors (outside D7 listening) and bands unchanged', notListening(src2.rubric.dimensions) === notListening(b.rubric.dimensions) && JSON.stringify(src2.scoring) === JSON.stringify(b.scoring));
+  const lis = b.rubric.dimensions.find((d) => d.id === 'listening')!;
+  ok('D7', 'Listening anchors cover a learner who never pitches, and the rubric is a new major version',
+    /ignore the customer's answers/.test(lis.anchors.find((a) => a.score === 1)!.description) && /build on the customer's answers/.test(lis.anchors.find((a) => a.score === 5)!.description) && b.rubric.version === '2.0.0' && b.scenario.version === '2.0.0',
+    lis.anchors.map((a) => a.score + ': ' + a.description).join(' | '));
 
   const bad = (mut: (x: any) => void) => { const x = clone(pkg.bundle) as any; mut(x); return compile(x); };
   const r1 = bad((x) => { x.scenario.surprise = 1; });
@@ -236,6 +244,51 @@ export async function unitTests(): Promise<Check[]> {
     const between = clone(at.candidate); between.dimension_scores[0].score = between.dimension_scores[0].anchor_score === 1 ? 2 : 1;
     const fb = validateCandidate(JSON.stringify(between), ctx);
     ok('§14', 'A score that disagrees with its anchor is rejected with a message that names the fix', !fb.ok && fb.errors.some((e) => /Set both to the one anchor that fits/.test(e)));
+    // Correction to the PR #18 normalisation: with no discovery, an unquoted absence check is uncertain, not passed.
+    const nodisc = clone(at.candidate);
+    const cat = new Map(b.rubric.checks.map((x) => [x.id, x.category]));
+    nodisc.evidence.forEach((e) => { if (e.status === 'observed' && e.check_id && cat.get(e.check_id) === 'coverage') { e.status = 'not_observed'; e.learner_spans = []; e.searched_turn_ids = [...ctx.assessable_learner_turn_ids]; } });
+    const ag = nodisc.evidence.find((e) => e.check_id === 'avoids_guarantee')!; ag.status = 'observed'; ag.learner_spans = []; ag.searched_turn_ids = [];
+    const fnd = validateCandidate(JSON.stringify(nodisc), ctx);
+    ok('§14', 'With no discovery, an unquoted absence check becomes uncertain rather than passed', fnd.ok && fnd.candidate.evidence.find((e) => e.check_id === 'avoids_guarantee')!.status === 'uncertain', fnd.ok ? fnd.notes.join(' ') : fnd.errors.join(' '));
+
+    const nodisc2 = clone(nodisc); const am = nodisc2.evidence.find((e) => e.check_id === 'avoids_misleading_claims')!;
+    am.status = 'not_observed'; am.learner_spans = []; am.searched_turn_ids = [...ctx.assessable_learner_turn_ids];
+    const fnd2 = validateCandidate(JSON.stringify(nodisc2), ctx);
+    ok('§14', 'With no discovery, an absence check passed directly is also recorded as uncertain', fnd2.ok && fnd2.candidate.evidence.find((e) => e.check_id === 'avoids_misleading_claims')!.status === 'uncertain');
+
+    // Coaching (live reports, 29 Sep 2026): praise must rest on met results, gaps on missed ones.
+    const outs = evidenceOutcomes(b, at.candidate);
+    const evOf = (check: string) => at.candidate.evidence.find((e) => e.check_id === check)!.id;
+    ok('§20', 'Outcomes read absence checks the right way round', outs.get(evOf('course')) === 'met' && outs.get(evOf('total_cost')) === 'missed' && outs.get(evOf('avoids_guarantee')) === 'met',
+      `course ${outs.get(evOf('course'))}, total_cost ${outs.get(evOf('total_cost'))}, avoids_guarantee ${outs.get(evOf('avoids_guarantee'))}`);
+    const coachIn = buildCoachInput(b, at.candidate, 'full', [], {}, turns14);
+    const good = mockCoach(coachIn);
+    const vg = validateCoaching(JSON.stringify(good), at.candidate.evidence, turns14, outs);
+    ok('§20', 'The mock coach output satisfies the outcome rules', vg.ok, vg.ok ? '' : vg.errors.join(' '));
+    const praiseGap = { ...good, strengths: [{ text: 'Good job exploring the total cost.', evidence_ids: [evOf('total_cost')], suggested_question: null }] };
+    const v1 = validateCoaching(JSON.stringify(praiseGap), at.candidate.evidence, turns14, outs);
+    ok('§20', 'Praise citing a missed check is rejected', !v1.ok && v1.errors.some((e) => /strengths\[0\].*missed/.test(e)), v1.ok ? 'accepted' : v1.errors[0]);
+    const blameAsked = { ...good, missed_questions: [{ text: 'You did not ask about the course.', evidence_ids: [evOf('course')], suggested_question: null }] };
+    const v2 = validateCoaching(JSON.stringify(blameAsked), at.candidate.evidence, turns14, outs);
+    ok('§20', '"You did not ask" citing a question the learner asked is rejected', !v2.ok && v2.errors.some((e) => /missed_questions\[0\].*met/.test(e)), v2.ok ? 'accepted' : v2.errors[0]);
+    const withSkill = clone(at.candidate);
+    withSkill.evidence = withSkill.evidence.filter((e) => e.check_id !== 'summary_before_next_step');
+    withSkill.evidence.push({ id: 'ev_summary_before_next_step', category: 'conversation', check_id: 'summary_before_next_step', status: 'not_observed', learner_spans: [], context_spans: [], searched_turn_ids: [...ctx.assessable_learner_turn_ids], explanation: 'No summary.', method: 'llm', confidence: 0.8 } as any);
+    const skillAsQuestion = { ...good, missed_questions: [{ text: 'You did not summarise before the next step.', evidence_ids: ['ev_summary_before_next_step'], suggested_question: null }] };
+    const v3 = validateCoaching(JSON.stringify(skillAsQuestion), withSkill.evidence, turns14, evidenceOutcomes(b, withSkill), coverageEvidenceIds(b, withSkill));
+    ok('§20', 'A conversation skill listed as a "missed question" is rejected', !v3.ok && v3.errors.some((e) => /not a discovery question/.test(e)), v3.ok ? 'accepted' : v3.errors[0]);
+    const simpleOk = clone(at.candidate); const sl = simpleOk.evidence.find((e) => e.check_id === 'simple_language');
+    if (sl) { sl.status = 'observed'; sl.learner_spans = at.candidate.evidence.find((e) => e.check_id === 'course')!.learner_spans; }
+    ok('§20', 'An absence check affirmed with a quote ("used simple language") counts as met, not violated', !sl || evidenceOutcomes(b, simpleOk).get(sl.id) === 'met');
+    ok('§20', 'The coach is given the learner\'s messages and the outcome rules', coachIn.assessment_json.learner_messages?.length === 2 && (coachIn.assessment_json.rules ?? []).some((r) => /Strengths and the best moment may cite only evidence whose outcome is met/.test(r)));
+
+    // Retry: targets come from this learner's gaps, not the fixed scenario list.
+    const rt = personalRetryTargets(b, at.candidate);
+    const covMissed = (id: string) => cat.get(id) === 'coverage' && outs.get(evOf(id)) === 'missed';
+    ok('§20', 'Retry targets are the learner\'s own missed questions (at most three)', rt.personal && rt.check_ids.length === 3 && rt.check_ids.every(covMissed) && !rt.check_ids.includes('course') && !rt.check_ids.includes('fee_deadline'), rt.check_ids.join(','));
+    const instr = retryInstruction(b, rt.check_ids, rt.personal);
+    ok('§20', 'The retry instruction names example questions for those gaps', instr !== b.retry.instruction && /“[^”]+\?”/.test(instr), instr);
     const noDim = clone(at.candidate); noDim.dimension_scores.pop();
     const f2 = validateCandidate(JSON.stringify(noDim), ctx);
     ok('AT14', 'A missing dimension rejects the candidate', !f2.ok && f2.errors.some((e) => /Missing required dimension/.test(e)));

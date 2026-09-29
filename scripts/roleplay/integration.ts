@@ -13,7 +13,9 @@ import { scoreAssessment } from '../../src/modules/roleplay/scoring';
 import type { ScenarioBundle } from '../../src/modules/roleplay/contracts/types';
 
 /** The seeded Education Loan version (source 1.0.0 plus the overlay's bump). */
-const EDU_V = (loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle).scenario.version;
+const EDU_BUNDLE = loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle;
+const EDU_V = EDU_BUNDLE.scenario.version;
+const EDU_RUBRIC = (() => { const r = (loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle).rubric; return `${r.id}@${r.version}`; })();
 import { check, type Check } from './harness';
 
 const HIDDEN = [/4 lakh/, /Riya/, /three weeks/, /applied for one/, /heavy EMI/, /savings_dilemma|savings_reservation|emi_concern/, /release_intents|reveal_fact_ids|anchors/];
@@ -155,7 +157,11 @@ export async function integrationTests(): Promise<Check[]> {
   const parentAfter = (await sql`SELECT id, text FROM rp.turn WHERE session_id = ${sid} ORDER BY sequence`).map((t) => t.id + t.text).join('|');
   ok('AT20', 'The parent attempt is unchanged', parentAfter === parentTurnsBefore);
   ok('AT20', 'Focused practice reports target checks, no comparable 30-point total', fbody.mode === 'focused' && fbody.report.score === null && fbody.report.focused_results.checks.length === 3, JSON.stringify(fbody.report.focused_results?.checks.map((c) => `${c.check_id}:${c.status}`)));
-  ok('AT20', 'The checkpoint falls before the first targeted question', !focused.session.transcript.some((t) => /fee payment|scholarship|repayment/i.test(t.text) && t.speaker === 'learner'), focused.session.transcript.filter((t) => t.speaker === 'learner').map((t) => t.text).join(' | '));
+  // Targets are this learner's own missed questions (29 Sep 2026), so none was asked in the parent, and the fixed scenario list is not reused.
+  const [parentRun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT candidate FROM rp.evaluation_run WHERE id = ${runRow.id}`;
+  const askedInParent = new Set(parentRun.candidate.evidence.filter((e) => e.status === 'observed' && e.check_id).map((e) => e.check_id!));
+  const tgt = focused.session.retry_scope?.target_check_ids ?? [];
+  ok('AT20', 'Focused targets are the learner\'s own missed questions, none already asked', tgt.length === 3 && tgt.every((id) => !askedInParent.has(id)) && JSON.stringify(tgt) !== JSON.stringify(EDU_BUNDLE.retry.focused_target_check_ids), `${tgt.join(',')} (asked: ${[...askedInParent].join(',')})`);
   const [frun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT r.candidate FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${fsid}`;
   const prefixOnly = frun.candidate.evidence.find((e) => e.check_id === 'family_contribution');
   ok('AT20', 'A question asked only in the cloned prefix earns no credit (savings)', prefixOnly?.status === 'not_observed', prefixOnly?.status);
@@ -259,7 +265,7 @@ export async function integrationTests(): Promise<Check[]> {
 
   // ---- analytics -------------------------------------------------------------------
   const an = await rp.managerAnalytics(neha, { team_id: northTeam.id });
-  const g = an.groups.find((x) => x.scenario_id === 'EDU_DISCOVERY_001' && x.rubric_version === 'education_discovery@1.0.0');
+  const g = an.groups.find((x) => x.scenario_id === 'EDU_DISCOVERY_001' && x.rubric_version === EDU_RUBRIC);
   ok('FR11', 'Analytics group by scenario and rubric version', an.groups.every((x) => x.rubric_version && x.scoring_version) && !!g, an.groups.map((x) => `${x.scenario_id}@${x.rubric_version}`).join(' '));
   ok('FR11', 'Cohorts under five learners are suppressed', !!g && g.learners < 5 ? g.suppressed && g.metrics === null : true, `${g?.learners} learners`);
 
@@ -267,11 +273,11 @@ export async function integrationTests(): Promise<Check[]> {
   await sql`UPDATE rp.tenant SET settings = settings || '{"min_cohort":1}' WHERE id = ${nd.id}`;
   const an2 = await rp.managerAnalytics(neha, { team_id: northTeam.id });
   await sql`UPDATE rp.tenant SET settings = settings || '{"min_cohort":5}' WHERE id = ${nd.id}`;
-  const g2 = an2.groups.find((x) => x.scenario_id === 'EDU_DISCOVERY_001' && x.rubric_version === 'education_discovery@1.0.0')!;
+  const g2 = an2.groups.find((x) => x.scenario_id === 'EDU_DISCOVERY_001' && x.rubric_version === EDU_RUBRIC)!;
   const [truth] = await sql<{ started: number; reported: number }[]>`
     SELECT count(*) FILTER (WHERE COALESCE(retry_scope->>'mode','full') = 'full')::int started,
            count(*) FILTER (WHERE COALESCE(retry_scope->>'mode','full') = 'full' AND state IN ('reported','report_partial'))::int reported
-      FROM rp.session s WHERE rubric_version = 'education_discovery@1.0.0' AND NOT is_preview
+      FROM rp.session s WHERE rubric_version = ${EDU_RUBRIC} AND NOT is_preview
        AND learner_id IN (SELECT user_id FROM rp.team_membership WHERE team_id = ${northTeam.id} AND role = 'member')`;
   ok('FR11', 'Completion rate = reported full / started full sessions', !!g2.metrics && g2.counts.started_full === truth.started && g2.metrics.completion_rate === Math.round(1000 * truth.reported / truth.started) / 10, `${g2.metrics?.completion_rate}% of ${truth.started}`);
   ok('FR11', 'Focused attempts are excluded from averages and counted separately', !!g2.metrics && g2.counts.focused_attempts >= 1 && g2.eligible_assessments <= truth.reported, `${g2.counts.focused_attempts} focused`);
