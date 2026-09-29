@@ -738,6 +738,243 @@
    "path": "/scenario/version",
    "value": "1.0.1",
    "why": "D5: published versions are immutable, so the added paraphrases ship as 1.0.1. Intent examples only; rubric, facts and scoring are unchanged, so a minor bump."
+  },
+  {
+   "op": "test",
+   "path": "/facts/13/id",
+   "value": "income"
+  },
+  {
+   "op": "test",
+   "path": "/facts/13/knowledge",
+   "value": "unknown"
+  },
+  {
+   "op": "replace",
+   "path": "/facts/13/value",
+   "value": {
+    "amount_minor": 8500000,
+    "currency": "INR"
+   },
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/13/knowledge",
+   "value": "known",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/13/source_ref",
+   "value": "overlay D6",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "test",
+   "path": "/facts/15/id",
+   "value": "co_borrower_identity"
+  },
+  {
+   "op": "test",
+   "path": "/facts/15/knowledge",
+   "value": "unknown"
+  },
+  {
+   "op": "replace",
+   "path": "/facts/15/value",
+   "value": "Rajesh himself, the father, will be the co-borrower; he has a salaried job",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/15/knowledge",
+   "value": "known",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/15/source_ref",
+   "value": "overlay D6",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "test",
+   "path": "/facts/18/id",
+   "value": "comfortable_contribution"
+  },
+  {
+   "op": "test",
+   "path": "/facts/18/knowledge",
+   "value": "unknown"
+  },
+  {
+   "op": "replace",
+   "path": "/facts/18/type",
+   "value": "text",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/18/value",
+   "value": "about ₹2.5 lakh (₹2,50,000) from the savings; he wants to keep the rest for emergencies",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/18/knowledge",
+   "value": "known",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/18/source_ref",
+   "value": "overlay D6",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/18/prerequisite_fact_ids",
+   "value": [
+    "savings"
+   ],
+   "why": "D6: a follow-up detail. It is revealed only on a later ask, after the first answer about this topic has been given."
+  },
+  {
+   "op": "test",
+   "path": "/facts/14/id",
+   "value": "emi_range"
+  },
+  {
+   "op": "test",
+   "path": "/facts/14/knowledge",
+   "value": "unknown"
+  },
+  {
+   "op": "replace",
+   "path": "/facts/14/type",
+   "value": "text",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/14/value",
+   "value": "around ₹15,000 to ₹20,000 a month at most",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/14/knowledge",
+   "value": "known",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/14/source_ref",
+   "value": "overlay D6",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/14/prerequisite_fact_ids",
+   "value": [
+    "emi_concern"
+   ],
+   "why": "D6: a follow-up detail. It is revealed only on a later ask, after the first answer about this topic has been given."
+  },
+  {
+   "op": "test",
+   "path": "/facts/16/id",
+   "value": "expense_breakdown"
+  },
+  {
+   "op": "test",
+   "path": "/facts/16/knowledge",
+   "value": "unknown"
+  },
+  {
+   "op": "replace",
+   "path": "/facts/16/value",
+   "value": "tuition is about ₹12 lakh; hostel and living costs are about ₹2 lakh",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/16/knowledge",
+   "value": "known",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "replace",
+   "path": "/facts/16/source_ref",
+   "value": "overlay D6",
+   "why": "D6: detail left blank in the source, filled at the scenario owner's request (29 Sep 2026) so discovery questions get realistic answers. Previously unknown; no source-known value is changed."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/rules/14/id",
+   "value": "disclose_income_comfort"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/14/reveal_fact_ids/-",
+   "value": "income",
+   "why": "D6: the rule for this topic now reveals the filled-in detail."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/rules/13/id",
+   "value": "disclose_co_borrower"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/13/reveal_fact_ids/-",
+   "value": "co_borrower_identity",
+   "why": "D6: the rule for this topic now reveals the filled-in detail."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/rules/1/id",
+   "value": "respond_savings"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/1/reveal_fact_ids/-",
+   "value": "comfortable_contribution",
+   "why": "D6: the rule for this topic now reveals the filled-in detail."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/rules/4/id",
+   "value": "respond_repayment_comfort"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/4/reveal_fact_ids/-",
+   "value": "emi_range",
+   "why": "D6: the rule for this topic now reveals the filled-in detail."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/rules/12/id",
+   "value": "disclose_expense_scope"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/rules/12/reveal_fact_ids/-",
+   "value": "expense_breakdown",
+   "why": "D6: the rule for this topic now reveals the filled-in detail."
+  },
+  {
+   "op": "test",
+   "path": "/scenario/version",
+   "value": "1.0.1"
+  },
+  {
+   "op": "replace",
+   "path": "/scenario/version",
+   "value": "1.1.0",
+   "why": "D6: facts and disclosure rules changed, rubric and scoring did not: a minor version."
   }
  ]
 }

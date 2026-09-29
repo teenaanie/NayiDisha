@@ -122,7 +122,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
         // plainly, in configured wording, rather than leaving the learner with no reply.
         // Nothing here is invented: each sentence is a fact value the rules released.
         const facts = new Map(bundle.facts.map((f) => [f.id, f]));
-        const plain = answerFactIds.map((id) => renderFact(facts.get(id)!)).filter((x): x is string => !!x).map((v) => (/[.!?]$/.test(v) ? v : v + '.'));
+        const plain = answerFactIds.map((id) => renderFact(facts.get(id)!)).filter((x): x is string => !!x).map((v) => v.charAt(0).toUpperCase() + v.slice(1)).map((v) => (/[.!?]$/.test(v) ? v : v + '.'));
         generated = plain.length ? plain.join(' ') : (rt.acknowledgement_text ?? conv.clarification_response);
         generatedFacts = plain.length ? answerFactIds : [];
         degraded = true;

@@ -33,7 +33,10 @@ export async function unitTests(): Promise<Check[]> {
   const b = full.bundle as ScenarioBundle;
 
   const src2 = pkg.source as ScenarioBundle;
-  ok('§25', 'Overlay leaves every source fact value unchanged', JSON.stringify(src2.facts) === JSON.stringify(b.facts), 'facts byte-equal');
+  // D6 fills facts the source left unknown (owner decision); it must never alter a source-known fact.
+  const D6 = ['income', 'co_borrower_identity', 'comfortable_contribution', 'emi_range', 'expense_breakdown'];
+  ok('§25', 'Overlay leaves every source-known fact unchanged', JSON.stringify(src2.facts.filter((f) => !D6.includes(f.id))) === JSON.stringify(b.facts.filter((f) => !D6.includes(f.id))), 'facts byte-equal outside D6');
+  ok('§25', 'D6 only fills facts the source marked unknown', D6.every((id) => src2.facts.find((f) => f.id === id)!.knowledge === 'unknown' && src2.facts.find((f) => f.id === id)!.value === null && b.facts.find((f) => f.id === id)!.knowledge === 'known'));
   ok('§25', 'Overlay leaves source rubric anchors and bands unchanged', JSON.stringify(src2.rubric.dimensions) === JSON.stringify(b.rubric.dimensions) && JSON.stringify(src2.scoring) === JSON.stringify(b.scoring));
 
   const bad = (mut: (x: any) => void) => { const x = clone(pkg.bundle) as any; mut(x); return compile(x); };
@@ -49,7 +52,7 @@ export async function unitTests(): Promise<Check[]> {
   ok('§8', 'Unknown references are rejected with a field path', !r5.ok && r5.errors.some((e) => e.path.startsWith('/conversation/rules/0/reveal_fact_ids')));
   const r6 = bad((x) => { x.facts[0].prerequisite_fact_ids = ['course']; x.facts[1].prerequisite_fact_ids = ['student']; });
   ok('§8', 'Circular prerequisites are rejected', !r6.ok && r6.errors.some((e) => /Circular/.test(e.message)));
-  const r7 = bad((x) => { x.facts.find((f: any) => f.id === 'income').value = { amount_minor: 100, currency: 'INR' }; });
+  const r7 = bad((x) => { x.facts.find((f: any) => f.id === 'scholarship_amount').value = { amount_minor: 100, currency: 'INR' }; });
   ok('§9', 'An unknown fact cannot carry an invented value', !r7.ok && r7.errors.some((e) => /unknown fact must have a null value/.test(e.message)));
   let dupErr = '';
   try { parseStrictJson('{"a":1,"b":{"c":2,"c":3}}'); } catch (e) { dupErr = (e as Error).message; }
@@ -127,13 +130,33 @@ export async function unitTests(): Promise<Check[]> {
     const again = await c.say('Can you pay up to 3.5 lakh yourselves?');
     ok('AT03', 'A fixture is its facts\' first telling; a re-ask is answered freshly from the same facts',
       first.reply.method === 'fixture' && again.reply.method === 'generated' && again.reply.text !== first.reply.text
-      && again.plan.released_fact_ids.length === 0 && again.plan.parts.every((p) => p.kind === 'facts' && p.fact_ids.every((id) => c.disclosed.has(id))),
+      // The only new fact a re-ask may release is the rule's follow-up detail (D6).
+      && again.plan.released_fact_ids.every((id) => id === 'comfortable_contribution') && again.plan.parts.every((p) => p.kind === 'facts'),
       `${first.reply.method} → ${again.reply.method}: ${again.reply.text}`);
   }
-  for (const qx of ['What is your monthly income?', 'Which university is it exactly?', 'What EMI amount would be comfortable for you?']) {
+  {
+    // D6 details: answered from the filled facts; the two follow-ups only on a later ask.
+    const inc = await conv().say('What is your monthly income?');
+    ok('D6', 'Income is answered from the filled fact', inc.reply.text.includes('₹85,000') && inc.reply.disclosed_fact_ids.includes('income'), inc.reply.text);
+    const cob = await conv().say('Who will be the co-borrower?');
+    ok('D6', 'The co-borrower question is answered', /co-borrower/.test(cob.reply.text) && cob.reply.disclosed_fact_ids.includes('co_borrower_identity'), cob.reply.text);
+    const exp = await conv().say('Are you funding tuition only or other expenses too?');
+    ok('D6', 'The expense breakdown is answered and matches the ₹14 lakh total', /12 lakh/.test(exp.reply.text) && /2 lakh/.test(exp.reply.text), exp.reply.text);
+    const c = conv();
+    const s1 = await c.say('How much can your family contribute comfortably?');
+    const s2 = await c.say('How much of the savings can you use comfortably?');
+    ok('D6', 'Savings: the source answer first, the comfortable share only on the follow-up',
+      s1.reply.method === 'fixture' && !s1.reply.disclosed_fact_ids.includes('comfortable_contribution') && s2.reply.disclosed_fact_ids.includes('comfortable_contribution') && /2\.5 lakh/.test(s2.reply.text), `${s1.reply.text} | ${s2.reply.text}`);
+    const e = conv();
+    const e1 = await e.say('What monthly repayment would feel manageable?');
+    const e2 = await e.say('What EMI amount would be comfortable for you?');
+    ok('D6', 'EMI: the worry first, the range only on the follow-up',
+      /worries me/.test(e1.reply.text) && !e1.reply.disclosed_fact_ids.includes('emi_range') && e2.reply.disclosed_fact_ids.includes('emi_range') && /15,000/.test(e2.reply.text), `${e1.reply.text} | ${e2.reply.text}`);
+  }
+  for (const qx of ['Do you understand when repayment may start?', 'Which university is it exactly?', 'What EMI amount would be comfortable for you?']) {
     const out = await conv().say(qx);
     const invented = /\d/.test(out.reply.text.replace(/₹14 lakh|₹4 lakh|MBA/g, ''));
-    ok('AT04', `Unknown detail stays unknown: "${qx}"`, !invented && (out.reply.text.includes(b.conversation.unknown_response) || out.reply.text.includes('worries me') || out.reply.text.includes('Private university')), out.reply.text);
+    ok('AT04', `Unknown detail stays unknown: "${qx}"`, !invented && (out.reply.text.includes(b.conversation.unknown_response) || out.reply.text.includes('worries me') || out.reply.text.includes('Private university') || out.reply.text.includes('explain what you mean by moratorium')), out.reply.text);
   }
   const pitch = await conv().say('We offer a great education loan at a low interest rate, apply today.');
   ok('AT05', 'An immediate pitch gets the source burden objection', pitch.reply.text === 'But before that, I want to understand whether this will become too much burden for us.', pitch.reply.text);
