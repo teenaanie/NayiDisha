@@ -60,7 +60,11 @@ export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, d
     // An exact source fixture is the first telling of its facts. Asked again ("can you
     // pay up to 3.5 lakh?"), replaying the same sentence ignores the question, so the
     // already-disclosed facts go to generation, which answers what was actually asked.
-    const retelling = !!r.response_text && !newOnes.length && eligible.length > 0 && r.reveal_fact_ids.every((id) => disclosed.has(id) || !eligible.includes(id));
+    // The fixture states the rule's primary facts (those with no prerequisite inside the
+    // rule); a follow-up fact gated on them (e.g. the comfortable share of the savings)
+    // can only come out on a later ask, through generation.
+    const primary = r.reveal_fact_ids.filter((id) => !(facts.get(id)?.prerequisite_fact_ids ?? []).some((p) => r.reveal_fact_ids.includes(p)));
+    const retelling = !!r.response_text && eligible.length > 0 && primary.length > 0 && primary.every((id) => disclosed.has(id));
     if (r.response_text && !retelling) plan.parts.push({ kind: 'fixture', rule_id: r.id, text: r.response_text });
     else if (eligible.length) {
       // Facts an earlier part of this reply already states are not repeated.
