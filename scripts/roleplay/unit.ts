@@ -164,6 +164,11 @@ export async function unitTests(): Promise<Check[]> {
   ok('AT15', 'Prompt injection gets no hidden facts', !/4 lakh|Riya|three weeks|scholarship/i.test(inj.reply.text) && inj.reply.disclosed_fact_ids.length === 0, inj.reply.text);
   const leak = validateRoleplayOutput(b, JSON.stringify({ text: 'Riya has savings of ₹4 lakh.', used_fact_ids: [], requested_end: false }), ['course'], 'What course?', []);
   ok('§10', 'The output validator rejects a hidden-fact leak', !leak.ok, leak.ok ? '' : leak.reason);
+  // Live run, 29 Sep 2026: "The total cost is ₹14 lakh." was rejected because hidden savings_exist starts with "The".
+  const theOk = validateRoleplayOutput(b, JSON.stringify({ text: 'The total cost is ₹14 lakh.', used_fact_ids: ['cost'], requested_end: false }), ['cost', 'course'], 'What is the total cost of the course?', []);
+  ok('§10', 'A sentence-initial function word in a hidden fact does not reject a reply', theOk.ok, theOk.ok ? '' : theOk.reason);
+  const riya = validateRoleplayOutput(b, JSON.stringify({ text: 'Riya is very excited about it.', used_fact_ids: [], requested_end: false }), ['course'], 'Tell me about her.', []);
+  ok('§10', 'A hidden name is still caught at the start of a sentence', !riya.ok && /hidden_fact:student/.test(riya.reason), riya.ok ? 'accepted' : riya.reason);
   const fig = validateRoleplayOutput(b, JSON.stringify({ text: 'The EMI will be ₹12,000.', used_fact_ids: [], requested_end: false }), ['course'], 'EMI?', []);
   ok('§10', 'The output validator rejects an unsupported figure', !fig.ok && !fig.ok && fig.reason === 'unsupported_figure');
   const ent = validateRoleplayOutput(b, JSON.stringify({ text: 'She got into Symbiosis last month.', used_fact_ids: [], requested_end: false }), ['course'], 'Which college?', []);

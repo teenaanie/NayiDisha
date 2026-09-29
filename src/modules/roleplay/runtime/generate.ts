@@ -30,6 +30,9 @@ export interface CustomerReply {
   attempts: GenerationAttempt[];
 }
 
+/** Function words that start sentences; never distinctive enough to reveal a hidden fact. */
+const COMMON_WORDS = new Set(['the', 'this', 'that', 'these', 'those', 'she', 'her', 'his', 'they', 'their', 'them', 'our', 'you', 'your', 'its', 'has', 'have', 'had', 'does', 'did', 'not', 'some', 'any', 'all', 'about', 'around', 'and', 'but', 'for', 'with', 'from', 'will', 'would', 'can', 'could', 'was', 'were', 'are', 'there', 'here', 'what', 'when', 'who', 'how', 'yes']);
+
 const LEAK = /(allowed_facts|persona_public_style|unknown_response|history_json|system prompt|hidden fact|rubric|evaluator|\bscore\b|as an ai\b|language model|i am an ai)/i;
 
 /** Validate one model candidate against what this turn may say. */
@@ -56,7 +59,10 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
     const v = renderFact(f);
     if (!v) continue;
     if (c.text.toLowerCase().includes(v.toLowerCase())) return { ok: false, reason: `hidden_fact:${f.id}` };
-    for (const w of v.match(/\b[A-Z][a-z]{2,}\b/g) ?? []) {
+    // Capitalised words are treated as names; a fact's sentence-initial function word
+    // ("The family has some savings") is not one, and flagging it rejected any reply
+    // starting "The …" (live run, 29 Sep 2026).
+    for (const w of (v.match(/\b[A-Z][a-z]{2,}\b/g) ?? []).filter((x) => !COMMON_WORDS.has(x.toLowerCase()))) {
       if (c.text.includes(w) && !context.includes(w)) return { ok: false, reason: `hidden_fact:${f.id}` };
     }
   }
