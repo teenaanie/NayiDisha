@@ -1,5 +1,5 @@
 import { sql } from '@/lib/db';
-import { sarvamConfigured, sarvamSpeechToText, sarvamTextToSpeech, SARVAM_LANGUAGES, type SarvamLanguage } from '@/modules/adapters/sarvam';
+import { sarvamConfigured, sarvamSpeechToText, SARVAM_STT_MODEL, sarvamTextToSpeech, SARVAM_LANGUAGES, type SarvamLanguage } from '@/modules/adapters/sarvam';
 import { ApiError, audit, forbidden, metric, notFound, type Actor } from './context';
 import { rateLimit } from './guards';
 import { loadSessionFor, loadBundle } from './sessions';
@@ -100,7 +100,7 @@ export async function transcribe(actor: Actor, sessionId: string, audio: Blob) {
     const { transcript } = await sarvamSpeechToText(audio, sarvamLanguage(bundle.scenario.locale));
     await metric('voice_transcribed_ms', Date.now() - started, { provider: 'sarvam' }, actor.tenant_id);
     // The audio buffer goes out of scope here; nothing is written anywhere.
-    return { transcript, asr_provider: 'sarvam:saarika', asr_confidence: null, language: bundle.scenario.locale };
+    return { transcript, asr_provider: `sarvam:${SARVAM_STT_MODEL.replace(/[^a-z0-9_.-]/g, '_')}`, asr_confidence: null, language: bundle.scenario.locale };
   } catch (e) {
     await metric('voice_transcribe_failed', 1, { provider: 'sarvam' }, actor.tenant_id);
     throw new ApiError(502, 'TRANSCRIPTION_FAILED', 'We could not turn that recording into text. Try again, or type instead.', true);

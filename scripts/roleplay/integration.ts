@@ -355,14 +355,23 @@ export async function integrationTests(): Promise<Check[]> {
     process.env.SARVAM_API_KEY = 'test-only';
     globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
       const u = String(url);
-      if (u.includes('/speech-to-text')) { calls.push('stt'); return Response.json({ transcript: 'Who will be the co-borrower?' }); }
-      if (u.includes('/text-to-speech')) { calls.push('tts:' + JSON.parse(String(init?.body)).text); return Response.json({ audios: ['UklGRg=='] }); }
+      // The stub enforces Sarvam's documented request shape (docs, 29 Sep 2026), so a renamed field or retired model fails here.
+      if (u.includes('/speech-to-text')) {
+        const f = init?.body as FormData;
+        if (!['saaras:v3', 'saaras:v4'].includes(String(f.get('model'))) || !/^[a-z]{2}-IN$/.test(String(f.get('language_code'))) || !(f.get('file') instanceof Blob)) return Response.json({ error: { message: 'bad stt request' } }, { status: 400 });
+        calls.push('stt'); return Response.json({ request_id: null, transcript: 'Who will be the co-borrower?', language_code: 'en-IN' });
+      }
+      if (u.includes('/text-to-speech')) {
+        const b = JSON.parse(String(init?.body));
+        if (!['bulbul:v2', 'bulbul:v3'].includes(b.model) || !b.language_code || 'target_language_code' in b || (b.model === 'bulbul:v3' && !['aditya', 'shubh', 'rahul'].includes(b.speaker) && b.speaker !== process.env.SARVAM_TTS_SPEAKER)) return Response.json({ error: { message: 'bad tts request' } }, { status: 400 });
+        calls.push('tts:' + b.text); return Response.json({ request_id: null, audios: ['UklGRg=='] });
+      }
       return realFetch(url as never, init);
     }) as typeof fetch;
     try {
       const caps = (await rp.getSession(dev, vs)).voice;
       const tr = await rp.transcribe(dev, vs, new Blob([new Uint8Array(2048)], { type: 'audio/webm' }));
-      ok('VOICE', 'With Sarvam configured, recognition runs on the server and returns an editable transcript', caps.recognition === 'server' && tr.transcript === 'Who will be the co-borrower?' && tr.asr_provider === 'sarvam:saarika');
+      ok('VOICE', 'With Sarvam configured, recognition runs on the server and returns an editable transcript', caps.recognition === 'server' && tr.transcript === 'Who will be the co-borrower?' && tr.asr_provider === 'sarvam:saaras_v3');
       const [audioRows] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM information_schema.columns WHERE table_schema = 'rp' AND data_type = 'bytea'`;
       ok('VOICE', 'Audio is never stored (no binary columns in the platform schema)', audioRows.n === 0);
       const custTurn = (await rp.getSession(dev, vs)).transcript.filter((t) => t.speaker === 'customer').pop()!;

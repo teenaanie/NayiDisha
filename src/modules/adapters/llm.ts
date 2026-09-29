@@ -1,4 +1,4 @@
-import { sarvamChat, sarvamConfigured, type ChatMessage } from './sarvam';
+import { sarvamChat, sarvamConfigured, SARVAM_CHAT_MODEL, type ChatMessage } from './sarvam';
 
 /**
  * One chat-completion interface over the three providers this codebase knows,
@@ -17,7 +17,7 @@ export interface ChatModel {
 }
 
 class SarvamModel implements ChatModel {
-  readonly name = process.env.SARVAM_CHAT_MODEL || 'sarvam-m';
+  readonly name = SARVAM_CHAT_MODEL;
   complete(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number } = {}) {
     return sarvamChat(messages, opts);
   }
