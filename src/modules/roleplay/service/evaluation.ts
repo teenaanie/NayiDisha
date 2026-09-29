@@ -239,7 +239,7 @@ export async function getReport(actor: Actor, sessionId: string) {
   const [rep] = await sql<{ status: string; content: CoachingReport }[]>`SELECT status, content FROM rp.coaching_report WHERE run_id = ${run.id}`;
   const processing = ['queued', 'evaluating', 'coaching'].includes(run.status) && !rep;
   if (processing) return { status: 202 as const, body: { session_id: s.id, state: run.status, message: 'Your conversation is being assessed.' } };
-  if (run.status === 'evaluation_failed') return { status: 200 as const, body: { session_id: s.id, state: run.status, error: run.error, report: null } };
+  if (run.status === 'evaluation_failed') return { status: 200 as const, body: { session_id: s.id, state: run.status, assessment_id: run.id, error: run.error, report: null } };
   const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
   const [dims, evidence, risks, turns] = await Promise.all([
     sql`SELECT dimension_id, score, anchor_score, evidence_ids, rationale, status FROM rp.dimension_score WHERE run_id = ${run.id} ORDER BY dimension_id`,

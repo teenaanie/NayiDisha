@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { getReport } from '@/modules/roleplay/service';
 import { withActor, WhoAmI, SignInFirst } from '../../../shared';
 import { Pill } from '../../../../ui';
-import { Poll, RetryButtons } from './report-client';
+import { Poll, RetryButtons, RetryAssessment } from './report-client';
 export const dynamic = 'force-dynamic';
 
 type Span = { turn_id: string; start: number; end: number; quote: string };
@@ -28,7 +28,11 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   try { r = await getReport(actor, id); } catch (e) { return <main className="page"><h1>Report not available</h1><p>{(e as Error).message}</p><Link href="/roleplay">Back to practice</Link></main>; }
   if (r.status === 202) return <main className="page"><div className="page-head"><h1>Assessing your conversation…</h1><p>A separate evaluator is reading your transcript. This page updates by itself.</p></div><Poll sessionId={id} /></main>;
   const b = r.body as any;
-  if (b.state === 'evaluation_failed') return <main className="page"><div className="page-head"><h1>Your conversation is saved</h1><p>It could not be assessed automatically. No score was produced; an administrator can retry the assessment on the same transcript.</p></div><WhoAmI actor={actor} /></main>;
+  if (b.state === 'evaluation_failed') {
+    const canRetry = actor.roles.some((x) => x === 'reviewer' || x === 'tenant_admin');
+    return <main className="page"><div className="page-head"><h1>Your conversation is saved</h1><p>It could not be assessed automatically. No score was produced; {canRetry ? 'you can retry the assessment on the same transcript.' : 'an administrator can retry the assessment on the same transcript.'}</p>
+      {canRetry && b.assessment_id && <RetryAssessment assessmentId={b.assessment_id} />}</div><WhoAmI actor={actor} /></main>;
+  }
   const rep = b.report ?? {};
   const evidence = new Map<string, Ev>((b.evidence as Ev[]).map((e) => [e.id, e]));
   const cite = (f: Finding) => f.evidence_ids.flatMap((eid) => evidence.get(eid)?.learner_spans ?? []).slice(0, 2);
