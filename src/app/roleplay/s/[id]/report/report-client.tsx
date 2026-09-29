@@ -19,6 +19,23 @@ export function Poll({ sessionId }: { sessionId: string }) {
   return <p role="status" className="muted">Working on it…</p>;
 }
 
+/** Re-run a failed assessment on the same saved transcript (reviewers and admins). */
+export function RetryAssessment({ assessmentId }: { assessmentId: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const go = async () => {
+    setBusy(true); setError('');
+    try { await api('POST', `evaluations/${assessmentId}/retry`, {}, { idempotencyKey: newKey() }); router.refresh(); }
+    catch (e) { setError(e instanceof ApiFailure ? e.message : 'Could not retry the assessment.'); setBusy(false); }
+  };
+  return <div className="mt">
+    <button className="btn btn-primary" disabled={busy} onClick={go}>{busy ? 'Starting…' : 'Retry assessment'}</button>
+    <p className="small muted">Runs the assessment again on the same saved transcript. The conversation is not changed.</p>
+    {error && <p role="alert">{error}</p>}
+  </div>;
+}
+
 type Plan = { id: string; target_check_ids: string[] } | null;
 export function RetryButtons({ sessionId, assessmentId, full, focused }: { sessionId: string; assessmentId: string; full: Plan; focused: Plan }) {
   const router = useRouter();

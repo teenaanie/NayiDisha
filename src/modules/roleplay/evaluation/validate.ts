@@ -13,10 +13,14 @@ import { runtimeOf } from '../config/runtime-extension';
  * transcript. Quotes must match the committed text exactly; a paraphrased or
  * invented quote rejects the candidate.
  *
- * Two mechanical slips are normalised before validation, and each is recorded
+ * Mechanical slips are normalised before validation, and each is recorded
  * (live runs, 29 Sep 2026, failed on exactly these):
- *  - a verbatim quote at wrong offsets is moved to where it occurs in the same
- *    turn (models count characters badly; the words are what matter);
+ *  - a confidence just above 1 (1.1) is capped at 1;
+ *  - a non-absence check `observed` with no learner quote becomes `uncertain`
+ *    (no credit) instead of rejecting the whole assessment;
+ *  - a verbatim quote at wrong offsets (or offsets longer than the quote) is
+ *    moved to where it occurs in the same turn (models count characters badly,
+ *    e.g. "₹" as two; the words are what matter);
  *  - an absence check ("avoids guarantees") reported as `observed` with no
  *    learner span is recorded as `not_observed` over every assessable turn, the
  *    platform's convention for "the violation was not seen", or as `uncertain`
@@ -25,7 +29,7 @@ import { runtimeOf } from '../config/runtime-extension';
  *    (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.2.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.3.0';
 
 /** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
 function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
@@ -45,10 +49,20 @@ export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContex
   const turns = new Map(ctx.turns.map((t) => [t.id, t]));
   const fix = (sp: Span, where: string) => {
     const t = turns.get(sp.turn_id);
-    if (!t || cpSlice(t.text, sp.start, sp.end) === sp.quote) return;
+    // Exact fit only: text at the offsets equals the quote AND the offsets span exactly the quote
+    // (live, 29 Sep 2026: a correct quote with end 68 in a 67-code-point turn, "₹" counted twice).
+    if (!t || (cpSlice(t.text, sp.start, sp.end) === sp.quote && sp.end - sp.start === cpLength(sp.quote))) return;
     const at = relocate(t.text, sp.quote, sp.start);
     if (at) { notes.push(`${where}: quote moved ${sp.start}–${sp.end} → ${at.start}–${at.end}.`); sp.start = at.start; sp.end = at.end; }
   };
+  for (const [i, ev] of c.evidence.entries()) {
+    // A claimed observation with no learner quote cannot earn credit; record it as uncertain
+    // rather than failing the whole assessment (absence checks are handled below).
+    if (ev.status === 'observed' && !ev.learner_spans.length && !(ev.check_id && ev.check_id in runtimeOf(ctx.bundle).absence_checks)) {
+      ev.status = 'uncertain';
+      notes.push(`evidence[${i}] ${ev.id}: observed without a learner quote; recorded as uncertain (no credit).`);
+    }
+  }
   const absence = runtimeOf(ctx.bundle).absence_checks;
   const category = new Map(ctx.bundle.rubric.checks.map((x) => [x.id, x.category]));
   // "Avoided a guarantee" means little in a conversation with no discovery (spec'd by requires_discovery).
@@ -84,9 +98,15 @@ export interface ValidationContext {
 export function validateCandidate(raw: string, ctx: ValidationContext): { ok: true; candidate: EvaluationCandidate; notes: string[] } | { ok: false; errors: string[]; notes: string[] } {
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'], notes: [] }; }
-  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`), notes: [] };
+  // Confidence is advisory (it only routes low-confidence findings to review); a value
+  // just past 1 (live: 1.1) is capped rather than rejecting the whole assessment.
+  const preNotes: string[] = [];
+  for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { confidence?: unknown; id?: string }[]).entries()) {
+    if (typeof ev?.confidence === 'number' && ev.confidence > 1 && ev.confidence <= 1.5) { preNotes.push(`evidence[${i}] ${ev.id}: confidence ${ev.confidence} capped at 1.`); ev.confidence = 1; }
+  }
+  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`), notes: preNotes };
   const c = parsed as unknown as EvaluationCandidate;
-  const notes = normalizeCandidate(c, ctx);
+  const notes = [...preNotes, ...normalizeCandidate(c, ctx)];
   const errors: string[] = [];
   const e = (m: string) => errors.push(m);
 

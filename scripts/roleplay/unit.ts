@@ -227,6 +227,18 @@ export async function unitTests(): Promise<Check[]> {
     ok('§14', 'A verbatim quote at wrong offsets is moved and recorded, not rejected', f0.ok && f0.notes.some((n) => /quote moved/.test(n)), f0.ok ? f0.notes.join(' ') : f0.errors.join(' '));
     ok('§14', 'An absence check marked observed without a quote is recorded as not_observed over every turn',
       f0.ok && f0.candidate.evidence.find((e) => e.check_id === 'avoids_guarantee')!.status === 'not_observed' && f0.candidate.evidence.find((e) => e.check_id === 'avoids_guarantee')!.searched_turn_ids.length === ctx.assessable_learner_turn_ids.length);
+    // Live, 29 Sep 2026 (20:42 session): end one past the turn, confidence 1.1, observed with no learner quote.
+    const slips = clone(at.candidate);
+    const sp3 = slips.evidence.find((e) => e.status === 'observed' && e.learner_spans.length)!.learner_spans[0];
+    const whole = turns14.find((x) => x.id === sp3.turn_id)!.text;
+    sp3.start = 0; sp3.quote = whole; sp3.end = whole.length + 1;
+    slips.evidence[0].confidence = 1.1;
+    const lone = slips.evidence.find((e) => e.status === 'observed' && e.check_id && !['avoids_guarantee', 'avoids_misleading_claims', 'discovery_before_pitch', 'simple_language', 'explains_jargon'].includes(e.check_id) && e !== slips.evidence.find((x) => x.learner_spans.includes(sp3)))!;
+    lone.learner_spans = [];
+    const f5 = validateCandidate(JSON.stringify(slips), ctx);
+    ok('§14', 'Offsets past the turn, confidence 1.1 and an unquoted observation are normalised, not fatal',
+      f5.ok && f5.notes.some((n) => /quote moved/.test(n)) && f5.notes.some((n) => /capped at 1/.test(n)) && f5.candidate.evidence.find((e) => e.id === lone.id)!.status === 'uncertain',
+      f5.ok ? f5.notes.join(' ') : f5.errors.join(' '));
     const otherTurn = clone(at.candidate);
     const sp2 = otherTurn.evidence.find((e) => e.status === 'observed' && e.learner_spans.length)!.learner_spans[0];
     const elsewhere = turns14.find((x) => x.speaker === 'learner' && x.id !== sp2.turn_id)!.text;
