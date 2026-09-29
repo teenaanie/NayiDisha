@@ -1,6 +1,6 @@
 import { sql } from '@/lib/db';
 import { sarvamConfigured, sarvamSpeechToText, SARVAM_STT_MODEL, sarvamTextToSpeech, SARVAM_LANGUAGES, type SarvamLanguage } from '@/modules/adapters/sarvam';
-import { ApiError, audit, forbidden, metric, notFound, type Actor } from './context';
+import { ApiError, audit, forbidden, logError, metric, notFound, type Actor } from './context';
 import { rateLimit } from './guards';
 import { loadSessionFor, loadBundle } from './sessions';
 
@@ -102,6 +102,7 @@ export async function transcribe(actor: Actor, sessionId: string, audio: Blob) {
     // The audio buffer goes out of scope here; nothing is written anywhere.
     return { transcript, asr_provider: `sarvam:${SARVAM_STT_MODEL.replace(/[^a-z0-9_.-]/g, '_')}`, asr_confidence: null, language: bundle.scenario.locale };
   } catch (e) {
+    logError('voice.transcribe', e, { tenant_id: actor.tenant_id, session_id: sessionId });
     await metric('voice_transcribe_failed', 1, { provider: 'sarvam' }, actor.tenant_id);
     throw new ApiError(502, 'TRANSCRIPTION_FAILED', 'We could not turn that recording into text. Try again, or type instead.', true);
   }
@@ -118,7 +119,8 @@ export async function speak(actor: Actor, sessionId: string, turnId: string) {
   try {
     const audio = await sarvamTextToSpeech(t.text, sarvamLanguage(bundle.scenario.locale));
     return { audio_base64: audio, format: 'wav' };
-  } catch {
+  } catch (e) {
+    logError('voice.speak', e, { tenant_id: actor.tenant_id, session_id: sessionId });
     throw new ApiError(502, 'SPEECH_FAILED', 'The reply could not be read aloud.', true);
   }
 }

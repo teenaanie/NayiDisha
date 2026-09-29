@@ -56,7 +56,7 @@ export async function classifyWithModel(bundle: ScenarioBundle, text: string, la
   const rt = runtimeOf(bundle);
   const intents = bundle.conversation.intents
     .filter((i) => !(rt.discovery_conditioned.includes(i.id) && discoveryComplete))
-    .map((i) => ({ id: i.id, description: i.description, examples: i.positive_examples.slice(0, 6), ...(rt.question_free_intents.includes(i.id) ? { statement_ok: true } : {}) }));
+    .map((i) => ({ id: i.id, description: i.description, examples: i.positive_examples.slice(0, 10), ...(rt.question_free_intents.includes(i.id) ? { statement_ok: true } : {}) }));
   const res = await completeWithRetry({
     task: 'classify', template: CLASSIFIER_TEMPLATE, schema,
     data: { intents_json: intents, last_customer_json: lastCustomer, learner_message_json: text },

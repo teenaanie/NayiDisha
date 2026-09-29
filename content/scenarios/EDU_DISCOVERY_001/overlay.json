@@ -681,6 +681,63 @@
     "source_ref": "Spec §26",
     "note": "Moved verbatim from extensions.careerKore.moratorium_unknown_response (D1)."
    }
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/7/id",
+   "value": "savings"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "Can you pay up to 3.5 lakh yourselves?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "How much of your savings is available to pay?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/7/positive_examples/-",
+   "value": "How much can you put in from your side?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/conversation/intents/11/id",
+   "value": "co_borrower"
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/11/positive_examples/-",
+   "value": "Do you have any guarantee for the loan?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/11/positive_examples/-",
+   "value": "Who can stand as guarantor for the loan?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "add",
+   "path": "/conversation/intents/11/positive_examples/-",
+   "value": "Is there someone who can sign for the loan with you?",
+   "why": "D5: paraphrase seen in live practice that the understanding step missed or that repeated a reply; learner wording only, no customer facts."
+  },
+  {
+   "op": "test",
+   "path": "/scenario/version",
+   "value": "1.0.0"
+  },
+  {
+   "op": "replace",
+   "path": "/scenario/version",
+   "value": "1.0.1",
+   "why": "D5: published versions are immutable, so the added paraphrases ship as 1.0.1. Intent examples only; rubric, facts and scoring are unchanged, so a minor bump."
   }
  ]
 }

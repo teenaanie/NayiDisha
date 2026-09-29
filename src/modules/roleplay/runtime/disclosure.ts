@@ -57,7 +57,11 @@ export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, d
     fresh.forEach((i) => answered.add(i));
     plan.matched_rule_ids.push(r.id);
     released.push(...newOnes);
-    if (r.response_text) plan.parts.push({ kind: 'fixture', rule_id: r.id, text: r.response_text });
+    // An exact source fixture is the first telling of its facts. Asked again ("can you
+    // pay up to 3.5 lakh?"), replaying the same sentence ignores the question, so the
+    // already-disclosed facts go to generation, which answers what was actually asked.
+    const retelling = !!r.response_text && !newOnes.length && eligible.length > 0 && r.reveal_fact_ids.every((id) => disclosed.has(id) || !eligible.includes(id));
+    if (r.response_text && !retelling) plan.parts.push({ kind: 'fixture', rule_id: r.id, text: r.response_text });
     else if (eligible.length) {
       // Facts an earlier part of this reply already states are not repeated.
       const said = new Set(plan.parts.flatMap((p) => (p.kind === 'fixture' ? factsOfRule(bundle, p.rule_id) : p.kind === 'facts' ? p.fact_ids : [])));

@@ -120,6 +120,16 @@ export async function unitTests(): Promise<Check[]> {
     const out = await c.say(q1);
     ok('AT03', `Fixture: "${q1}"`, out.reply.text === expectText && JSON.stringify(out.reply.disclosed_fact_ids.sort()) === JSON.stringify([...factIds].sort()), `${out.reply.text} [${out.reply.disclosed_fact_ids}]`);
   }
+  {
+    // Live practice, 29 Sep 2026: three savings follow-ups each got the savings fixture verbatim.
+    const c = conv();
+    const first = await c.say('Do you have any savings?');
+    const again = await c.say('Can you pay up to 3.5 lakh yourselves?');
+    ok('AT03', 'A fixture is its facts\' first telling; a re-ask is answered freshly from the same facts',
+      first.reply.method === 'fixture' && again.reply.method === 'generated' && again.reply.text !== first.reply.text
+      && again.plan.released_fact_ids.length === 0 && again.plan.parts.every((p) => p.kind === 'facts' && p.fact_ids.every((id) => c.disclosed.has(id))),
+      `${first.reply.method} → ${again.reply.method}: ${again.reply.text}`);
+  }
   for (const qx of ['What is your monthly income?', 'Which university is it exactly?', 'What EMI amount would be comfortable for you?']) {
     const out = await conv().say(qx);
     const invented = /\d/.test(out.reply.text.replace(/₹14 lakh|₹4 lakh|MBA/g, ''));

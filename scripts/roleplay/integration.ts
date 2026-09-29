@@ -11,6 +11,9 @@ import { loadScenarioPackage } from '../../src/modules/roleplay/config/content';
 import { overrideProvider, ProviderError, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { scoreAssessment } from '../../src/modules/roleplay/scoring';
 import type { ScenarioBundle } from '../../src/modules/roleplay/contracts/types';
+
+/** The seeded Education Loan version (source 1.0.0 plus the overlay's bump). */
+const EDU_V = (loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle).scenario.version;
 import { check, type Check } from './harness';
 
 const HIDDEN = [/4 lakh/, /Riya/, /three weeks/, /applied for one/, /heavy EMI/, /savings_dilemma|savings_reservation|emi_concern/, /release_intents|reveal_fact_ids|anchors/];
@@ -53,7 +56,7 @@ export async function integrationTests(): Promise<Check[]> {
   };
 
   // ---- AT01 / FR02: start, exact opening, no private fields -------------------
-  const started = await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' });
+  const started = await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V });
   const sid = started.session.session_id;
   const payload = JSON.stringify(started);
   ok('AT01', 'Start returns the exact opening as turn 0', started.session.transcript[0]?.text.startsWith('Hello, my daughter has got admission for an MBA') && started.session.transcript[0].sequence === 0);
@@ -227,12 +230,12 @@ export async function integrationTests(): Promise<Check[]> {
   await rp.publishDraft(rahul, d2.draft_id, d2.revision, 'AT19 test version', true);
   await say(vikram, pinnedS, 'When is the first fee payment due?');
   const [pinAfter] = await sql<{ bundle_hash: string; rubric_version: string }[]>`SELECT bundle_hash, rubric_version FROM rp.session WHERE id = ${pinnedS}`;
-  const older = (await rp.startSession(vikram, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session;
+  const older = (await rp.startSession(vikram, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V })).session;
   const latest = (await rp.startSession(vikram, { scenario_id: 'EDU_DISCOVERY_001' })).session;
   ok('AT19', 'A running session stays pinned after a new rubric is published', pinAfter.bundle_hash === pinBefore.bundle_hash && pinAfter.rubric_version === pinBefore.rubric_version, pinAfter.rubric_version);
-  ok('AT19', 'New sessions use the explicitly selected version, or the newest', older.scenario_version === '1.0.0' && latest.scenario_version === nextMajor, `${older.scenario_version} / ${latest.scenario_version}`);
+  ok('AT19', 'New sessions use the explicitly selected version, or the newest', older.scenario_version === EDU_V && latest.scenario_version === nextMajor, `${older.scenario_version} / ${latest.scenario_version}`);
   let immut = '';
-  try { await sql`UPDATE rp.scenario_version SET bundle = '{}' WHERE tenant_id = ${nd.id} AND version = '1.0.0'`; } catch (e) { immut = (e as Error).message; }
+  try { await sql`UPDATE rp.scenario_version SET bundle = '{}' WHERE tenant_id = ${nd.id} AND version = ${EDU_V}`; } catch (e) { immut = (e as Error).message; }
   ok('FR10', 'Published configuration cannot be edited in the database', /immutable/.test(immut));
 
   const synth = loadScenarioPackage('SYNTH_HEALTH_COVER_001').bundle;
@@ -275,7 +278,7 @@ export async function integrationTests(): Promise<Check[]> {
   ok('FR11', 'Risk rate counts sessions with a confirmed, not-dismissed risk', !!g2.metrics && g2.metrics.risk_rate !== null && g2.metrics.risk_rate > 0);
 
   // ---- abandon, AT25 retention ------------------------------------------------------
-  const ab = (await rp.startSession(vikram, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session;
+  const ab = (await rp.startSession(vikram, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V })).session;
   const abd = await rp.abandonSession(vikram, ab.session_id, { expected_revision: ab.revision, reason: 'test' });
   ok('§19', 'Abandoning preserves the transcript with no assessed score', abd.state === 'abandoned' && abd.transcript.length === 1);
   const purgeTarget = ab.session_id;
@@ -287,7 +290,7 @@ export async function integrationTests(): Promise<Check[]> {
   {
     const fakeLive = (fn: (data: any) => string): ModelProvider => ({ id: 'fake_live', model: 'fake-live-1', live: true, complete: async (req) => ({ text: fn(req.data), provider: 'fake_live', model: 'fake-live-1', request_id: null, usage: null, latency_ms: 1 }) });
     const kiran = await as(nd.id, 'synthetic:learner.kiran');
-    const ks = (await rp.startSession(kiran, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session.session_id;
+    const ks = (await rp.startSession(kiran, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V })).session.session_id;
     // The model says the message asks two things (plus one invented intent, which must be dropped).
     overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'fee_deadline', confidence: 0.95 }, { intent_id: 'total_cost', confidence: 0.9 }, { intent_id: 'made_up_intent', confidence: 0.99 }], is_question: true })));
     const r1 = await say(kiran, ks, 'when is the fee due and how much is the fee amount');
@@ -321,7 +324,7 @@ export async function integrationTests(): Promise<Check[]> {
   {
     delete process.env.SARVAM_API_KEY;
     await rp.setVoiceConsent(dev, false);
-    const vs = (await rp.startSession(dev, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: '1.0.0' })).session.session_id;
+    const vs = (await rp.startSession(dev, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V })).session.session_id;
     const view = await rp.getSession(dev, vs);
     ok('VOICE', 'Without a server speech provider, sessions offer browser recognition and speech', view.voice.recognition === 'browser' && view.voice.speech === 'browser' && view.voice.language === 'en-IN' && view.voice.consent === false);
     const heard = { mode: 'voice', asr_provider: 'browser:webspeech', asr_text: 'when is the first fee payment do', asr_confidence: 0.82 };

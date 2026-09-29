@@ -31,6 +31,8 @@ export function sentences(text: string): Sentence[] {
     if (e > s) out.push({ text: cps.slice(s, e).join(''), start: s, end: e });
   };
   for (let i = 0; i < cps.length; i++) {
+    // A dot between digits is a decimal ("3.5 lakh"), not a sentence end.
+    if (cps[i] === '.' && /\d/.test(cps[i - 1] ?? '') && /\d/.test(cps[i + 1] ?? '')) continue;
     if ('.!?।\n'.includes(cps[i])) {
       // keep "..." and "?!" together
       let j = i; while (j + 1 < cps.length && '.!?'.includes(cps[j + 1])) j++;
