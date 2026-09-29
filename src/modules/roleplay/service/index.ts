@@ -11,3 +11,4 @@ export * from './analytics';
 export { drain, runOne } from './jobs';
 export { purgeExpired } from './retention';
 export { LIMITS } from './guards';
+export { voiceCapabilities, setVoiceConsent, hasVoiceConsent, transcribe, speak } from './voice';

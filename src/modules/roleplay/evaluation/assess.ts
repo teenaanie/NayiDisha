@@ -4,7 +4,7 @@ import { computeDerivations } from '../config/patch';
 import { renderFact } from '../runtime/disclosure';
 import { completeWithRetry, type CompletionResult } from '../providers';
 import { scoreAssessment, ScoringError } from '../scoring';
-import { extractRuleEvidence, RULE_VERSION, type RuleEvidence } from './extract';
+import { extractRuleEvidence, RULE_VERSION, type RuleEvidence, type RecordedIntent } from './extract';
 import { validateCandidate, VALIDATOR_VERSION } from './validate';
 import { evaluationCandidateSchema } from '../contracts/schemas';
 
@@ -27,6 +27,8 @@ export interface AssessInput {
   target_check_ids: string[];
   template: string;
   correlation: { tenant_id: string; session_id: string; evaluation_id: string };
+  /** Intents the runtime acted on per learner turn, so scoring matches what the customer understood. */
+  recordedIntents?: Map<string, RecordedIntent[]>;
 }
 export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
 export type AssessResult =
@@ -49,7 +51,7 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   const broken = transcriptIntegrity(input.turns);
   if (broken) return { status: 'unscorable', reason: broken, rule: null, outputs };
   const { bundle } = input;
-  const rule = extractRuleEvidence(bundle, input.turns, { excludeOrigins: input.mode === 'focused' ? ['retry_prefix'] : [] });
+  const rule = extractRuleEvidence(bundle, input.turns, { excludeOrigins: input.mode === 'focused' ? ['retry_prefix'] : [], recordedIntents: input.recordedIntents });
   if (!rule.assessable_learner_turn_ids.length) return { status: 'unscorable', reason: 'No assessable learner turns.', rule, outputs };
 
   const rubricVersion = rubricVersionOf(bundle);
@@ -60,7 +62,7 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     checks_json: { rule_evidence: rule.evidence, risk_candidates: rule.risk_candidates, assessable_learner_turn_ids: rule.assessable_learner_turn_ids, unexplained_jargon: rule.unexplained_jargon, runtime: runtimeOf(bundle) },
     risk_policy_json: bundle.risk_policy,
     knowledge_status_json: { pack: (bundle.extensions as { knowledge_pack?: unknown } | undefined)?.knowledge_pack ?? 'absent', product_policy_accuracy: 'not_assessed' },
-    transcript_json: input.turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text })),
+    transcript_json: input.turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text, ...(t.input_mode === 'voice' ? { input_mode: 'voice (learner-checked transcript)' } : {}) })),
     contract_json: { contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, offsets: 'unicode code points, start inclusive, end exclusive', previous_errors: [] as string[] },
   };
 

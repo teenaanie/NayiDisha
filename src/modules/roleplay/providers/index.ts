@@ -150,7 +150,9 @@ export function providerFor(task: Task): ModelProvider {
     // so a deployment can reuse an existing secret instead of copying it.
     const base = process.env.RP_LLM_BASE_URL;
     const key = process.env.RP_LLM_API_KEY || (process.env.RP_LLM_API_KEY_FROM ? process.env[process.env.RP_LLM_API_KEY_FROM] : undefined);
-    const model = (task === 'evaluate' || task === 'coach') ? (process.env.RP_LLM_MODEL_EVALUATOR ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
+    // Separate models per task are optional; on quota-limited tiers they also spread usage across buckets.
+    const model = (task === 'evaluate' || task === 'coach') ? (process.env.RP_LLM_MODEL_EVALUATOR ?? process.env.RP_LLM_MODEL)
+      : task === 'classify' ? (process.env.RP_LLM_MODEL_CLASSIFIER ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
     if (!base || !key || !model) throw new Error('RP_PROVIDER=openai_compatible needs RP_LLM_BASE_URL, RP_LLM_MODEL and a key (RP_LLM_API_KEY, or RP_LLM_API_KEY_FROM naming the variable that holds it).');
     return new OpenAICompatibleProvider(base, key, model);
   }

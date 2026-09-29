@@ -180,6 +180,9 @@ export async function unitTests(): Promise<Check[]> {
     ok('§14', 'A provider total is forbidden by the contract', !validateCandidate(JSON.stringify(total), ctx).ok);
   }
 
+  const two = await conv().say('Has the scholarship been confirmed and when is the payment due?');
+  ok('§10', 'The phrase matcher splits "X and Y?" into two questions', /applied for one/.test(two.reply.text) && /three weeks/.test(two.reply.text), two.reply.text);
+
   // ---- provider resilience (spec §24) ------------------------------------------
   process.env.RP_MAX_BACKOFF_MS = '5';
   resetBreakers();

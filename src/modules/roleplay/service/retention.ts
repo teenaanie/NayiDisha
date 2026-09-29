@@ -31,6 +31,7 @@ export async function purgeExpired(actor: Actor | null, tenantId: string, opts: 
     await tx`DELETE FROM rp.turn_analysis WHERE session_id = ANY(${ids})`;
     await tx`DELETE FROM rp.operation WHERE session_id = ANY(${ids})`;
     await tx`DELETE FROM rp.job WHERE payload->>'session_id' = ANY(${ids})`;
+    await tx`DELETE FROM rp.turn_input WHERE session_id = ANY(${ids})`;
     await tx`DELETE FROM rp.turn WHERE session_id = ANY(${ids})`;
     await tx`DELETE FROM rp.session WHERE id = ANY(${ids})`;
     await audit(actor, 'retention.purged', 'tenant', tenantId, { sessions: ids.length, older_than_days: days }, {}, tx as never);

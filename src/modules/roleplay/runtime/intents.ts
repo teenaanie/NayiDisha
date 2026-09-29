@@ -56,13 +56,39 @@ function scoreIntent(intent: Intent, text: string): number {
 
 export interface ClassifyContext { discoveryComplete: boolean }
 
+/**
+ * "When is the fee due and how much is it?" asks two things. Split a sentence
+ * where a conjunction introduces a new question word, keeping code-point
+ * offsets so evidence spans still point into the original text.
+ */
+const CLAUSE_BREAK = /\s*(?:,\s*)?\b(?:and|also|plus)\s+(?=(?:what|whats|what's|when|where|who|which|how|is|are|do|does|did|can|could|will|would|has|have)\b)/gi;
+export function clauses(s: Sentence): Sentence[] {
+  const cps = Array.from(s.text);
+  const unitToCp = (u: number) => Array.from(s.text.slice(0, u)).length;
+  const bounds: [number, number][] = [];
+  let last = 0;
+  for (const m of s.text.matchAll(CLAUSE_BREAK)) {
+    bounds.push([last, unitToCp(m.index!)]);
+    last = unitToCp(m.index! + m[0].length);
+  }
+  if (!bounds.length) return [s];
+  bounds.push([last, cps.length]);
+  // Exact slices (whitespace trimmed by offset), so a quote still matches the transcript.
+  return bounds.flatMap(([a, b]) => {
+    while (a < b && /\s/.test(cps[a])) a++;
+    while (b > a && /\s/.test(cps[b - 1])) b--;
+    return b > a ? [{ text: cps.slice(a, b).join(''), start: s.start + a, end: s.start + b }] : [];
+  });
+}
+
 export function classify(bundle: ScenarioBundle, text: string, ctx: ClassifyContext): Classification {
   const rt = runtimeOf(bundle);
   const hits: IntentHit[] = [];
   let partial = false;
   let asks = false;
-  for (const s of sentences(text)) {
-    const q = isQuestion(s.text);
+  for (const whole of sentences(text)) for (const s of clauses(whole)) {
+    // A clause of a question sentence is part of that question.
+    const q = isQuestion(s.text) || isQuestion(whole.text);
     asks ||= q;
     const scored: { id: string; score: number }[] = [];
     for (const intent of bundle.conversation.intents) {

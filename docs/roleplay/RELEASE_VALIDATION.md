@@ -65,6 +65,11 @@
 4. **Author:** export, edit, import, then a validation panel with the semantic diff (minor bump). Preview (labelled test session, draft wording), submit, then the reviewer acknowledges and publishes.
 5. **Manager:** version-grouped analytics with suppression.
 
+## Update 29 Sep 2026: voice and live understanding
+
+- **Voice** (migration `016`): 14 integration checks cover consent gating, provenance, the edited flag, malformed metadata, the Sarvam server path with the network stubbed, read-aloud limited to committed customer turns, isolation, the report and snapshot markers, and that no audio column exists. **Browser flow verified** with a scripted recogniser (the browser pane has no microphone): consent prompt, en-IN listening, transcript into the draft, correction, send, the 🎤 marker and read-aloud. **Not verified:** a real microphone, real Sarvam (no key), and accuracy on Indian accents.
+- **Live understanding.** Tested with a fake live provider (6 checks): multi-part questions, invented IDs discarded, classifier failure falling back to the phrase matcher, reply-model outage falling back to configured facts, and scoring crediting understood paraphrases. **A real-model run is blocked by the Gemini free-tier quota** (20 requests per model per day on this key, exhausted on both `gemini-2.5-flash` and `-flash-lite`).
+
 ## Not verified / not implemented
 
 **Live model (Gemini, `gemini-2.5-flash` via the OpenAI-compatible endpoint), verified 28 Sep 2026 on a local database:**
@@ -77,7 +82,7 @@
 - **Not yet measured:** evaluator accuracy (calibration), live AT15 adversarial behaviour, latency distribution, and cost. The free tier exhausted after roughly 20 calls on `gemini-2.5-flash-lite`.
 
 **Not implemented:**
-- **Semantic (model) intent classifier.** Only deterministic matching is wired (ADR-004). Paraphrases outside the configured examples will be missed or clarified.
+- **Semantic (model) intent classifier:** wired on 29 Sep 2026 and used when a live model is configured. Its accuracy against real learner phrasing is not yet measured.
 - **Redaction** of learner input before provider submission (spec §23).
 - **Encrypted snapshot of rendered prompts** (spec §15): prompt digests and all outputs are stored; the rendered prompt text is not.
 - **Cursor pagination** on list endpoints (fixed limit 100).

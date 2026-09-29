@@ -84,7 +84,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
 
     <details open><summary>Transcript with cited evidence</summary><div className="card-body">
       {b.transcript.map((t: any) => <p key={t.turn_id} id={`turn-${t.turn_id}`} className="rp-turn small">
-        <strong>{t.speaker === 'customer' ? 'Customer' : 'You'}{t.origin === 'retry_prefix' ? ' (earlier, context)' : ''}:</strong>{' '}
+        <strong>{t.speaker === 'customer' ? 'Customer' : 'You'}{t.origin === 'retry_prefix' ? ' (earlier, context)' : ''}{t.input_mode === 'voice' ? ` 🎤${t.asr_edited ? ' (spoken, corrected before sending)' : ' (spoken)'}` : ''}:</strong>{' '}
         {t.speaker === 'learner' ? <Highlighted text={t.text} spans={spans.filter((s) => s.turn_id === t.turn_id)} /> : t.text}</p>)}
     </div></details>
     <p className="small muted mt">Pinned: bundle {String(b.pinned.bundle_hash).slice(0, 12)} · rubric {b.pinned.rubric_version} · scoring {b.pinned.scoring_version} · transcript {String(b.pinned.transcript_hash).slice(0, 12)}</p>
