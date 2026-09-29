@@ -2,7 +2,7 @@ import { sql } from '@/lib/db';
 import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, CoachingReport } from '../contracts/types';
 import { assess, EVALUATOR_VERSION, rubricVersionOf, type AssessResult } from '../evaluation/assess';
 import { scoreAssessment } from '../scoring';
-import { buildCoachInput, validateCoaching, focusedCheckpoint, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
+import { buildCoachInput, validateCoaching, focusedCheckpoint, evidenceOutcomes, coverageEvidenceIds, personalRetryTargets, retryInstruction, MAX_MISSED_QUESTIONS, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
 import { completeWithRetry } from '../providers';
 import { coachingCandidateSchema } from '../contracts/schemas';
 import { ApiError, audit, conflict, forbidden, metric, notFound, requireRole, type Actor } from './context';
@@ -115,8 +115,9 @@ registerHandler('evaluate', processEvaluate, async (job) => {
 
 // ---- coaching ---------------------------------------------------------------------
 
-function retryOptions(bundle: ScenarioBundle) {
-  return { full_enabled: bundle.retry.full_enabled, focused_enabled: bundle.retry.focused_enabled, focused_target_check_ids: bundle.retry.focused_target_check_ids, instruction: bundle.retry.instruction };
+function retryOptions(bundle: ScenarioBundle, candidate: EvaluationCandidate) {
+  const t = personalRetryTargets(bundle, candidate);
+  return { full_enabled: bundle.retry.full_enabled, focused_enabled: bundle.retry.focused_enabled, focused_target_check_ids: t.check_ids, instruction: retryInstruction(bundle, t.check_ids, t.personal) };
 }
 
 async function processCoach(job: Job) {
@@ -125,7 +126,8 @@ async function processCoach(job: Job) {
   if (!['coaching', 'review_required', 'report_partial'].includes(full.status)) return;
   const provisional = full.status === 'review_required';
   const targets = s.retry_scope?.target_check_ids ?? [];
-  const input = buildCoachInput(bundle, full.candidate, run.mode, targets, retryOptions(bundle));
+  const input = buildCoachInput(bundle, full.candidate, run.mode, targets, retryOptions(bundle, full.candidate), snap.content);
+  const outcomes = evidenceOutcomes(bundle, full.candidate);
   const template = await promptContent(s.prompt_versions.coach.id);
   let coach = null as ReturnType<typeof validateCoaching> | null;
   const attempts: unknown[] = [];
@@ -133,7 +135,7 @@ async function processCoach(job: Job) {
     await spendProviderBudget(s.tenant_id);
     for (let i = 0; i < 2 && !(coach?.ok); i++) {
       const res = await completeWithRetry({ task: 'coach', template: template.content, data: input as never, schema: coachingCandidateSchema, temperature: 0.3, maxTokens: 4000, correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id } });
-      coach = validateCoaching(res.text, full.candidate.evidence, snap.content);
+      coach = validateCoaching(res.text, full.candidate.evidence, snap.content, outcomes, coverageEvidenceIds(bundle, full.candidate));
       attempts.push({ ok: coach.ok, errors: coach.ok ? [] : coach.errors, provider: res.provider, model: res.model, request_id: res.request_id });
     }
   } catch (e) {
@@ -153,7 +155,7 @@ async function processCoach(job: Job) {
   const content: CoachingReport & Record<string, unknown> = {
     ...base,
     status: provisional ? 'provisional' : ok ? 'final' : 'partial',
-    strengths: ok?.strengths ?? [], improvement_areas: ok?.improvement_areas ?? [], missed_questions: ok?.missed_questions ?? [],
+    strengths: ok?.strengths ?? [], improvement_areas: ok?.improvement_areas ?? [], missed_questions: (ok?.missed_questions ?? []).slice(0, MAX_MISSED_QUESTIONS),
     risky_statements: ok?.risky_statements ?? [], best_moment: ok?.best_moment ?? null, missed_opportunity: ok?.missed_opportunity ?? null,
     ...(full.candidate.risk_flags.some((f) => f.status === 'confirmed') ? {} : { no_risk_statement: NO_RISK_TEXT }),
   };
@@ -179,19 +181,21 @@ registerHandler('coach', processCoach, async (job) => {
 async function ensureRetryPlans(runId: string, s: SessionRow, bundle: ScenarioBundle, c: EvaluationCandidate, turns: TranscriptTurn[]) {
   type Plan = NonNullable<CoachingReport['retry_plan']>;
   const out: { full: Plan | null; focused: Plan | null } = { full: null, focused: null };
+  const targets = personalRetryTargets(bundle, c);
+  const instruction = retryInstruction(bundle, targets.check_ids, targets.personal);
   if (bundle.retry.full_enabled) {
     const [p] = await sql`INSERT INTO rp.retry_plan (tenant_id, run_id, session_id, mode, target_check_ids, instruction)
-      VALUES (${s.tenant_id}, ${runId}, ${s.id}, 'full', '[]', ${bundle.retry.instruction}) ON CONFLICT (run_id, mode) DO UPDATE SET instruction = EXCLUDED.instruction RETURNING *`;
+      VALUES (${s.tenant_id}, ${runId}, ${s.id}, 'full', '[]', ${instruction}) ON CONFLICT (run_id, mode) DO UPDATE SET instruction = EXCLUDED.instruction RETURNING *`;
     out.full = { id: p.id, mode: 'full', checkpoint_after_turn_id: null, target_check_ids: [], instruction: p.instruction } as Plan;
   }
   // A focused retry is offered from full attempts only; practising a slice of a slice is not supported.
   if (bundle.retry.focused_enabled && s.retry_scope?.mode !== 'focused') {
     const riskTurns = c.risk_flags.flatMap((f) => f.evidence_ids).flatMap((id) => c.evidence.find((e) => e.id === id)?.learner_spans.map((x) => x.turn_id) ?? []);
-    const targetTurns = c.evidence.filter((e) => e.check_id && bundle.retry.focused_target_check_ids.includes(e.check_id) && e.status === 'observed').flatMap((e) => e.learner_spans.map((x) => x.turn_id));
+    const targetTurns = c.evidence.filter((e) => e.check_id && targets.check_ids.includes(e.check_id) && e.status === 'observed').flatMap((e) => e.learner_spans.map((x) => x.turn_id));
     const cp = focusedCheckpoint(turns, [...riskTurns, ...targetTurns]);
     const [p] = await sql`INSERT INTO rp.retry_plan (tenant_id, run_id, session_id, mode, checkpoint_after_turn_id, checkpoint_sequence, target_check_ids, instruction)
-      VALUES (${s.tenant_id}, ${runId}, ${s.id}, 'focused', ${cp.id}, ${cp.sequence}, ${sql.json(bundle.retry.focused_target_check_ids as never)}, ${bundle.retry.instruction})
-      ON CONFLICT (run_id, mode) DO UPDATE SET instruction = EXCLUDED.instruction RETURNING *`;
+      VALUES (${s.tenant_id}, ${runId}, ${s.id}, 'focused', ${cp.id}, ${cp.sequence}, ${sql.json(targets.check_ids as never)}, ${instruction})
+      ON CONFLICT (run_id, mode) DO UPDATE SET instruction = EXCLUDED.instruction, target_check_ids = EXCLUDED.target_check_ids RETURNING *`;
     out.focused = { id: p.id, mode: 'focused', checkpoint_after_turn_id: p.checkpoint_after_turn_id, target_check_ids: p.target_check_ids, instruction: p.instruction } as Plan;
   }
   return out;

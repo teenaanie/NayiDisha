@@ -19,11 +19,13 @@ import { runtimeOf } from '../config/runtime-extension';
  *    turn (models count characters badly; the words are what matter);
  *  - an absence check ("avoids guarantees") reported as `observed` with no
  *    learner span is recorded as `not_observed` over every assessable turn, the
- *    platform's convention for "the violation was not seen". A claimed violation
- *    still needs a quote (`contradicted` + span).
+ *    platform's convention for "the violation was not seen", or as `uncertain`
+ *    when the check requires discovery and none happened (a one-question attempt
+ *    has not "avoided a guarantee"). A claimed violation still needs a quote
+ *    (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.1.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.2.0';
 
 /** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
 function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
@@ -48,13 +50,20 @@ export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContex
     if (at) { notes.push(`${where}: quote moved ${sp.start}–${sp.end} → ${at.start}–${at.end}.`); sp.start = at.start; sp.end = at.end; }
   };
   const absence = runtimeOf(ctx.bundle).absence_checks;
+  const category = new Map(ctx.bundle.rubric.checks.map((x) => [x.id, x.category]));
+  // "Avoided a guarantee" means little in a conversation with no discovery (spec'd by requires_discovery).
+  const anyDiscovery = c.evidence.some((x) => x.status === 'observed' && x.check_id && category.get(x.check_id) === 'coverage' && x.learner_spans.length > 0);
   for (const [i, ev] of c.evidence.entries()) {
     ev.learner_spans.forEach((sp, j) => fix(sp, `evidence[${i}] ${ev.id} learner_spans[${j}]`));
     ev.context_spans.forEach((sp, j) => fix(sp, `evidence[${i}] ${ev.id} context_spans[${j}]`));
-    if (ev.check_id && ev.check_id in absence && ev.status === 'observed' && !ev.learner_spans.length) {
-      ev.status = 'not_observed';
+    if (ev.check_id && ev.check_id in absence && (ev.status === 'not_observed' || (ev.status === 'observed' && ev.learner_spans.length > 0)) && absence[ev.check_id].requires_discovery && !anyDiscovery) {
+      ev.status = 'uncertain';
+      notes.push(`evidence[${i}] ${ev.id}: absence check passed with no discovery yet to judge it against; recorded as uncertain.`);
+    } else if (ev.check_id && ev.check_id in absence && ev.status === 'observed' && !ev.learner_spans.length) {
+      const early = absence[ev.check_id].requires_discovery && !anyDiscovery;
+      ev.status = early ? 'uncertain' : 'not_observed';
       ev.searched_turn_ids = [...ctx.assessable_learner_turn_ids];
-      notes.push(`evidence[${i}] ${ev.id}: absence check reported as observed without a quote; recorded as not_observed.`);
+      notes.push(`evidence[${i}] ${ev.id}: absence check reported as observed without a quote; recorded as ${ev.status}${early ? ' (no discovery yet to judge it against)' : ''}.`);
     }
   }
   return notes;

@@ -109,7 +109,11 @@ class OpenAICompatibleProvider implements ModelProvider {
           temperature: req.temperature,
           max_tokens: req.maxTokens,
           // Reasoning models spend output tokens thinking; turn it down where the provider allows.
-          ...(process.env.RP_LLM_REASONING_EFFORT ? { reasoning_effort: process.env.RP_LLM_REASONING_EFFORT } : {}),
+          // A per-task override (e.g. RP_LLM_REASONING_EFFORT_EVALUATE=low) lets the assessment think while replies stay fast.
+          ...((): { reasoning_effort?: string } => {
+            const effort = process.env[`RP_LLM_REASONING_EFFORT_${req.task.toUpperCase()}`] ?? process.env.RP_LLM_REASONING_EFFORT;
+            return effort ? { reasoning_effort: effort } : {};
+          })(),
           response_format: req.schema
             ? { type: 'json_schema', json_schema: { name: req.task, schema: providerSchema(req.schema) } }
             : { type: 'json_object' },

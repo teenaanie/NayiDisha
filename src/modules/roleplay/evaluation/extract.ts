@@ -14,7 +14,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.0.0';
+export const RULE_VERSION = 'rules-1.1.0';
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -156,7 +156,11 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
         explanation: c.credit_requires === 'learner_question' ? `Learner asked: ${c.description.toLowerCase()}.` : `Learner showed: ${c.description.toLowerCase()}.`,
         method: c.credit_requires === 'learner_question' ? 'semantic' : 'rule', confidence: 0.9, rule_version: RULE_VERSION,
       });
-    } else if (c.credit_requires === 'learner_question' || rt.check_cues[c.id]) {
+    } else if (c.credit_requires === 'learner_question') {
+      // Cue phrases ("you mentioned", "I understand") can show a skill, but their absence
+      // proves nothing: learners follow up without them. A confident rule-made
+      // not_observed here anchored the evaluator, which then never credited a clear
+      // follow-up (live runs, 29 Sep 2026). Unmatched cue checks are left to judgement.
       evidence.push({
         id: safeId(`ev_${c.id}`), category: c.category, check_id: c.id, status: 'not_observed',
         learner_spans: [], context_spans: [], searched_turn_ids: assessableIds,

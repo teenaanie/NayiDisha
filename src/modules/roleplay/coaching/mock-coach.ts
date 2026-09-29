@@ -8,7 +8,9 @@ import type { CoachingCandidate, Evidence, Finding } from '../contracts/types';
 export interface CoachInput {
   assessment_json: {
     dimensions: { id: string; name: string; score: number; max: number; rationale: string; anchor: string; evidence_ids: string[] }[];
-    evidence: Evidence[];
+    evidence: (Evidence & { outcome?: string })[];
+    learner_messages?: string[];
+    rules?: string[];
     checks: { id: string; description: string; category: string; suggested_question: string | null; absence: boolean }[];
     risk_flags: { rule_id: string; description: string; evidence_ids: string[] }[];
     mode: 'full' | 'focused';
