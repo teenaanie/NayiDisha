@@ -28,7 +28,18 @@ const headers = () => ({ 'api-subscription-key': process.env.SARVAM_API_KEY ?? '
 
 export interface ChatMessage { role: 'system' | 'user' | 'assistant'; content: string }
 
-/** Sarvam-M reasons inside <think> tags before answering; only the answer is wanted. */
+/*
+ * Model IDs as of Sarvam's API docs, 29 Sep 2026. saarika, sarvam-m and the
+ * `target_language_code` TTS field are gone; each ID can be overridden by env.
+ */
+export const SARVAM_CHAT_MODEL = process.env.SARVAM_CHAT_MODEL || 'sarvam-105b-conversations';
+export const SARVAM_STT_MODEL = process.env.SARVAM_STT_MODEL || 'saaras:v3';
+const TTS_MODEL = process.env.SARVAM_TTS_MODEL || 'bulbul:v3';
+// Speakers are model-specific; the customer is a father, so the defaults are male voices.
+const TTS_SPEAKER = process.env.SARVAM_TTS_SPEAKER || (TTS_MODEL === 'bulbul:v2' ? 'abhilash' : 'aditya');
+const TTS_MAX_CHARS = TTS_MODEL === 'bulbul:v2' ? 1500 : 2500;
+
+/** Reasoning models may still wrap thinking in <think> tags; only the answer is wanted. */
 export const stripThinking = (s: string) => s.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
 export async function sarvamChat(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number } = {}): Promise<string> {
@@ -36,8 +47,9 @@ export async function sarvamChat(messages: ChatMessage[], opts: { temperature?: 
     method: 'POST',
     headers: { ...headers(), 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: process.env.SARVAM_CHAT_MODEL || 'sarvam-m',
+      model: SARVAM_CHAT_MODEL,
       messages,
+      reasoning_effort: null,   // a conversational reply, not a reasoning task; also keeps latency down
       temperature: opts.temperature ?? 0.4,
       max_tokens: opts.maxTokens ?? 600,
     }),
@@ -68,8 +80,9 @@ export async function sarvamTranslate(text: string, from: SarvamLanguage, to: Sa
 
 export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage): Promise<{ transcript: string; language: string | null }> {
   const form = new FormData();
-  form.append('file', audio, 'answer.webm');
-  form.append('model', process.env.SARVAM_STT_MODEL || 'saarika:v2.5');
+  form.append('file', audio, /mp4|m4a/.test(audio.type) ? 'answer.m4a' : /ogg/.test(audio.type) ? 'answer.ogg' : 'answer.webm');
+  form.append('model', SARVAM_STT_MODEL);
+  if (SARVAM_STT_MODEL === 'saaras:v3') form.append('mode', 'transcribe');
   form.append('language_code', bcp47(language));
   const res = await fetch(`${BASE}/speech-to-text`, {
     method: 'POST', headers: headers(), body: form, signal: AbortSignal.timeout(20000),
@@ -79,16 +92,16 @@ export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage):
   return { transcript: String(body?.transcript ?? ''), language: body?.language_code ?? null };
 }
 
-/** Returns a base64 WAV. The customer is a father, so the default voice is male. */
+/** Returns a base64 WAV. */
 export async function sarvamTextToSpeech(text: string, language: SarvamLanguage): Promise<string> {
   const res = await fetch(`${BASE}/text-to-speech`, {
     method: 'POST',
     headers: { ...headers(), 'content-type': 'application/json' },
     body: JSON.stringify({
-      text: text.slice(0, 1500),
-      target_language_code: bcp47(language),
-      speaker: process.env.SARVAM_TTS_SPEAKER || 'abhilash',
-      model: process.env.SARVAM_TTS_MODEL || 'bulbul:v2',
+      text: text.slice(0, TTS_MAX_CHARS),
+      language_code: bcp47(language),
+      speaker: TTS_SPEAKER,
+      model: TTS_MODEL,
     }),
     signal: AbortSignal.timeout(20000),
   });
