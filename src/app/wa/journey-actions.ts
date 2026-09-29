@@ -82,3 +82,64 @@ export async function submitTest(id:string,answers:Record<string,string>){
 export async function applyJob(jobId:string){const c=await candidate();const result=await apply(c.id,jobId);await sendTemplate(c.id,'reconfirm_interest',{employer:'the employer',title:jobId});return result;}
 export async function confirm(applicationId:string){const c=await candidate();const [app]=await sql`SELECT job_id FROM app.application WHERE id=${applicationId} AND candidate_id=${c.id}`;if(!app)throw new Error('Application not found.');await reconfirmInterest(applicationId,true);const result=await recordMatch(applicationId,c.id,app.job_id);return result.computation;}
 export async function correctSource(code:string,reason:string){const c=await candidate();const [applied]=await sql`SELECT id FROM app.application WHERE candidate_id=${c.id} LIMIT 1`;if(applied)throw new Error('After applying, ask Operations to review the source.');const [site]=await sql`SELECT id,partner_id FROM app.partner_site WHERE partner_code=${code}`;if(!site)throw new Error('Code not found.');const [attribution]=await sql`SELECT id FROM app.attribution WHERE candidate_id=${c.id}`;if(!attribution)throw new Error('No source is recorded. Ask Operations to review your registration.');await sql`UPDATE app.attribution SET status='UNDER_REVIEW',status_reason=${text(reason,'Reason')} WHERE candidate_id=${c.id}`;await sql`INSERT INTO app.fraud_case(id,subject_type,subject_id,signal,detail,status,created_at) SELECT ${await nextId('FRD')},'attribution',id,'SOURCE_CORRECTION_REQUEST',${sql.json({candidateId:c.id,siteId:site.id,partnerId:site.partner_id,reason})},'OPEN',${await now()} FROM app.attribution WHERE candidate_id=${c.id}`;}
+
+/**
+ * The background half of the profile, asked when the candidate taps Apply.
+ *
+ * Both journeys collect the same set; the QR journey just defers these until
+ * there is a real job on screen to answer them for. Same validation rules as
+ * the WhatsApp form, from the same definition, so the two cannot drift.
+ */
+export async function saveProfileDetails(form: FormData) {
+  const c = await candidate();
+  const { validateProfileDetails, DETAIL_FIELD_NAMES } = await import('@/modules/registration/flow');
+  const { FormError } = await import('@/modules/registration/flow');
+  const payload: Record<string, unknown> = {};
+  for (const name of DETAIL_FIELD_NAMES) if (name !== 'resume') payload[name] = form.get(name) ?? '';
+
+  try {
+    const d = validateProfileDetails(payload, await now());
+    const at = await now();
+
+    // The resume is optional, but a file that is attached still has to pass the
+    // same checks as one arriving over WhatsApp.
+    const file = form.get('resume');
+    if (file instanceof File && file.size) {
+      const { checkResume, storageProvider, RESUME_TYPES } = await import('@/modules/adapters/storage');
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const mime = checkResume(bytes, file.type, file.name);
+      const store = storageProvider();
+      const objectKey = `resumes/${c.id}/${randomToken(12)}.${RESUME_TYPES[mime]}`;
+      await store.put(objectKey, bytes, mime);
+      await sql`INSERT INTO app.candidate_resume (id, candidate_id, object_key, storage, filename, mime, size_bytes, source, uploaded_at)
+                VALUES (${await nextId('RES')}, ${c.id}, ${objectKey}, ${store.name}, ${(file.name || 'resume').slice(0, 200)}, ${mime}, ${bytes.length}, 'JOURNEY', ${at})`;
+      await grantConsent(c.id, 'DOCUMENTS');
+    }
+
+    const { QUALIFICATIONS } = await import('@/modules/registration/flow');
+    const qualification = QUALIFICATIONS.find((q) => q.id === d.highestQualification)?.title.en ?? '';
+    await sql`
+      UPDATE app.candidate SET
+        email = ${d.email}, date_of_birth = ${d.dateOfBirth}, gender = ${d.gender},
+        highest_qualification = ${d.highestQualification},
+        education = CASE WHEN education = '' THEN ${qualification} ELSE education END,
+        current_industry = ${d.currentIndustry}, current_job_role = ${d.currentJobRole},
+        current_company = ${d.currentCompany},
+        current_pay_paise = ${d.currentSalary === null ? null : Math.round(d.currentSalary * 100)}
+      WHERE id = ${c.id}`;
+    await auditAction('PROFILE_DETAILS_SAVED', [c.id]);
+    return { ok: true as const };
+  } catch (e) {
+    const { FileRejected } = await import('@/modules/adapters/storage');
+    if (e instanceof FormError || e instanceof FileRejected) return { error: e.message };
+    throw e;
+  }
+}
+
+/** Whether the background half is still outstanding for this candidate. */
+export async function needsProfileDetails() {
+  const c = await candidate();
+  const [row] = await sql<{ email: string | null; date_of_birth: Date | null }[]>`
+    SELECT email, date_of_birth FROM app.candidate WHERE id = ${c.id}`;
+  return !row?.email || !row?.date_of_birth;
+}

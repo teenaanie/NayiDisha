@@ -161,8 +161,10 @@ export async function handleMetaPayload(body: any): Promise<MetaOutcome> {
             const payload = typeof flow.response_json === 'string'
               ? JSON.parse(flow.response_json) : (flow.response_json ?? {});
             const mediaId = payload?.resume_media_id ?? payload?.media_id ?? m?.document?.id;
-            if (!mediaId || !token) throw new FileRejected('A resume is required to finish registering.');
-            const resume = await fetchMedia(String(mediaId), token, String(payload?.filename ?? ''));
+            // No document is a normal submission now, not a failure.
+            const resume = (mediaId && token)
+              ? await fetchMedia(String(mediaId), token, String(payload?.filename ?? ''))
+              : null;
             await handleFlowSubmission({ phone: from }, payload, resume, process.env.WHATSAPP_SIGN_IN_URL ?? '/sign-in');
             routed = 'flow_submission'; handled = at;
           } else if (invite && ['SENT', 'ACCEPTED', 'DECLINED'].includes(invite.status)) {

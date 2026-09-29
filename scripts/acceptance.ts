@@ -739,6 +739,40 @@ async function main() {
     for (const k of ['WHATSAPP_APP_SECRET','WHATSAPP_WEBHOOK_SECRET','WHATSAPP_PHONE_NUMBER_ID','WHATSAPP_ACCESS_TOKEN']) delete process.env[k];
   }
 
+  // ---- voice on the registration form ------------------------------------
+  // The generic reading of a number is wrong in ways that matter here, so each
+  // spoken field routes to a handler that already knows its shape. These pin
+  // the cases that were wrong before they did.
+  {
+    const { interpretInviteField } = await import('../src/app/wa/invite/actions');
+    const vPhone = '+910000008801';
+    // message_log rows reference the invite, so they go first.
+    const clearVoiceInvite = async () => {
+      await sql`DELETE FROM app.message_log WHERE invite_id IN (SELECT id FROM app.whatsapp_invite WHERE phone=${vPhone})`;
+      await sql`DELETE FROM app.whatsapp_invite WHERE phone=${vPhone}`;
+    };
+    await clearVoiceInvite();
+    const [vInv] = await sendInvites('OPS-TEST', [vPhone], 'en');
+    const tok = vInv.token!;
+    const say = async (f: string, t: string, l = 'en') =>
+      await interpretInviteField(tok, f, t, l) as { value?: unknown; understood?: boolean };
+
+    const pay = await say('expected_salary', 'अठारह हज़ार', 'hi');
+    check('REG-04', 'Spoken pay in Hindi is rupees, not a bare number',
+      pay.value === 18000, `heard ${JSON.stringify(pay.value)}`);
+    const nm = await say('full_name', 'My name is Meena Patil');
+    check('REG-04', 'A spoken name drops its lead-in', nm.value === 'Meena Patil', String(nm.value));
+    const yrs = await say('experience_years', 'three years');
+    check('REG-04', 'Spoken experience is converted to whole years', yrs.value === 3, String(yrs.value));
+    const badPin = await say('pin_code', 'four one one zero zero four');
+    check('REG-04', 'A pin code that cannot be heard exactly is refused, never guessed',
+      badPin.understood === false && badPin.value === null, JSON.stringify(badPin.value));
+    const noVoice = await say('email', 'meena at example dot com');
+    check('§21.2', 'Email is never taken by voice',
+      'error' in noVoice, JSON.stringify(noVoice));
+    await clearVoiceInvite();
+  }
+
   // ---- §24: the unlock is the money path ---------------------------------
   // The unlock is the money path and the largest transaction in the app, so it
   // gets the same proof rather than an argument from code reading.
@@ -792,6 +826,9 @@ async function main() {
     pin_code: '411038', date_of_birth: '1998-04-12', gender: 'FEMALE', highest_qualification: 'GRADUATE',
     experience_years: '3', current_industry: 'BFSI', current_job_role: 'Tele-caller', current_company: 'DEMO Finserv',
     languages_known: ['mr', 'hi', 'gu'], current_salary: '16000', expected_salary: '21000',
+    // The form now also asks what matching gates on, so a registration can be
+    // matched without a second visit.
+    max_commute_min: '45', shift_availability: ['ANY'], experience_tags: 'tele calling, customer service',
   };
   const store = storageProvider();
   const key = `resumes/${invite.token}/acceptance.pdf`;
@@ -807,7 +844,9 @@ async function main() {
       (SELECT body FROM app.message_log m WHERE m.candidate_id=c.id AND m.template_key='registration_link') link
     FROM app.candidate c WHERE c.id=${reg.candidateId}`;
   check('REG-02', 'A form submission registers the candidate with consent, resume and a sign-in link',
-    regRow.status === 'PROFILE_INCOMPLETE' && !!regRow.mobile_verified_at && regRow.consent === 1 && regRow.resumes === 1 && /sign-in/.test(regRow.link ?? ''),
+    // The form now asks for commute, shifts and skills too, so a registration
+    // arrives matchable rather than needing a second pass to finish.
+    regRow.status === 'PROFILE_ACTIVE' && !!regRow.mobile_verified_at && regRow.consent === 1 && regRow.resumes === 1 && /sign-in/.test(regRow.link ?? ''),
     `${regRow.status}, consent ${regRow.consent}, resumes ${regRow.resumes}`);
   check('REG-03', 'Form answers land in the matching fields (pin code to locality, years to months, pay in paise)',
     regRow.locality_key === 'kothrud' && regRow.experience_months === 36 && Number(regRow.current_pay_paise) === 1600000 && regRow.languages.includes('gu'),

@@ -73,9 +73,11 @@ export async function POST(request: Request) {
       return Response.json({ ok: true, ...(await handleInviteReply(ref, body.accepted === true, String(body.text ?? ''))) });
     }
     if (body.type === 'flow_submission') {
-      const r = body.resume;
-      if (!r || typeof r.objectKey !== 'string' || typeof r.filename !== 'string' || typeof r.mime !== 'string' || !Number.isFinite(r.sizeBytes)) {
-        return Response.json({ error: 'RESUME_REQUIRED' }, { status: 400 });
+      // A resume is optional, but a malformed one is still rejected rather than
+      // quietly dropped — that would lose a file the candidate thinks they sent.
+      const r = body.resume ?? null;
+      if (r !== null && (typeof r.objectKey !== 'string' || typeof r.filename !== 'string' || typeof r.mime !== 'string' || !Number.isFinite(r.sizeBytes))) {
+        return Response.json({ error: 'RESUME_MALFORMED' }, { status: 400 });
       }
       const result = await handleFlowSubmission(ref, body.payload ?? {}, r, String(body.sign_in_url ?? '/sign-in'));
       return Response.json({ ok: true, ...result });

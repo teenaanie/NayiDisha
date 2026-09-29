@@ -70,7 +70,7 @@ export async function handleInviteReply(ref: { token?: string; phone?: string },
 
 export interface StoredResume { objectKey: string; storage: string; filename: string; mime: string; sizeBytes: number }
 
-export async function handleFlowSubmission(ref: { token?: string; phone?: string }, payload: Record<string, unknown>, resume: StoredResume, signInUrl: string) {
+export async function handleFlowSubmission(ref: { token?: string; phone?: string }, payload: Record<string, unknown>, resume: StoredResume | null, signInUrl: string) {
   const invite = await findInvite(ref);
   if (!invite) throw new Error('UNKNOWN_INVITE');
   if (invite.status === 'FORM_SUBMITTED') return { candidateId: invite.candidate_id as string, duplicate: true };
@@ -92,8 +92,8 @@ export async function handleFlowSubmission(ref: { token?: string; phone?: string
   await verifyAndBind(candidateId, null);
   await grantConsent(candidateId, 'PROCESSING');
   if (r.consentAlerts) await grantConsent(candidateId, 'JOB_ALERTS');
-  // The resume is a document the candidate chose to share for matching.
-  await grantConsent(candidateId, 'DOCUMENTS');
+  // Only when a resume was actually shared: the consent is about that document.
+  if (resume) await grantConsent(candidateId, 'DOCUMENTS');
 
   const [pin] = await sql`SELECT locality_key FROM app.pin_code p WHERE pin_code=${r.pinCode} AND EXISTS (SELECT 1 FROM app.locality l WHERE l.key=p.locality_key)`;
   const qualification = QUALIFICATIONS.find((q) => q.id === r.highestQualification)!.title.en;
@@ -108,16 +108,29 @@ export async function handleFlowSubmission(ref: { token?: string; phone?: string
       current_pay_paise = ${r.currentSalary === null ? null : Math.round(r.currentSalary * 100)},
       expected_pay_paise = ${Math.round(r.expectedSalary * 100)},
       locality_key = COALESCE(locality_key, ${pin?.locality_key ?? null}),
+      max_commute_min = ${r.maxCommuteMin},
+      shift_availability = ${sql.json(r.shiftAvailability as never)},
+      experience_tags = CASE WHEN ${r.experienceTags.length} > 0 THEN ${sql.json(r.experienceTags as never)} ELSE experience_tags END,
       age_confirmed_18 = TRUE,
+      work_authorised = TRUE,
       registration_channel = COALESCE(registration_channel, 'WHATSAPP_FLOW'),
-      status = CASE WHEN status IN ('STARTED','MOBILE_VERIFIED') THEN 'PROFILE_INCOMPLETE' ELSE status END
+      -- The form now asks for everything Stage A and Stage B gate on, except
+      -- the role the candidate wants, so the profile is active rather than
+      -- incomplete. A pin code outside the launch localities is the one case
+      -- that still cannot be matched, and it stays incomplete.
+      status = CASE
+        WHEN status NOT IN ('STARTED','MOBILE_VERIFIED','PROFILE_INCOMPLETE') THEN status
+        WHEN COALESCE(locality_key, ${pin?.locality_key ?? null}) IS NULL THEN 'PROFILE_INCOMPLETE'
+        ELSE 'PROFILE_ACTIVE' END
     WHERE id = ${candidateId}`;
 
-  await sql`INSERT INTO app.candidate_resume (id, candidate_id, object_key, storage, filename, mime, size_bytes, source, uploaded_at)
-            VALUES (${await nextId('RES')}, ${candidateId}, ${resume.objectKey}, ${resume.storage}, ${resume.filename.slice(0, 200)}, ${resume.mime}, ${resume.sizeBytes}, 'WHATSAPP', ${at})`;
+  if (resume) {
+    await sql`INSERT INTO app.candidate_resume (id, candidate_id, object_key, storage, filename, mime, size_bytes, source, uploaded_at)
+              VALUES (${await nextId('RES')}, ${candidateId}, ${resume.objectKey}, ${resume.storage}, ${resume.filename.slice(0, 200)}, ${resume.mime}, ${resume.sizeBytes}, 'WHATSAPP', ${at})`;
+  }
   await sql`UPDATE app.whatsapp_invite SET status='FORM_SUBMITTED', submitted_at=${at}, candidate_id=${candidateId} WHERE id=${invite.id}`;
   await sql`UPDATE app.message_log SET candidate_id=${candidateId} WHERE invite_id=${invite.id} AND candidate_id IS NULL`;
-  await receiveOnInvite(invite.id, '📋 Registration form submitted · 📎 ' + resume.filename.slice(0, 80), candidateId);
+  await receiveOnInvite(invite.id, '📋 Registration form submitted' + (resume ? ' · 📎 ' + resume.filename.slice(0, 80) : ''), candidateId);
 
   const sent = await messagingProvider().send({ candidateId, templateKey: 'registration_link', language: invite.language, variables: { name: r.fullName.split(' ')[0], link: signInUrl } });
   await sql`UPDATE app.message_log SET invite_id=${invite.id} WHERE id=${sent.id}`;

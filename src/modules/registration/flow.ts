@@ -47,6 +47,8 @@ export const LANGUAGES = [
   o('kn', 'Kannada', 'कन्नड़', 'कन्नड'), o('bn', 'Bengali', 'बंगाली', 'बंगाली'),
 ];
 
+export const SHIFTS = [o('ANY', 'Any shift', 'कोई भी शिफ्ट', 'कोणतीही शिफ्ट'), o('09:30-18:30', 'Daytime (9:30 to 6:30)', 'दिन (9:30 से 6:30)', 'दिवसा (9:30 ते 6:30)'), o('ROTATIONAL_DAYTIME', 'Rotational daytime', 'रोटेशनल दिन', 'फिरती दिवसपाळी'), o('10:00-19:00', 'Late day (10 to 7)', 'दोपहर (10 से 7)', 'उशिरा दिवस (10 ते 7)')];
+
 export const REGISTRATION_FLOW: FlowScreen[] = [
   {
     id: 'CONSENT', title: { en: 'Before we start', hi: 'शुरू करने से पहले', mr: 'सुरू करण्यापूर्वी' },
@@ -84,7 +86,15 @@ export const REGISTRATION_FLOW: FlowScreen[] = [
     fields: [
       { name: 'current_salary', kind: 'number', required: false, min: 0, max: 1000000, label: { en: 'Current monthly salary (₹)', hi: 'वर्तमान मासिक वेतन (₹)', mr: 'सध्याचा मासिक पगार (₹)' }, helper: { en: 'Leave blank if not working', hi: 'काम नहीं कर रहे तो खाली छोड़ें', mr: 'काम करत नसल्यास रिकामे ठेवा' } },
       { name: 'expected_salary', kind: 'number', required: true, min: 1000, max: 1000000, label: { en: 'Expected monthly salary (₹)', hi: 'अपेक्षित मासिक वेतन (₹)', mr: 'अपेक्षित मासिक पगार (₹)' } },
-      { name: 'resume', kind: 'document', required: true, label: { en: 'Upload your resume (PDF or Word, up to 4 MB)', hi: 'अपना रिज़्यूमे अपलोड करें (PDF या Word, 4 MB तक)', mr: 'तुमचा रिझ्युमे अपलोड करा (PDF किंवा Word, 4 MB पर्यंत)' } },
+    ],
+  },
+  {
+    id: 'AVAILABILITY', title: { en: 'Where you can work', hi: 'आप कहाँ काम कर सकते हैं', mr: 'तुम्ही कुठे काम करू शकता' },
+    fields: [
+      { name: 'max_commute_min', kind: 'number', required: true, min: 5, max: 240, label: { en: 'How far can you travel to work? (minutes)', hi: 'काम के लिए कितनी दूर जा सकते हैं? (मिनट)', mr: 'कामासाठी किती लांब जाऊ शकता? (मिनिटे)' } },
+      { name: 'shift_availability', kind: 'checkboxes', required: true, options: SHIFTS, label: { en: 'Which shifts suit you', hi: 'कौन सी शिफ्ट ठीक है', mr: 'कोणती शिफ्ट योग्य आहे' } },
+      { name: 'experience_tags', kind: 'text', required: false, label: { en: 'Work you have done before (comma separated)', hi: 'पहले किया हुआ काम (कॉमा से अलग)', mr: 'आधी केलेलं काम (स्वल्पविरामाने वेगळं)' }, helper: { en: 'For example: field sales, customer service', hi: 'जैसे: फील्ड सेल्स, कस्टमर सर्विस', mr: 'उदा: फील्ड सेल्स, कस्टमर सर्विस' } },
+      { name: 'resume', kind: 'document', required: false, label: { en: 'Upload your resume (optional — PDF or Word, up to 4 MB)', hi: 'अपना रिज़्यूमे अपलोड करें (PDF या Word, 4 MB तक)', mr: 'तुमचा रिझ्युमे अपलोड करा (PDF किंवा Word, 4 MB पर्यंत)' } },
     ],
   },
 ];
@@ -109,6 +119,9 @@ export interface Registration {
   languagesKnown: string[];
   currentSalary: number | null;
   expectedSalary: number;
+  maxCommuteMin: number;
+  shiftAvailability: string[];
+  experienceTags: string[];
 }
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
@@ -149,6 +162,9 @@ export function validateSubmission(p: Record<string, unknown>, today: Date): Reg
   const languages = (Array.isArray(p.languages_known) ? p.languages_known : str(p.languages_known).split(','))
     .map(str).filter((l) => LANGUAGES.some((x) => x.id === l));
   if (!languages.length) throw new FormError('Choose at least one language you know.');
+  const shifts = (Array.isArray(p.shift_availability) ? p.shift_availability : str(p.shift_availability).split(','))
+    .map(str).filter((x) => SHIFTS.some((s) => s.id === x));
+  if (!shifts.length) throw new FormError('Choose at least one shift you can work.');
   const currentIndustry = opt(INDUSTRIES, p.current_industry, 'current industry');
   const optionalText = (v: unknown) => { const s = str(v).slice(0, 120); return s || null; };
   return {
@@ -164,6 +180,10 @@ export function validateSubmission(p: Record<string, unknown>, today: Date): Reg
     languagesKnown: Array.from(new Set(languages)),
     currentSalary: str(p.current_salary) ? num(p.current_salary, 'Current salary', 0, 1_000_000) : null,
     expectedSalary: num(p.expected_salary, 'Expected salary', 1000, 1_000_000),
+    maxCommuteMin: num(p.max_commute_min, 'Commute', 5, 240),
+    shiftAvailability: shifts,
+    // Free text, upper-cased into the tags matching scores against.
+    experienceTags: str(p.experience_tags).split(',').map((t) => t.trim().toUpperCase().replace(/\s+/g, '_')).filter(Boolean).slice(0, 8),
   };
 }
 
@@ -216,3 +236,102 @@ export function metaFlowJson(lang: FlowLang = 'en') {
     }),
   };
 }
+
+// ---------------------------------------------------------------------------
+// The two stages
+// ---------------------------------------------------------------------------
+
+/**
+ * Which answers the matching engine gates on, and which are background.
+ *
+ * Both journeys collect the same set in the end. They differ only in when: the
+ * QR journey asks the matching ones first so a real shortlist appears while the
+ * candidate is still paying attention, and the rest when they tap Apply — at
+ * which point they can see what the questions are for. The invite journey,
+ * already sitting in a chat the candidate opted into, asks in one pass.
+ *
+ * Derived from REGISTRATION_FLOW rather than listed twice, so a field added to
+ * the form cannot go missing from a stage.
+ */
+export const DETAIL_FIELD_NAMES = [
+  'email', 'date_of_birth', 'gender', 'highest_qualification',
+  'current_industry', 'current_job_role', 'current_company', 'current_salary', 'resume',
+] as const;
+
+const isDetail = (name: string) => (DETAIL_FIELD_NAMES as readonly string[]).includes(name);
+
+/** The background half, as screens, for the QR journey to ask before applying. */
+export const DETAIL_SCREENS: FlowScreen[] = REGISTRATION_FLOW
+  .map((screen) => ({ ...screen, fields: screen.fields.filter((f) => isDetail(f.name)) }))
+  .filter((screen) => screen.fields.length > 0);
+
+export interface ProfileDetails {
+  email: string;
+  dateOfBirth: string;
+  gender: string;
+  highestQualification: string;
+  currentIndustry: string;
+  currentJobRole: string | null;
+  currentCompany: string | null;
+  currentSalary: number | null;
+}
+
+/** The same rules validateSubmission applies, over the background half alone. */
+export function validateProfileDetails(p: Record<string, unknown>, today: Date): ProfileDetails {
+  const email = str(p.email).toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 200) throw new FormError('Enter a valid email ID.');
+  const dateOfBirth = str(p.date_of_birth);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || Number.isNaN(Date.parse(dateOfBirth))) throw new FormError('Enter your date of birth.');
+  const age = ageOn(dateOfBirth, today);
+  if (age < 18) throw new FormError('NayiDisha is for people aged 18 or above.');
+  if (age > 80) throw new FormError('Check your date of birth.');
+  const optionalText = (v: unknown) => { const t = str(v).slice(0, 120); return t || null; };
+  return {
+    email, dateOfBirth,
+    gender: opt(GENDERS, p.gender, 'gender'),
+    highestQualification: opt(QUALIFICATIONS, p.highest_qualification, 'highest qualification'),
+    currentIndustry: opt(INDUSTRIES, p.current_industry, 'current industry'),
+    currentJobRole: optionalText(p.current_job_role),
+    currentCompany: optionalText(p.current_company),
+    currentSalary: str(p.current_salary) ? num(p.current_salary, 'Current salary', 0, 1_000_000) : null,
+  };
+}
+
+/**
+ * What each field looks like to a speech interpreter.
+ *
+ * Only the fields where speaking is actually better than tapping. Email and
+ * date of birth are missing on purpose: a misheard email is a candidate nobody
+ * can reach, and a misheard date silently trips the age gate. Consent and the
+ * resume are a tap and a file. Multi-selects stay tapped too — "Marathi and
+ * Hindi and English" is a list, and a half-heard list is worse than no list.
+ */
+export const VOICE_FIELD_SPECS: Record<string, {
+  key: string; dataType: 'TEXT' | 'INT' | 'ENUM'; expected: string; allowedValues?: string[];
+  /**
+   * Reuse one of the profile journey's own handlers instead of the generic
+   * reading. Those are the ones covered by voice-parse-check's 31 phrases, and
+   * they know things the generic path does not — that "अठारह हज़ार" is 18000
+   * and not 18, and that "My name is Meena" is a name with a lead-in on it.
+   */
+  via?: 'name' | 'expectedPay' | 'commute' | 'skills' | 'experienceMonths';
+}> = {
+  full_name:             { key: 'full_name', dataType: 'TEXT', expected: "the person's full name", via: 'name' },
+  pin_code:              { key: 'pin_code', dataType: 'INT', expected: 'a six digit Indian pin code' },
+  experience_years:      { key: 'experience_years', dataType: 'INT', expected: 'total work experience in whole YEARS', via: 'experienceMonths' },
+  current_job_role:      { key: 'current_job_role', dataType: 'TEXT', expected: 'their current job title' },
+  current_company:       { key: 'current_company', dataType: 'TEXT', expected: 'the company they work for' },
+  current_salary:        { key: 'current_salary', dataType: 'INT', expected: 'current monthly pay as a whole number of rupees', via: 'expectedPay' },
+  expected_salary:       { key: 'expected_salary', dataType: 'INT', expected: 'expected monthly pay as a whole number of rupees', via: 'expectedPay' },
+  max_commute_min:       { key: 'max_commute_min', dataType: 'INT', expected: 'maximum one-way commute in MINUTES', via: 'commute' },
+  experience_tags:       { key: 'experience_tags', dataType: 'TEXT', expected: 'the kinds of work they have done before', via: 'skills' },
+  gender:                { key: 'gender', dataType: 'ENUM', expected: 'one of FEMALE, MALE, OTHER, UNDISCLOSED', allowedValues: GENDERS.map((g) => g.id) },
+  highest_qualification: { key: 'highest_qualification', dataType: 'ENUM', expected: 'one of ' + QUALIFICATIONS.map((q) => q.id).join(', '), allowedValues: QUALIFICATIONS.map((q) => q.id) },
+  current_industry:      { key: 'current_industry', dataType: 'ENUM', expected: 'one of ' + INDUSTRIES.map((i) => i.id).join(', '), allowedValues: INDUSTRIES.map((i) => i.id) },
+};
+
+/** The spoken form of the registration form, in the order the screens ask. */
+export const VOICE_SCRIPT: { field: string; ask: Record<FlowLang, string> }[] = REGISTRATION_FLOW
+  .flatMap((s) => s.fields)
+  .filter((f) => !!VOICE_FIELD_SPECS[f.name])
+  .map((f) => ({ field: f.name, ask: { en: f.label.en, hi: f.label.hi, mr: f.label.mr } }));

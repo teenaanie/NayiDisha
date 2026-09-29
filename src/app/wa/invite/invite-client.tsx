@@ -2,13 +2,15 @@
 import {useRef,useState,useTransition,Fragment} from 'react';
 import {useRouter} from 'next/navigation';
 import type {FlowScreen,FlowField,FlowLang} from '@/modules/registration/flow';
-import {replyToInvite,submitRegistration} from './actions';
+import {replyToInvite,submitRegistration,interpretInviteField} from './actions';
+import {VoiceJourney} from '../voice-journey';
+import {VOICE_SCRIPT} from '@/modules/registration/flow';
 
 const CHIPS:Record<FlowLang,[string,string]>={en:['Yes, show me','No, thanks'],hi:['हाँ, दिखाइए','नहीं, धन्यवाद'],mr:['हो, दाखवा','नको, धन्यवाद']};
 const UI:Record<FlowLang,Record<string,string>>={
- en:{open:'Open form',next:'Continue',back:'Back',submit:'Submit',sending:'Sending…',step:'Step',of:'of',choose:'Choose…',changed:'Changed your mind?',managed:'Managed by NayiDisha · WhatsApp Flow'},
- hi:{open:'फ़ॉर्म खोलें',next:'आगे',back:'पीछे',submit:'भेजें',sending:'भेज रहे हैं…',step:'चरण',of:'में से',choose:'चुनें…',changed:'मन बदल गया?',managed:'NayiDisha द्वारा · WhatsApp Flow'},
- mr:{open:'फॉर्म उघडा',next:'पुढे',back:'मागे',submit:'पाठवा',sending:'पाठवत आहे…',step:'टप्पा',of:'पैकी',choose:'निवडा…',changed:'विचार बदलला?',managed:'NayiDisha द्वारे · WhatsApp Flow'},
+ en:{speak:'Answer by voice',open:'Open form',next:'Continue',back:'Back',submit:'Submit',sending:'Sending…',step:'Step',of:'of',choose:'Choose…',changed:'Changed your mind?',managed:'Managed by NayiDisha · WhatsApp Flow'},
+ hi:{speak:'बोलकर जवाब दें',open:'फ़ॉर्म खोलें',next:'आगे',back:'पीछे',submit:'भेजें',sending:'भेज रहे हैं…',step:'चरण',of:'में से',choose:'चुनें…',changed:'मन बदल गया?',managed:'NayiDisha द्वारा · WhatsApp Flow'},
+ mr:{speak:'बोलून उत्तर द्या',open:'फॉर्म उघडा',next:'पुढे',back:'मागे',submit:'पाठवा',sending:'पाठवत आहे…',step:'टप्पा',of:'पैकी',choose:'निवडा…',changed:'विचार बदलला?',managed:'NayiDisha द्वारे · WhatsApp Flow'},
 };
 
 /** Message text with any URL made tappable, as WhatsApp does. */
@@ -29,7 +31,7 @@ function Field({f,lang,choose}:{f:FlowField;lang:FlowLang;choose:string}){
 export function InviteChat({token,status,language,thread,flow}:{token:string;status:string;language:FlowLang;thread:{direction:string;body:string;template:string|null;at:string}[];flow:FlowScreen[]}){
  const lang=(['en','hi','mr'].includes(language)?language:'en') as FlowLang;const t=UI[lang];
  const router=useRouter();const [pending,start]=useTransition();const [error,setError]=useState('');
- const [open,setOpen]=useState(false);const [screen,setScreen]=useState(0);const form=useRef<HTMLFormElement>(null);const sets=useRef<(HTMLFieldSetElement|null)[]>([]);
+ const [voice,setVoice]=useState(false);const [open,setOpen]=useState(false);const [screen,setScreen]=useState(0);const form=useRef<HTMLFormElement>(null);const sets=useRef<(HTMLFieldSetElement|null)[]>([]);
  const reply=(accepted:boolean)=>start(async()=>{setError('');const r=await replyToInvite(token,accepted,CHIPS[lang][accepted?0:1]);if(r.error)setError(r.error);else router.refresh();});
  // A fieldset never validates its own contents, so each field is asked in turn.
  const valid=()=>Array.from(sets.current[screen]?.elements??[]).every(el=>(el as HTMLInputElement).reportValidity?.()??true);
@@ -45,7 +47,31 @@ export function InviteChat({token,status,language,thread,flow}:{token:string;sta
     <button className="btn btn-primary" disabled={pending} onClick={()=>reply(true)}>{CHIPS[lang][0]}</button>
     {status==='SENT'&&<button className="btn" disabled={pending} onClick={()=>reply(false)}>{CHIPS[lang][1]}</button>}
    </div></>}
-   {status==='ACCEPTED'&&!open&&<button className="btn btn-primary" onClick={()=>{setOpen(true);setScreen(0);}}>📋 {t.open}</button>}
+   {status==='ACCEPTED'&&!open&&!voice&&<div className="btnrow">
+    <button className="btn btn-primary" onClick={()=>{setOpen(true);setScreen(0);}}>📋 {t.open}</button>
+    <button className="btn" onClick={()=>setVoice(true)}>🎤 {t.speak}</button>
+   </div>}
+   {status==='ACCEPTED'&&voice&&<VoiceJourney
+     lang={lang} onLang={()=>{}}
+     script={VOICE_SCRIPT.map(v=>({field:v.field,ask:v.ask}))}
+     interpret={async(field,transcript,l)=>{
+       const r=await interpretInviteField(token,field,transcript,l);
+       if('error' in r) return {value:null,display:'',confidence:0,needsConfirmation:true,understood:false};
+       return r;
+     }}
+     accept={async()=>{}}
+     onFinished={async()=>{}}
+     onComplete={answers=>{
+       // Voice fills the form; it never submits it. The candidate still sees
+       // every answer, and still taps consent and attaches a CV themselves.
+       setVoice(false);setOpen(true);setScreen(0);
+       setTimeout(()=>{
+         for(const [k,v] of Object.entries(answers)){
+           const el=form.current?.elements.namedItem(k) as HTMLInputElement|HTMLSelectElement|null;
+           if(el&&v!==null&&v!==undefined)el.value=Array.isArray(v)?v.join(', '):String(v);
+         }
+       },0);
+     }}/>}
    {status==='ACCEPTED'&&open&&<form ref={form} className="wa-flow" noValidate action={submit} aria-label="Registration form">
     <div className="wa-flow-head"><strong>{flow[screen].title[lang]}</strong><span className="small muted">{t.step} {screen+1} {t.of} {flow.length}</span></div>
     {flow.map((s,i)=><fieldset key={s.id} ref={el=>{sets.current[i]=el;}} hidden={i!==screen} className="wa-flow-screen">{s.fields.map(f=><Field key={f.name} f={f} lang={lang} choose={t.choose}/>)}</fieldset>)}

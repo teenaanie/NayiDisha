@@ -57,16 +57,21 @@ export async function submitRegistration(token: string, form: FormData) {
   try {
     // Check the answers before storing anything, so a typo never leaves an orphaned file.
     validateSubmission(payload, await now());
+    // The resume is optional: someone scanning a QR at a shop rarely has a file
+    // on their phone, and turning them away costs more than the document is
+    // worth. A file that IS attached still has to pass the same checks.
     const file = form.get('resume');
-    if (!(file instanceof File) || !file.size) throw new FormError('Attach your resume (PDF or Word).');
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const mime = checkResume(bytes, file.type, file.name);
-    const store = storageProvider();
-    const objectKey = `resumes/${invite.id}/${randomToken(12)}.${RESUME_TYPES[mime]}`;
-    await store.put(objectKey, bytes, mime);
+    let resume: { objectKey: string; storage: string; filename: string; mime: string; sizeBytes: number } | null = null;
+    if (file instanceof File && file.size) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const mime = checkResume(bytes, file.type, file.name);
+      const store = storageProvider();
+      const objectKey = `resumes/${invite.id}/${randomToken(12)}.${RESUME_TYPES[mime]}`;
+      await store.put(objectKey, bytes, mime);
+      resume = { objectKey, storage: store.name, filename: file.name || 'resume', mime, sizeBytes: bytes.length };
+    }
     return post({
-      type: 'flow_submission', token, payload,
-      resume: { objectKey, storage: store.name, filename: file.name || 'resume', mime, sizeBytes: bytes.length },
+      type: 'flow_submission', token, payload, resume,
       sign_in_url: `${await origin()}/sign-in`,
     });
   } catch (e) {
@@ -74,4 +79,66 @@ export async function submitRegistration(token: string, form: FormData) {
     console.error('registration submit failed', e);
     return { error: 'We could not send your details. Please try again.' };
   }
+}
+
+/**
+ * Interpret one spoken answer on an invite, before any candidate exists.
+ *
+ * The profile journey's version requires a signed-in CANDIDATE. Here the invite
+ * token is the only identity there is, so it is what authorises the call — and
+ * it is checked on every turn rather than trusted from the first one.
+ *
+ * Some fields are deliberately not offered by voice. An email spelled aloud is
+ * one recognition slip away from a candidate nobody can contact; a date of
+ * birth read back wrong is a silent age-gate failure; and consent has to be a
+ * deliberate tap, for the same reason the profile journey keeps its two legal
+ * declarations as checkboxes.
+ */
+export async function interpretInviteField(token: string, field: string, transcript: string, language: string) {
+  const invite = await inviteByToken(String(token));
+  if (!invite) return { error: 'This invitation is no longer open.' as const };
+  if (typeof transcript !== 'string' || !transcript.trim()) return { error: 'Nothing was heard. Please try again.' as const };
+  if (transcript.length > 2000) return { error: 'That answer was too long.' as const };
+
+  const { VOICE_FIELD_SPECS } = await import('@/modules/registration/flow');
+  const spec = VOICE_FIELD_SPECS[field];
+  if (!spec) return { error: 'That question cannot be answered by voice.' as const };
+
+  const lang = (['en', 'hi', 'mr'] as const).includes(language as 'en') ? (language as 'en' | 'hi' | 'mr') : 'en';
+  const { voiceInterpreter, interpreterContext, CONFIRM_THRESHOLD, RuleBasedInterpreter } = await import('@/modules/adapters/voice');
+  const base = await interpreterContext();
+  const ctx = { ...base, spec };
+
+  // Rules first, model only when they cannot read it — the same economy the
+  // role scripts use, because the free model quota is small and per day.
+  const simple = spec.dataType === 'ENUM';
+  // `via` routes to a profile-journey handler that already knows this shape.
+  const readAs = spec.via ?? field;
+  let r = await (simple ? new RuleBasedInterpreter() : voiceInterpreter()).interpret(readAs, transcript.trim(), lang, ctx);
+  if (simple && r.value === null) {
+    const model = voiceInterpreter();
+    if (model.name !== 'rule-based@1.0') r = await model.interpret(readAs, transcript.trim(), lang, ctx);
+  }
+
+  let value = r.value;
+  let display = r.display;
+  // Those handlers answer in their own units; convert to the form's.
+  if (spec.via === 'experienceMonths' && typeof value === 'number') {
+    value = Math.round(value / 12);
+    display = `${value} year(s)`;
+  }
+  if (spec.via === 'skills' && Array.isArray(value)) {
+    value = value.join(', ');
+    display = String(value);
+  }
+  // A pin code is six digits or it is nothing: a half-heard one silently sends
+  // the candidate to the wrong city, so refuse rather than guess.
+  if (field === 'pin_code' && !/^[1-9][0-9]{5}$/.test(String(value ?? ''))) {
+    return { value: null, display: '', confidence: 0, needsConfirmation: true, understood: false };
+  }
+  return {
+    value, display, confidence: r.confidence,
+    needsConfirmation: r.confidence < CONFIRM_THRESHOLD || value === null,
+    understood: value !== null,
+  };
 }
