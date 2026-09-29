@@ -67,7 +67,7 @@ async function processEvaluate(job: Job) {
 
 async function storeAssessment(runId: string, s: SessionRow, bundle: ScenarioBundle, result: AssessResult, operationId: string) {
   await sql.begin(async (tx) => {
-    const outputs = result.outputs.map((o) => ({ attempt: o.attempt, ok: o.ok, errors: o.errors, provider: o.provider, model: o.model, request_id: o.request_id, latency_ms: o.latency_ms, usage: o.usage, text: o.text }));
+    const outputs = result.outputs.map((o) => ({ attempt: o.attempt, ok: o.ok, errors: o.errors, notes: o.notes ?? [], provider: o.provider, model: o.model, request_id: o.request_id, latency_ms: o.latency_ms, usage: o.usage, text: o.text }));
     if (result.status !== 'scored') {
       await tx`UPDATE rp.evaluation_run SET status = 'evaluation_failed', outputs = ${tx.json(outputs as never)}, error = ${tx.json({ code: result.status === 'unscorable' ? 'UNSCORABLE' : 'EVALUATION_INVALID', reason: result.reason } as never)}, completed_at = now() WHERE id = ${runId}`;
       await tx`UPDATE rp.session SET state = 'evaluation_failed', revision = revision + 1 WHERE id = ${s.id} AND current_run_id = ${runId}`;

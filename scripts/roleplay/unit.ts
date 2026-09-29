@@ -203,6 +203,23 @@ export async function unitTests(): Promise<Check[]> {
     const forged = clone(at.candidate); forged.evidence.find((e) => e.status === 'observed')!.learner_spans[0].quote = 'When is the fee due?';
     const f1 = validateCandidate(JSON.stringify(forged), ctx);
     ok('AT14', 'A forged quote rejects the candidate', !f1.ok && f1.errors.some((e) => /quote does not match/.test(e)));
+    // Live Gemini run, 29 Sep 2026: verbatim quotes at wrong offsets, and absence checks marked observed with no quote.
+    const slipped = clone(at.candidate);
+    const sp = slipped.evidence.find((e) => e.status === 'observed' && e.learner_spans.length)!.learner_spans[0];
+    const trueText = turns14.find((x) => x.id === sp.turn_id)!.text.slice(sp.start, sp.end);
+    sp.quote = trueText; sp.end = sp.start + trueText.length - 5;
+    const absent = slipped.evidence.find((e) => e.check_id === 'avoids_guarantee')!;
+    absent.status = 'observed'; absent.learner_spans = []; absent.searched_turn_ids = [];
+    const f0 = validateCandidate(JSON.stringify(slipped), ctx);
+    ok('§14', 'A verbatim quote at wrong offsets is moved and recorded, not rejected', f0.ok && f0.notes.some((n) => /quote moved/.test(n)), f0.ok ? f0.notes.join(' ') : f0.errors.join(' '));
+    ok('§14', 'An absence check marked observed without a quote is recorded as not_observed over every turn',
+      f0.ok && f0.candidate.evidence.find((e) => e.check_id === 'avoids_guarantee')!.status === 'not_observed' && f0.candidate.evidence.find((e) => e.check_id === 'avoids_guarantee')!.searched_turn_ids.length === ctx.assessable_learner_turn_ids.length);
+    const otherTurn = clone(at.candidate);
+    const sp2 = otherTurn.evidence.find((e) => e.status === 'observed' && e.learner_spans.length)!.learner_spans[0];
+    const elsewhere = turns14.find((x) => x.speaker === 'learner' && x.id !== sp2.turn_id)!.text;
+    sp2.quote = elsewhere; sp2.end = sp2.start + elsewhere.length;
+    const f4 = validateCandidate(JSON.stringify(otherTurn), ctx);
+    ok('AT14', 'A real quote attributed to the wrong turn is still rejected', !f4.ok && f4.errors.some((e) => /quote does not match|outside the turn/.test(e)));
     const noDim = clone(at.candidate); noDim.dimension_scores.pop();
     const f2 = validateCandidate(JSON.stringify(noDim), ctx);
     ok('AT14', 'A missing dimension rejects the candidate', !f2.ok && f2.errors.some((e) => /Missing required dimension/.test(e)));
