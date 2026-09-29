@@ -110,7 +110,7 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
       {error && <div role="alert" className="note warn mt">{error.text} {error.retryOp && <button className="btn btn-sm" onClick={() => retryOp(error.retryOp!)}>Retry the reply</button>}</div>}
       {askConsent && !voice.consent && <VoiceConsent notice={initial.voice?.notice ?? ''} onAllow={async () => { await voice.grant(true); setAskConsent(false); }} onDecline={() => setAskConsent(false)} />}
       {voice.error && <p role="alert" className="small">{voice.error}</p>}
-      {voice.listening && <p role="status" className="small"><strong>Listening…</strong> speak, then press Stop. Nothing is sent until you press Send.</p>}
+      {voice.listening && <p role="status" className="small"><strong>Listening…</strong> speak, then press Stop{voice.secondsLeft !== null ? ` (stops by itself in ${voice.secondsLeft}s)` : ''}. Nothing is sent until you press Send.</p>}
       {voice.working && <p role="status" className="small">Turning your recording into text…</p>}
       {voiceMeta && !voice.listening && <p className="small"><strong>Check what was heard</strong>, correct anything that is wrong, then press Send.</p>}
       <form className="practice-composer mt" onSubmit={(e) => { e.preventDefault(); send(); }}>

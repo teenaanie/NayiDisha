@@ -24,6 +24,13 @@ export const bcp47 = (l: SarvamLanguage) => `${l}-IN`;
 
 export const sarvamConfigured = () => !!process.env.SARVAM_API_KEY;
 
+/** Sarvam's enum error code only (never the message, which may echo input), for logs. */
+async function failure(what: string, res: Response): Promise<Error> {
+  let code = '';
+  try { const c = (await res.json())?.error?.code; if (typeof c === 'string' && /^[a-z0-9_]{1,60}$/i.test(c)) code = ' ' + c; } catch { /* not JSON */ }
+  return new Error(`Sarvam ${what} returned HTTP ${res.status}${code}`);
+}
+
 const headers = () => ({ 'api-subscription-key': process.env.SARVAM_API_KEY ?? '' });
 
 export interface ChatMessage { role: 'system' | 'user' | 'assistant'; content: string }
@@ -80,14 +87,14 @@ export async function sarvamTranslate(text: string, from: SarvamLanguage, to: Sa
 
 export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage): Promise<{ transcript: string; language: string | null }> {
   const form = new FormData();
-  form.append('file', audio, /mp4|m4a/.test(audio.type) ? 'answer.m4a' : /ogg/.test(audio.type) ? 'answer.ogg' : 'answer.webm');
+  form.append('file', audio, /wav/.test(audio.type) ? 'answer.wav' : /mp4|m4a/.test(audio.type) ? 'answer.m4a' : /ogg/.test(audio.type) ? 'answer.ogg' : 'answer.webm');
   form.append('model', SARVAM_STT_MODEL);
   if (SARVAM_STT_MODEL === 'saaras:v3') form.append('mode', 'transcribe');
   form.append('language_code', bcp47(language));
   const res = await fetch(`${BASE}/speech-to-text`, {
     method: 'POST', headers: headers(), body: form, signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`Sarvam speech-to-text returned HTTP ${res.status}`);
+  if (!res.ok) throw await failure('speech-to-text', res);
   const body = await res.json();
   return { transcript: String(body?.transcript ?? ''), language: body?.language_code ?? null };
 }
@@ -105,7 +112,7 @@ export async function sarvamTextToSpeech(text: string, language: SarvamLanguage)
     }),
     signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`Sarvam text-to-speech returned HTTP ${res.status}`);
+  if (!res.ok) throw await failure('text-to-speech', res);
   const body = await res.json();
   const audio = body?.audios?.[0];
   if (typeof audio !== 'string') throw new Error('Sarvam text-to-speech returned no audio');

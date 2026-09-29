@@ -22,12 +22,42 @@ type Recognition = {
 const browserRecognition = (): (new () => Recognition) | null =>
   typeof window === 'undefined' ? null : ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null);
 
+/** Sarvam's real-time endpoint takes at most 30 s; stop a little before. */
+export const MAX_RECORD_SECONDS = 28;
+
+/**
+ * Browsers record WebM/Opus or MP4; Sarvam recommends 16 kHz mono 16-bit WAV
+ * and rejects some browser containers. Decode and resample here, so what
+ * leaves the browser is always the recommended format. Returns null when the
+ * recording holds no audible length.
+ */
+async function toWav16kMono(blob: Blob): Promise<Blob | null> {
+  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+  const ctx: AudioContext = new Ctx();
+  let decoded: AudioBuffer;
+  try { decoded = await ctx.decodeAudioData(await blob.arrayBuffer()); } finally { ctx.close?.(); }
+  if (decoded.duration < 0.3) return null;
+  const rate = 16000;
+  const off = new OfflineAudioContext(1, Math.ceil(Math.min(decoded.duration, 30) * rate), rate);
+  const src = off.createBufferSource(); src.buffer = decoded; src.connect(off.destination); src.start();
+  const pcm = (await off.startRendering()).getChannelData(0);
+  const out = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const str = (o: number, t: string) => { for (let i = 0; i < t.length; i++) out.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); out.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  out.setUint32(16, 16, true); out.setUint16(20, 1, true); out.setUint16(22, 1, true); out.setUint32(24, rate, true);
+  out.setUint32(28, rate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, 'data'); out.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++) { const v = Math.max(-1, Math.min(1, pcm[i])); out.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true); }
+  return new Blob([out.buffer], { type: 'audio/wav' });
+}
+
 export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: string, meta: VoiceMeta | null) => void) {
   const [consent, setConsent] = useState(caps.consent);
   const [listening, setListening] = useState(false);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState('');
   const [readAloud, setReadAloud] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const rec = useRef<Recognition | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -36,7 +66,7 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     ? typeof window !== 'undefined' && !!navigator.mediaDevices && typeof MediaRecorder !== 'undefined'
     : !!browserRecognition();
 
-  useEffect(() => () => { rec.current?.abort(); recorder.current?.state === 'recording' && recorder.current.stop(); window.speechSynthesis?.cancel(); }, []);
+  useEffect(() => () => { if (timer.current) clearInterval(timer.current); rec.current?.abort(); recorder.current?.state === 'recording' && recorder.current.stop(); window.speechSynthesis?.cancel(); }, []);
 
   const grant = async (granted: boolean) => {
     setError('');
@@ -78,8 +108,13 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
       mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop()); setListening(false); setWorking(true);
+        if (timer.current) clearInterval(timer.current); setSecondsLeft(null);
         try {
-          const f = new FormData(); f.append('audio', new Blob(chunks, { type: mr.mimeType || 'audio/webm' }), 'answer.webm');
+          const raw = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
+          let wav: Blob | null = raw;
+          try { wav = await toWav16kMono(raw); } catch { /* browser cannot decode its own recording: send it as recorded */ }
+          if (!wav) { setError('We did not hear anything. Try again.'); return; }
+          const f = new FormData(); f.append('audio', wav, wav === raw ? 'answer.webm' : 'answer.wav');
           const res = await fetch(`/v1/sessions/${sessionId}/transcribe`, { method: 'POST', body: f });
           const data = await res.json();
           if (!res.ok) throw new ApiFailure(res.status, data?.error?.code ?? 'ERROR', data?.error?.message ?? 'Transcription failed.', !!data?.error?.retryable, {});
@@ -89,7 +124,12 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
         finally { setWorking(false); }
       };
       recorder.current = mr; mr.start(); setListening(true);
-      setTimeout(() => { if (mr.state === 'recording') mr.stop(); }, 60000);
+      const began = Date.now(); setSecondsLeft(MAX_RECORD_SECONDS);
+      timer.current = setInterval(() => {
+        const left = MAX_RECORD_SECONDS - Math.floor((Date.now() - began) / 1000);
+        setSecondsLeft(Math.max(0, left));
+        if (left <= 0 && mr.state === 'recording') mr.stop();
+      }, 250);
     } catch { setError('Microphone access was blocked. Allow it in the browser, or type instead.'); }
   };
   const stop = () => { rec.current?.stop(); if (recorder.current?.state === 'recording') recorder.current.stop(); };
@@ -112,7 +152,7 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     }
   };
 
-  return { consent, grant, supported, listening, working, error, start, stop, readAloud, setReadAloud, say };
+  return { consent, grant, supported, listening, working, error, start, stop, readAloud, setReadAloud, say, secondsLeft };
 }
 
 export function VoiceConsent({ notice, onAllow, onDecline }: { notice: string; onAllow: () => void; onDecline: () => void }) {
