@@ -1,4 +1,4 @@
-import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult } from '../contracts/types';
+import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, Evidence, Span } from '../contracts/types';
 import { englishName, type Language } from '../runtime/language';
 import { runtimeOf } from '../config/runtime-extension';
 import { computeDerivations } from '../config/patch';
@@ -58,14 +58,22 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   if (!rule.assessable_learner_turn_ids.length) return { status: 'unscorable', reason: 'No assessable learner turns.', rule, outputs };
 
   const rubricVersion = rubricVersionOf(bundle);
+  // Turn IDs are UUIDs, and the evaluator copies them into every quote and search list:
+  // about 40% of its output in live runs, and output length is what makes an
+  // assessment slow. It sees short aliases (T<sequence>) instead; its answer is mapped
+  // back to the real IDs before validation, so nothing downstream sees an alias.
+  const ids = turnAliases(input.turns);
   const facts = bundle.facts.map((f) => ({ id: f.id, knowledge: f.knowledge, value: renderFact(f), type: f.type }));
   const data = {
     scenario_truth_json: { scenario: bundle.scenario, persona: bundle.persona, facts, derived: computeDerivations(bundle) },
     rubric_json: bundle.rubric,
-    checks_json: { rule_evidence: rule.evidence, risk_candidates: rule.risk_candidates, assessable_learner_turn_ids: rule.assessable_learner_turn_ids, unexplained_jargon: rule.unexplained_jargon, runtime: runtimeOf(bundle) },
+    checks_json: {
+      rule_evidence: rule.evidence.map(ids.evidenceOut), risk_candidates: rule.risk_candidates.map((r) => ({ ...r, turn_id: ids.out(r.turn_id) })),
+      assessable_learner_turn_ids: rule.assessable_learner_turn_ids.map(ids.out), unexplained_jargon: rule.unexplained_jargon.map((j) => ({ ...j, turn_id: ids.out(j.turn_id) })), runtime: runtimeOf(bundle),
+    },
     risk_policy_json: bundle.risk_policy,
     knowledge_status_json: { pack: (bundle.extensions as { knowledge_pack?: unknown } | undefined)?.knowledge_pack ?? 'absent', product_policy_accuracy: 'not_assessed' },
-    transcript_json: input.turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text, ...(t.input_mode === 'voice' ? { input_mode: 'voice (learner-checked transcript)' } : {}) })),
+    transcript_json: input.turns.map((t) => ({ turn_id: ids.out(t.id), sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text, ...(t.input_mode === 'voice' ? { input_mode: 'voice (learner-checked transcript)' } : {}) })),
     contract_json: {
       contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion,
       offsets: 'unicode code points, start inclusive, end exclusive',
@@ -74,6 +82,17 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
       // Live runs (29 Sep 2026) gave score 2 with anchor_score 1 and were rejected; state the rule outright.
       dimension_score_rule: 'For each dimension choose exactly one RUBRIC anchor that best fits the evidence, and set BOTH score and anchor_score to that anchor\'s score. Never award a value between anchors or different from the chosen anchor.',
       allowed_scores: Object.fromEntries(bundle.rubric.dimensions.map((d) => [d.id, d.anchors.map((a) => a.score).sort((x, y) => x - y)])),
+      // Live Hindi runs (30 Sep 2026) put check IDs in risk_flags, invented a category and
+      // quoted violations under not_observed. State the identifiers and status rules outright.
+      allowed_evidence_categories: [...bundle.rubric.evidence_categories, 'compliance'],
+      allowed_risk_rule_ids: bundle.risk_policy.rules.map((r) => r.id),
+      status_rules: [
+        'observed: the learner did the checked behaviour; cite the learner quote(s).',
+        'not_observed: the behaviour did not happen; cite no learner quotes and list every searched learner turn.',
+        'contradicted: the learner did the opposite; cite the learner quote(s).',
+        `For checks satisfied by absence (${Object.keys(runtimeOf(bundle).absence_checks).join(', ')}), a violation is contradicted with the learner quote, never not_observed with a quote. A question that mentions a topic (e.g. asking about a guarantee) is not a violation.`,
+        'risk_flags[].rule_id must be one of allowed_risk_rule_ids (never a check ID).',
+      ],
       previous_errors: [] as string[],
     },
   };
@@ -81,11 +100,12 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   let accepted: EvaluationCandidate | null = null;
   for (let attempt = 1; attempt <= 2 && !accepted; attempt++) {
     const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchema, temperature: 0, maxTokens: 12000, correlation: input.correlation });
-    const v = validateCandidate(res.text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids });
-    outputs.push({ attempt, text: res.text, ok: v.ok, errors: v.ok ? [] : v.errors, notes: v.notes, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
+    const text = ids.answerIn(res.text);
+    const v = validateCandidate(text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids });
+    outputs.push({ attempt, text, ok: v.ok, errors: v.ok ? [] : v.errors, notes: v.notes, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
     if (v.ok) accepted = v.candidate;
     // One repair request with the same evidence snapshot, told what was wrong.
-    else data.contract_json.previous_errors = v.errors.slice(0, 30);
+    else data.contract_json.previous_errors = v.errors.slice(0, 30).map(ids.textOut);
   }
   if (!accepted) return { status: 'failed', reason: 'Evaluator output failed validation twice.', rule, outputs };
 
@@ -138,4 +158,30 @@ export function reconcile(bundle: ScenarioBundle, c: EvaluationCandidate, rule: 
   const lowConf = c.evidence.filter((e) => e.confidence < REVIEW_CONFIDENCE && (e.status === 'observed' || e.status === 'contradicted') && (e.category === 'compliance' || c.risk_flags.some((f) => f.evidence_ids.includes(e.id))));
   if (lowConf.length) reasons.push(`${lowConf.length} consequential finding(s) below confidence ${REVIEW_CONFIDENCE}.`);
   return Array.from(new Set(reasons));
+}
+
+/** Short turn aliases for the evaluator (T<sequence>), with the mapping back. */
+export function turnAliases(turns: TranscriptTurn[]) {
+  const toAlias = new Map(turns.map((t) => [t.id, `T${t.sequence}`]));
+  const toReal = new Map([...toAlias].map(([real, alias]) => [alias, real]));
+  const out = (id: string) => toAlias.get(id) ?? id;
+  const back = (id: unknown) => (typeof id === 'string' ? toReal.get(id) ?? id : id);
+  const spans = (xs: Span[] | undefined, f: (id: string) => string) => (xs ?? []).map((sp) => ({ ...sp, turn_id: f(sp.turn_id) }));
+  return {
+    out,
+    evidenceOut: (e: Evidence): Evidence => ({ ...e, learner_spans: spans(e.learner_spans, out), context_spans: spans(e.context_spans, out), searched_turn_ids: (e.searched_turn_ids ?? []).map(out) }),
+    /** Map an evaluator answer's aliases back to real IDs; unparseable text is left for validation to reject. */
+    answerIn: (raw: string): string => {
+      let c: { evidence?: { learner_spans?: Span[]; context_spans?: Span[]; searched_turn_ids?: string[] }[] };
+      try { c = JSON.parse(raw); } catch { return raw; }
+      for (const e of Array.isArray(c?.evidence) ? c.evidence : []) {
+        if (Array.isArray(e.learner_spans)) e.learner_spans = e.learner_spans.map((sp) => ({ ...sp, turn_id: back(sp?.turn_id) as string }));
+        if (Array.isArray(e.context_spans)) e.context_spans = e.context_spans.map((sp) => ({ ...sp, turn_id: back(sp?.turn_id) as string }));
+        if (Array.isArray(e.searched_turn_ids)) e.searched_turn_ids = e.searched_turn_ids.map((id) => back(id) as string);
+      }
+      return JSON.stringify(c);
+    },
+    /** Validation messages name real IDs; the repair request speaks in aliases. */
+    textOut: (msg: string) => msg.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (m) => toAlias.get(m) ?? m),
+  };
 }

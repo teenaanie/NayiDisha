@@ -31,7 +31,7 @@ import { runtimeOf } from '../config/runtime-extension';
  *    (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.4.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.5.0';
 
 /** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
 function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
@@ -82,6 +82,15 @@ export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContex
       notes.push(`evidence[${i}] ${ev.id}: absence check reported as observed without a quote; recorded as ${ev.status}${early ? ' (no discovery yet to judge it against)' : ''}.`);
     }
   }
+  // "Not observed" asserts a search of every assessable learner turn; the list is
+  // bookkeeping the server can complete (a Hindi run left 12 turns out and was rejected).
+  for (const [i, ev] of c.evidence.entries()) {
+    if (ev.status !== 'not_observed') continue;
+    const missing = ctx.assessable_learner_turn_ids.filter((id) => !(ev.searched_turn_ids ?? []).includes(id));
+    if (!missing.length) continue;
+    ev.searched_turn_ids = [...new Set([...(ev.searched_turn_ids ?? []), ...missing])];
+    notes.push(`evidence[${i}] ${ev.id}: search list completed with ${missing.length} assessable turn(s).`);
+  }
   // Question credit needs a quote that asks. A quote that does not read as a question
   // (live Hindi run, 30 Sep 2026: a spoken yes/no question transcribed with "।" and no
   // question word) is dropped rather than failing the whole assessment; with no asking
@@ -121,10 +130,16 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'], notes: [] }; }
   // Confidence is advisory (it only routes low-confidence findings to review); a value
-  // just past 1 (live: 1.1) is capped rather than rejecting the whole assessment.
+  // above 1 (live: 1.1, and larger in a Hindi run) is capped rather than rejecting the
+  // whole assessment. A category outside the rubric's list is only a label: recorded as
+  // compliance, never a reason to fail.
   const preNotes: string[] = [];
   for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { confidence?: unknown; id?: string }[]).entries()) {
-    if (typeof ev?.confidence === 'number' && ev.confidence > 1 && ev.confidence <= 1.5) { preNotes.push(`evidence[${i}] ${ev.id}: confidence ${ev.confidence} capped at 1.`); ev.confidence = 1; }
+    if (typeof ev?.confidence === 'number' && ev.confidence > 1) { preNotes.push(`evidence[${i}] ${ev.id}: confidence ${ev.confidence} capped at 1.`); ev.confidence = 1; }
+  }
+  const knownCategories = new Set([...ctx.bundle.rubric.evidence_categories, 'compliance']);
+  for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { category?: unknown; id?: string }[]).entries()) {
+    if (typeof ev?.category === 'string' && !knownCategories.has(ev.category)) { preNotes.push(`evidence[${i}] ${ev.id}: unknown category "${ev.category}" recorded as compliance.`); ev.category = 'compliance'; }
   }
   if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`), notes: preNotes };
   const c = parsed as unknown as EvaluationCandidate;
