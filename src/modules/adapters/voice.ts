@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { recordUsage, anthropicTokens, geminiTokens } from '@/modules/ai-usage';
 
 /**
  * Spoken-answer interpreter (voice journey).
@@ -379,6 +380,7 @@ export class ClaudeInterpreter implements VoiceInterpreter {
       }],
     };
 
+    const started = Date.now();
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -392,6 +394,7 @@ export class ClaudeInterpreter implements VoiceInterpreter {
       });
       if (!res.ok) throw new Error(`Anthropic API ${res.status}`);
       const json = await res.json();
+      recordUsage({ provider: 'anthropic', model: body.model, feature: 'voice.interpret', ...anthropicTokens(json), latencyMs: Date.now() - started });
       const raw = json?.content?.[0]?.text ?? '';
       const parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
       return {
@@ -454,6 +457,7 @@ export class GeminiInterpreter implements VoiceInterpreter {
       'Return null for value and a low confidence when the answer is unclear, off-topic or absent. ' +
       'Never invent a value. "display" must be a short confirmation phrase in the speaker\'s own language.';
 
+    const started = Date.now();
     try {
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`,
@@ -481,6 +485,7 @@ export class GeminiInterpreter implements VoiceInterpreter {
       );
       if (!res.ok) throw new Error(`Gemini ${res.status}`);
       const json = await res.json();
+      recordUsage({ provider: 'gemini', model: this.model, feature: 'voice.interpret', ...geminiTokens(json), latencyMs: Date.now() - started });
       const text = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
       const parsed = JSON.parse(text);
       if (parsed.value === null || parsed.value === undefined || parsed.value === '') {

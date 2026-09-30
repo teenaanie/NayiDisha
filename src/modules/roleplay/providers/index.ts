@@ -12,6 +12,7 @@
  *         local vLLM). Selected by env; nothing here names a vendor.
  */
 import { mockComplete } from './mock';
+import { recordUsage, openaiTokens } from '@/modules/ai-usage';
 
 export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify';
 
@@ -127,12 +128,14 @@ class OpenAICompatibleProvider implements ModelProvider {
     } catch (e) {
       throw new ProviderError(`Provider unreachable: ${(e as Error).name}`, true);
     }
+    if (!res.ok) recordUsage({ provider: 'openai_compatible', model: this.model, feature: `roleplay.${req.task}`, ok: false, latencyMs: Date.now() - started });
     if (res.status === 429 || res.status >= 500) {
       const after = Number(res.headers.get('retry-after'));
       throw new ProviderError(`Provider returned HTTP ${res.status}`, true, Number.isFinite(after) && after > 0 ? after * 1000 : null);
     }
     if (!res.ok) throw new ProviderError(`Provider returned HTTP ${res.status}`, false);
     const body = await res.json();
+    recordUsage({ provider: 'openai_compatible', model: this.model, feature: `roleplay.${req.task}`, ...openaiTokens(body), latencyMs: Date.now() - started });
     return {
       text: String(body?.choices?.[0]?.message?.content ?? ''),
       provider: this.id, model: this.model,
