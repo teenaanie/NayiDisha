@@ -454,6 +454,11 @@ export class GeminiInterpreter implements VoiceInterpreter {
       'They speak English, Hindi or Marathi and often mix them. ' +
       `Field: ${field} — ${expected[field] ?? context.spec?.expected ?? 'the value the question asked for'}. Speaker language: ${language}.\n` +
       `Transcript: ${JSON.stringify(transcript)}\n` +
+      // Without this the model filled "value" with the word "display" for
+      // almost every answer, so nothing it understood ever reached the journey.
+      'Reply with JSON. "value" is the extracted value itself, as a string: a number written ' +
+      'with digits (for example "30"), a list as comma-separated items, "true" or "false" for a ' +
+      'yes/no, or a key exactly as listed. ' +
       'Return null for value and a low confidence when the answer is unclear, off-topic or absent. ' +
       'Never invent a value. "display" must be a short confirmation phrase in the speaker\'s own language.';
 
