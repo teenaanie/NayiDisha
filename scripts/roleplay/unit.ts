@@ -336,6 +336,24 @@ export async function unitTests(): Promise<Check[]> {
         ok('§14', 'With only a non-question quote, question credit becomes uncertain (no credit), not a failed assessment', vo.ok && vo.candidate.evidence.find((e) => e.check_id === 'course')!.status === 'uncertain', vo.ok ? '' : vo.errors.join(' '));
       } else ok('§14', 'Question-span fixture assessed', false, (aq as any).reason);
     }
+    // Speed: the evaluator sees short turn aliases, never UUIDs; its answer maps back before validation.
+    {
+      let sent = '';
+      const uuidTurns = turns14.map((x, i) => ({ ...x, id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}` }));
+      overrideProvider('evaluate', { id: 'spy', model: 'spy', live: false, complete: async (req) => {
+        sent = JSON.stringify(req.data);
+        const { mockJudge } = await import('../../src/modules/roleplay/evaluation/mock-judge');
+        return { text: JSON.stringify(mockJudge(req.data as never)), provider: 'spy', model: 'spy', request_id: null, usage: null, latency_ms: 1 };
+      } });
+      let ra: Awaited<ReturnType<typeof assess>>;
+      try { ra = await assess({ bundle: b, turns: uuidTurns, session_id: 'sa', transcript_hash: 'ha', mode: 'full', target_check_ids: [], template: loadPrompt('evaluator_v1'), correlation: { tenant_id: 't', session_id: 'sa', evaluation_id: 'e' } }); }
+      finally { overrideProvider('evaluate', null); }
+      const uuids = sent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g) ?? [];
+      const real = new Set(uuidTurns.map((x) => x.id));
+      ok('PERF', 'The evaluator is sent short turn aliases, not UUIDs, and its answer maps back to real turn IDs',
+        uuids.length === 0 && /"T1"/.test(sent) && ra.status === 'scored' && ra.candidate.evidence.every((e) => [...e.learner_spans, ...e.context_spans].every((sp) => real.has(sp.turn_id)) && e.searched_turn_ids.every((id) => real.has(id))),
+        `${uuids.length} UUIDs sent; ${ra.status}`);
+    }
     const noDim = clone(at.candidate); noDim.dimension_scores.pop();
     const f2 = validateCandidate(JSON.stringify(noDim), ctx);
     ok('AT14', 'A missing dimension rejects the candidate', !f2.ok && f2.errors.some((e) => /Missing required dimension/.test(e)));
