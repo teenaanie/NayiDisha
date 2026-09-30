@@ -110,8 +110,8 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
       {error && <div role="alert" className="note warn mt">{error.text} {error.retryOp && <button className="btn btn-sm" onClick={() => retryOp(error.retryOp!)}>Retry the reply</button>}</div>}
       {askConsent && !voice.consent && <VoiceConsent notice={initial.voice?.notice ?? ''} onAllow={async () => { await voice.grant(true); setAskConsent(false); }} onDecline={() => setAskConsent(false)} />}
       {voice.error && <p role="alert" className="small">{voice.error}</p>}
-      {voice.listening && <p role="status" className="small"><strong>Listening…</strong> speak, then press Stop{voice.secondsLeft !== null ? ` (stops by itself in ${voice.secondsLeft}s)` : ''}. Nothing is sent until you press Send.</p>}
-      {voice.working && <p role="status" className="small">Turning your recording into text…</p>}
+      {voice.listening && <p role="status" className="small"><strong>Listening…</strong> speak, then press Stop{voice.secondsLeft !== null ? ` (stops by itself in ${voice.secondsLeft}s)` : ''}. {voice.previewing ? 'The words appearing now are a quick preview; a more accurate transcript replaces them when you stop. ' : ''}Nothing is sent until you press Send.</p>}
+      {voice.working && <p role="status" className="small">Getting the accurate transcript…</p>}
       {voiceMeta && !voice.listening && <p className="small"><strong>Check what was heard</strong>, correct anything that is wrong, then press Send.</p>}
       <form className="practice-composer mt" onSubmit={(e) => { e.preventDefault(); send(); }}>
         <label className="sr-only" htmlFor="rp-msg">Your message</label>
@@ -119,7 +119,7 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Ask the customer a question, or use the microphone…" />
         {voice.supported && <button type="button" className="btn" aria-pressed={voice.listening} aria-label={voice.listening ? 'Stop listening' : 'Speak your message'} disabled={finishing || busy || voice.working}
           onClick={() => { if (!voice.consent) { setAskConsent(true); return; } if (voice.listening) voice.stop(); else voice.start(); }}>{voice.listening ? '■ Stop' : '🎤'}</button>}
-        <button className="btn btn-primary" disabled={busy || finishing || !draft.trim() || voice.listening}>Send</button>
+        <button className="btn btn-primary" disabled={busy || finishing || !draft.trim() || voice.listening || voice.working}>Send</button>
       </form>
       <p className="small muted">{draft.length}/{s.limits.max_message_chars} characters · Enter to send, Shift+Enter for a new line
         {!voice.supported && ' · Voice input needs Chrome, Edge or Safari'}</p>

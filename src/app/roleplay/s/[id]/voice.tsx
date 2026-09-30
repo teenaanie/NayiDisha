@@ -58,6 +58,7 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
   const [readAloud, setReadAloud] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const rec = useRef<Recognition | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -105,22 +106,34 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream); const chunks: Blob[] = [];
+      // Live preview: Sarvam only transcribes a finished recording, so while the learner
+      // speaks the browser's own recogniser shows words as they come. Sarvam's transcript
+      // replaces it on Stop; if Sarvam fails, the preview is kept (labelled as the browser's).
+      // Desktop only: on phones the browser recogniser can take the microphone from the recorder.
+      const preview = startPreview((text) => onDraft(text, null));
       mr.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop()); setListening(false); setWorking(true);
         if (timer.current) clearInterval(timer.current); setSecondsLeft(null);
+        const heardByBrowser = preview?.stop() ?? '';
+        const keepPreview = (why: string) => {
+          if (!heardByBrowser) return false;
+          onDraft(heardByBrowser, { mode: 'voice', asr_provider: 'browser:webspeech', asr_text: heardByBrowser, asr_confidence: null });
+          setError(`${why} Showing the browser's version instead; check it carefully.`);
+          return true;
+        };
         try {
           const raw = new Blob(chunks, { type: mr.mimeType || 'audio/webm' });
           let wav: Blob | null = raw;
           try { wav = await toWav16kMono(raw); } catch { /* browser cannot decode its own recording: send it as recorded */ }
-          if (!wav) { setError('We did not hear anything. Try again.'); return; }
+          if (!wav) { if (!keepPreview('The recording was too short for the accurate transcript.')) setError('We did not hear anything. Try again.'); return; }
           const f = new FormData(); f.append('audio', wav, wav === raw ? 'answer.webm' : 'answer.wav');
           const res = await fetch(`/v1/sessions/${sessionId}/transcribe`, { method: 'POST', body: f });
           const data = await res.json();
           if (!res.ok) throw new ApiFailure(res.status, data?.error?.code ?? 'ERROR', data?.error?.message ?? 'Transcription failed.', !!data?.error?.retryable, {});
           if (data.transcript?.trim()) onDraft(data.transcript.trim(), { mode: 'voice', asr_provider: data.asr_provider, asr_text: data.transcript.trim(), asr_confidence: data.asr_confidence });
-          else setError('We did not hear anything. Try again.');
-        } catch (e) { setError(e instanceof ApiFailure ? e.message : 'Could not transcribe. Try again, or type.'); }
+          else if (!keepPreview('The accurate transcript came back empty.')) setError('We did not hear anything. Try again.');
+        } catch (e) { if (!keepPreview('The accurate transcript failed.')) setError(e instanceof ApiFailure ? e.message : 'Could not transcribe. Try again, or type.'); }
         finally { setWorking(false); }
       };
       recorder.current = mr; mr.start(); setListening(true);
@@ -133,6 +146,25 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     } catch { setError('Microphone access was blocked. Allow it in the browser, or type instead.'); }
   };
   const stop = () => { rec.current?.stop(); if (recorder.current?.state === 'recording') recorder.current.stop(); };
+
+  /** Browser recogniser as a live preview next to the server recording; null when unavailable. */
+  function startPreview(show: (text: string) => void): { stop: () => string } | null {
+    const R = browserRecognition();
+    const phone = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator as any).userAgentData?.mobile;
+    if (!R || phone) return null;
+    let finals = ''; let stopped = false;
+    const r = new R();
+    r.lang = caps.language; r.continuous = true; r.interimResults = true;
+    r.onresult = (e: any) => {
+      let interim = ''; finals = '';
+      for (let i = 0; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) finals += x[0].transcript; else interim += x[0].transcript; }
+      if (!stopped) show((finals + interim).trim());
+    };
+    r.onerror = () => { /* preview only: the recording and Sarvam carry on regardless */ };
+    r.onend = () => setPreviewing(false);
+    try { r.start(); rec.current = r; setPreviewing(true); } catch { return null; }
+    return { stop: () => { stopped = true; try { r.stop(); } catch { /* already stopped */ } setPreviewing(false); return finals.trim(); } };
+  }
 
   /** Read a committed customer turn aloud. */
   const say = async (turnId: string, text: string) => {
@@ -152,7 +184,7 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     }
   };
 
-  return { consent, grant, supported, listening, working, error, start, stop, readAloud, setReadAloud, say, secondsLeft };
+  return { consent, grant, supported, listening, working, error, start, stop, readAloud, setReadAloud, say, secondsLeft, previewing };
 }
 
 export function VoiceConsent({ notice, onAllow, onDecline }: { notice: string; onAllow: () => void; onDecline: () => void }) {
