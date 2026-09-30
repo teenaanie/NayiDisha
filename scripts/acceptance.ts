@@ -767,6 +767,13 @@ async function main() {
     const badPin = await say('pin_code', 'four one one zero zero four');
     check('REG-04', 'A pin code that cannot be heard exactly is refused, never guessed',
       badPin.understood === false && badPin.value === null, JSON.stringify(badPin.value));
+    // Whichever interpreter is configured: asking for nights when only day
+    // shifts are on offer has no right answer, so nothing is recorded.
+    const { voiceInterpreter } = await import('../src/modules/adapters/voice');
+    const dayOnly = ['ANY', '09:30-18:30', '10:00-19:00', 'ROTATIONAL_DAYTIME'];
+    const night = await voiceInterpreter().interpret('shifts', 'रात की शिफ्ट', 'hi', { shifts: dayOnly });
+    check('REG-04', 'A spoken night shift is never recorded as a day shift',
+      night.value === null, JSON.stringify(night.value));
     const noVoice = await say('email', 'meena at example dot com');
     check('§21.2', 'Email is never taken by voice',
       'error' in noVoice, JSON.stringify(noVoice));
