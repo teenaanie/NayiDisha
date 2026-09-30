@@ -169,23 +169,44 @@ const YES_DEV = ['हाँ','हां','जी','सही','ठीक','ब�
 const NO_LATIN = ['no','nope','wrong','nahi','nahin','galat','chukiche'];
 const NO_DEV = ['नहीं','नाही','गलत','चुकीच','नको'];
 
+/** Which shift codes count as day or night, and the words that ask for each. */
+const DAY_CODE = /DAY|09|10/;
+const NIGHT_CODE = /NIGHT|22|20/;
+const saysAnyShift = (lower: string) => hasWord(lower, ['any','anytime','koi bhi','kabhi bhi','kuthlihi'],
+                                                ['कोई भी','कधीही','कोणतीही','कोणतीहि']);
+const saysDay = (lower: string) => hasWord(lower, ['day','morning','din'], ['सकाळ','दिवस','सुबह','दिन']);
+const saysNight = (lower: string) => hasWord(lower, ['night','raat'], ['रात','रात्र']);
+
 /** Shift words → the shift codes the seed data uses. */
 function matchShifts(t: string, available: string[]): string[] {
   const lower = t.toLowerCase();
-  const any = hasWord(lower, ['any','anytime','koi bhi','kabhi bhi','kuthlihi'],
-                      ['कोई भी','कधीही','कोणतीही','कोणतीहि']);
-  if (any) return ['ANY'];
+  if (saysAnyShift(lower)) return ['ANY'];
   const hits = available.filter((s) => lower.includes(s.toLowerCase().replace(/_/g, ' ')));
   if (hits.length) return hits;
-  if (hasWord(lower, ['day','morning','din'], ['सकाळ','दिवस','सुबह','दिन'])) {
-    const day = available.find((s) => /DAY|09|10/.test(s));
+  if (saysDay(lower)) {
+    const day = available.find((s) => DAY_CODE.test(s));
     if (day) return [day];
   }
-  if (hasWord(lower, ['night','raat'], ['रात','रात्र'])) {
-    const night = available.find((s) => /NIGHT|22|20/.test(s));
+  if (saysNight(lower)) {
+    const night = available.find((s) => NIGHT_CODE.test(s));
     if (night) return [night];
   }
   return [];
+}
+
+/**
+ * Whether a model's shift codes fit what was said: every code must be on offer,
+ * and a speaker who asked for nights must not be given a day shift (or the
+ * reverse). With no night shift listed, "रात की शिफ्ट" has no right answer and
+ * the model used to pick the nearest daytime one.
+ */
+function shiftsFit(codes: string[], transcript: string, available: string[]): boolean {
+  if (!codes.length || codes.some((c) => !available.includes(c))) return false;
+  const lower = transcript.toLowerCase();
+  if (saysAnyShift(lower)) return true;
+  if (saysNight(lower) && !saysDay(lower)) return codes.every((c) => NIGHT_CODE.test(c));
+  if (saysDay(lower) && !saysNight(lower)) return codes.every((c) => c !== 'ANY' && !NIGHT_CODE.test(c));
+  return true;
 }
 
 export class RuleBasedInterpreter implements VoiceInterpreter {
@@ -445,7 +466,9 @@ export class GeminiInterpreter implements VoiceInterpreter {
       skills: 'an array of 1-6 UPPER_SNAKE_CASE skill tags',
       expectedPay: 'expected MONTHLY pay as an integer number of rupees (so "18 hazaar" is 18000)',
       commute: 'maximum one-way commute as an integer number of MINUTES',
-      shifts: `an array of shift codes from: ${(context.shifts ?? []).join(', ')}`,
+      shifts: `shift codes from this list only: ${(context.shifts ?? []).join(', ')}. ` +
+        'Use ANY only if they said any shift is fine. If no listed code fits what they asked for ' +
+        '(for example a night shift when none is listed), the value is null',
       confirm: 'true if they agreed, false if they disagreed',
     };
 
@@ -524,7 +547,13 @@ export class GeminiInterpreter implements VoiceInterpreter {
           if (!said.includes(String(n)) && rules.value !== n) return rules;
           value = n;
         }
-      } else if (field === 'skills' || field === 'shifts') {
+      } else if (field === 'shifts') {
+        const codes = raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+        if (!shiftsFit(codes, transcript, context.shifts ?? [])) {
+          return this.fallback.interpret(field, transcript, language, context);
+        }
+        value = codes;
+      } else if (field === 'skills') {
         value = raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
       } else if (field === 'confirm') {
         value = /^(true|yes|1)$/i.test(raw);
