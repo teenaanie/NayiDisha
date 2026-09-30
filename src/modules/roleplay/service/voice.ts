@@ -98,7 +98,7 @@ export async function transcribe(actor: Actor, sessionId: string, audio: Blob) {
   const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
   const started = Date.now();
   try {
-    const { transcript } = await sarvamSpeechToText(audio, sarvamLanguage(bcp47(s.language ?? 'en')));
+    const { transcript } = await sarvamSpeechToText(audio, sarvamLanguage(bcp47(s.language ?? 'en')), 'roleplay.transcribe');
     await metric('voice_transcribed_ms', Date.now() - started, { provider: 'sarvam' }, actor.tenant_id);
     // The audio buffer goes out of scope here; nothing is written anywhere.
     return { transcript, asr_provider: `sarvam:${SARVAM_STT_MODEL.replace(/[^a-z0-9_.-]/g, '_')}`, asr_confidence: null, language: bcp47(s.language ?? 'en') };
@@ -118,7 +118,7 @@ export async function speak(actor: Actor, sessionId: string, turnId: string) {
   if (!t) throw notFound('Turn');
   const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
   try {
-    const audio = await sarvamTextToSpeech(t.text, sarvamLanguage(bcp47(s.language ?? 'en')));
+    const audio = await sarvamTextToSpeech(t.text, sarvamLanguage(bcp47(s.language ?? 'en')), 'roleplay.read_aloud');
     return { audio_base64: audio, format: 'wav' };
   } catch (e) {
     logError('voice.speak', e, { tenant_id: actor.tenant_id, session_id: sessionId });

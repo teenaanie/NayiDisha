@@ -74,7 +74,7 @@ export async function transcribe(sessionId: string, form: FormData) {
     if (!(audio instanceof Blob) || !audio.size) throw new Error('No recording was received.');
     if (audio.size > 3 * 1024 * 1024) throw new Error('That recording is too long. Keep answers under a minute.');
     const lang = await sessionLanguage(c.id, sessionId);
-    const { transcript } = await sarvamSpeechToText(audio, lang);
+    const { transcript } = await sarvamSpeechToText(audio, lang, 'practice.transcribe');
     return { transcript };
   } catch (e) { return fail(e); }
 }
@@ -87,6 +87,6 @@ export async function speakTurn(sessionId: string, seq: number) {
     const lang = await sessionLanguage(c.id, sessionId);
     const [turn] = await sql`SELECT text FROM app.simulation_turn WHERE session_id=${sessionId} AND seq=${seq} AND speaker='CUSTOMER'`;
     if (!turn) return { audio: null };
-    return { audio: await sarvamTextToSpeech(turn.text, lang) };
+    return { audio: await sarvamTextToSpeech(turn.text, lang, 'practice.read_aloud') };
   } catch { return { audio: null }; }
 }

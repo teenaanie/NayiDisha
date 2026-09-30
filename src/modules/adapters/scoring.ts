@@ -1,4 +1,5 @@
 import type { Language } from './voice';
+import { recordUsage, anthropicTokens, geminiTokens } from '@/modules/ai-usage';
 
 /**
  * Rubric scorer for open spoken answers (role scripts).
@@ -190,6 +191,7 @@ export class GeminiSkillScorer implements SkillScorer {
       },
     );
 
+    const started = Date.now();
     try {
       let res = await call();
       if (transient(res.status)) { await sleep(RETRY_AFTER_MS); res = await call(); }
@@ -200,6 +202,7 @@ export class GeminiSkillScorer implements SkillScorer {
         return this.fallback.score(turn, transcript, language, why);
       }
       const body = await res.json();
+      recordUsage({ provider: 'gemini', model: this.model, feature: 'script.score', ...geminiTokens(body), latencyMs: Date.now() - started });
       const text = body?.candidates?.[0]?.content?.parts?.[0]?.text;
       const parsed = coerce(JSON.parse(String(text)), turn, this.name);
       return parsed ?? await this.fallback.score(turn, transcript, language, `${this.model} returned an unreadable response`);
@@ -219,6 +222,7 @@ export class ClaudeSkillScorer implements SkillScorer {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return this.fallback.score(turn, transcript, language);
 
+    const started = Date.now();
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -236,6 +240,7 @@ export class ClaudeSkillScorer implements SkillScorer {
       });
       if (!res.ok) return this.fallback.score(turn, transcript, language);
       const body = await res.json();
+      recordUsage({ provider: 'anthropic', model: this.name, feature: 'script.score', ...anthropicTokens(body), latencyMs: Date.now() - started });
       const text = body?.content?.[0]?.text;
       const parsed = coerce(JSON.parse(String(text)), turn, this.name);
       return parsed ?? await this.fallback.score(turn, transcript, language);

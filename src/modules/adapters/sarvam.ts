@@ -11,6 +11,8 @@
  * model rename is a config change, not a deploy.
  */
 
+import { recordUsage, openaiTokens, wavSeconds } from '@/modules/ai-usage';
+
 const BASE = process.env.SARVAM_API_URL || 'https://api.sarvam.ai';
 
 export type SarvamLanguage = 'en' | 'hi' | 'mr' | 'ta' | 'te' | 'kn' | 'bn' | 'gu' | 'ml' | 'pa' | 'od';
@@ -49,7 +51,9 @@ const TTS_MAX_CHARS = TTS_MODEL === 'bulbul:v2' ? 1500 : 2500;
 /** Reasoning models may still wrap thinking in <think> tags; only the answer is wanted. */
 export const stripThinking = (s: string) => s.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 
-export async function sarvamChat(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number } = {}): Promise<string> {
+export async function sarvamChat(messages: ChatMessage[], opts: { temperature?: number; maxTokens?: number; feature?: string } = {}): Promise<string> {
+  const started = Date.now();
+  const meter = { provider: 'sarvam' as const, model: SARVAM_CHAT_MODEL, feature: opts.feature ?? 'practice.chat' };
   const res = await fetch(`${BASE}/v1/chat/completions`, {
     method: 'POST',
     headers: { ...headers(), 'content-type': 'application/json' },
@@ -62,30 +66,39 @@ export async function sarvamChat(messages: ChatMessage[], opts: { temperature?: 
     }),
     signal: AbortSignal.timeout(20000),
   });
-  if (!res.ok) throw new Error(`Sarvam chat returned HTTP ${res.status}`);
+  if (!res.ok) {
+    recordUsage({ ...meter, ok: false, latencyMs: Date.now() - started });
+    throw new Error(`Sarvam chat returned HTTP ${res.status}`);
+  }
   const body = await res.json();
+  recordUsage({ ...meter, ...openaiTokens(body), latencyMs: Date.now() - started });
   return stripThinking(String(body?.choices?.[0]?.message?.content ?? ''));
 }
 
-export async function sarvamTranslate(text: string, from: SarvamLanguage, to: SarvamLanguage): Promise<string> {
+export async function sarvamTranslate(text: string, from: SarvamLanguage, to: SarvamLanguage, feature = 'practice.translate'): Promise<string> {
   if (from === to || !text.trim()) return text;
+  const started = Date.now();
+  const input = text.slice(0, 1000);
+  const model = process.env.SARVAM_TRANSLATE_MODEL || 'mayura:v1';
   const res = await fetch(`${BASE}/translate`, {
     method: 'POST',
     headers: { ...headers(), 'content-type': 'application/json' },
     body: JSON.stringify({
-      input: text.slice(0, 1000),
+      input,
       source_language_code: bcp47(from),
       target_language_code: bcp47(to),
-      model: process.env.SARVAM_TRANSLATE_MODEL || 'mayura:v1',
+      model,
     }),
     signal: AbortSignal.timeout(12000),
   });
+  recordUsage({ provider: 'sarvam', model, feature, characters: res.ok ? input.length : 0, ok: res.ok, latencyMs: Date.now() - started });
   if (!res.ok) throw new Error(`Sarvam translate returned HTTP ${res.status}`);
   const body = await res.json();
   return String(body?.translated_text ?? '');
 }
 
-export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage): Promise<{ transcript: string; language: string | null }> {
+export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage, feature = 'voice.transcribe'): Promise<{ transcript: string; language: string | null }> {
+  const started = Date.now();
   const form = new FormData();
   form.append('file', audio, /wav/.test(audio.type) ? 'answer.wav' : /mp4|m4a/.test(audio.type) ? 'answer.m4a' : /ogg/.test(audio.type) ? 'answer.ogg' : 'answer.webm');
   form.append('model', SARVAM_STT_MODEL);
@@ -94,24 +107,28 @@ export async function sarvamSpeechToText(audio: Blob, language: SarvamLanguage):
   const res = await fetch(`${BASE}/speech-to-text`, {
     method: 'POST', headers: headers(), body: form, signal: AbortSignal.timeout(20000),
   });
+  recordUsage({ provider: 'sarvam', model: SARVAM_STT_MODEL, feature, audioSeconds: res.ok ? await wavSeconds(audio) : 0, ok: res.ok, latencyMs: Date.now() - started });
   if (!res.ok) throw await failure('speech-to-text', res);
   const body = await res.json();
   return { transcript: String(body?.transcript ?? ''), language: body?.language_code ?? null };
 }
 
 /** Returns a base64 WAV. */
-export async function sarvamTextToSpeech(text: string, language: SarvamLanguage): Promise<string> {
+export async function sarvamTextToSpeech(text: string, language: SarvamLanguage, feature = 'voice.read_aloud'): Promise<string> {
+  const started = Date.now();
+  const input = text.slice(0, TTS_MAX_CHARS);
   const res = await fetch(`${BASE}/text-to-speech`, {
     method: 'POST',
     headers: { ...headers(), 'content-type': 'application/json' },
     body: JSON.stringify({
-      text: text.slice(0, TTS_MAX_CHARS),
+      text: input,
       language_code: bcp47(language),
       speaker: TTS_SPEAKER,
       model: TTS_MODEL,
     }),
     signal: AbortSignal.timeout(20000),
   });
+  recordUsage({ provider: 'sarvam', model: TTS_MODEL, feature, characters: res.ok ? input.length : 0, ok: res.ok, latencyMs: Date.now() - started });
   if (!res.ok) throw await failure('text-to-speech', res);
   const body = await res.json();
   const audio = body?.audios?.[0];
