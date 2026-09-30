@@ -319,6 +319,23 @@ export async function unitTests(): Promise<Check[]> {
     ok('§20', 'Retry targets are the learner\'s own missed questions (at most three)', rt.personal && rt.check_ids.length === 3 && rt.check_ids.every(covMissed) && !rt.check_ids.includes('course') && !rt.check_ids.includes('fee_deadline'), rt.check_ids.join(','));
     const instr = retryInstruction(b, rt.check_ids, rt.personal);
     ok('§20', 'The retry instruction names example questions for those gaps', instr !== b.retry.instruction && /“[^”]+\?”/.test(instr), instr);
+    // Live Hindi run, 30 Sep 2026: a spoken yes/no question transcribed as a statement was cited for question credit.
+    {
+      const tq = t(['Which course is she doing?', 'The hostel admission is done.']);
+      const aq = await assess({ bundle: b, turns: tq, session_id: 'sq', transcript_hash: 'hq', mode: 'full', target_check_ids: [], template: loadPrompt('evaluator_v1'), correlation: { tenant_id: 't', session_id: 'sq', evaluation_id: 'e' } });
+      if (aq.status === 'scored') {
+        const cq = { bundle: b, turns: tq, session_id: 'sq', transcript_hash: 'hq', rubric_version: `${b.rubric.id}@${b.rubric.version}`, assessable_learner_turn_ids: aq.rule.assessable_learner_turn_ids };
+        const stmt = tq.find((x) => x.text.startsWith('The hostel'))!;
+        const both = clone(aq.candidate); const ce = both.evidence.find((e) => e.check_id === 'course')!;
+        ce.learner_spans.push({ turn_id: stmt.id, start: 0, end: stmt.text.length, quote: stmt.text });
+        const vb = validateCandidate(JSON.stringify(both), cq);
+        ok('§14', 'A non-question quote cited for question credit is dropped, keeping the real question', vb.ok && vb.candidate.evidence.find((e) => e.check_id === 'course')!.status === 'observed' && vb.candidate.evidence.find((e) => e.check_id === 'course')!.learner_spans.length === 1, vb.ok ? vb.notes.filter((n) => /question/.test(n)).join(' ') : vb.errors.join(' '));
+        const only = clone(aq.candidate); const oe = only.evidence.find((e) => e.check_id === 'course')!;
+        oe.learner_spans = [{ turn_id: stmt.id, start: 0, end: stmt.text.length, quote: stmt.text }];
+        const vo = validateCandidate(JSON.stringify(only), cq);
+        ok('§14', 'With only a non-question quote, question credit becomes uncertain (no credit), not a failed assessment', vo.ok && vo.candidate.evidence.find((e) => e.check_id === 'course')!.status === 'uncertain', vo.ok ? '' : vo.errors.join(' '));
+      } else ok('§14', 'Question-span fixture assessed', false, (aq as any).reason);
+    }
     const noDim = clone(at.candidate); noDim.dimension_scores.pop();
     const f2 = validateCandidate(JSON.stringify(noDim), ctx);
     ok('AT14', 'A missing dimension rejects the candidate', !f2.ok && f2.errors.some((e) => /Missing required dimension/.test(e)));

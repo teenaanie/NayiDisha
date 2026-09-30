@@ -14,7 +14,9 @@ import { runtimeOf } from '../config/runtime-extension';
  * invented quote rejects the candidate.
  *
  * Mechanical slips are normalised before validation, and each is recorded
- * (live runs, 29 Sep 2026, failed on exactly these):
+ * (live runs, 29–30 Sep 2026, failed on exactly these):
+ *  - a question-credit quote that does not read as a question is dropped (the
+ *    item keeps its other quotes, or becomes `uncertain` with none left);
  *  - a confidence just above 1 (1.1) is capped at 1;
  *  - a non-absence check `observed` with no learner quote becomes `uncertain`
  *    (no credit) instead of rejecting the whole assessment;
@@ -29,7 +31,7 @@ import { runtimeOf } from '../config/runtime-extension';
  *    (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.3.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.4.0';
 
 /** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
 function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
@@ -79,6 +81,26 @@ export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContex
       ev.searched_turn_ids = [...ctx.assessable_learner_turn_ids];
       notes.push(`evidence[${i}] ${ev.id}: absence check reported as observed without a quote; recorded as ${ev.status}${early ? ' (no discovery yet to judge it against)' : ''}.`);
     }
+  }
+  // Question credit needs a quote that asks. A quote that does not read as a question
+  // (live Hindi run, 30 Sep 2026: a spoken yes/no question transcribed with "।" and no
+  // question word) is dropped rather than failing the whole assessment; with no asking
+  // quote left, the item earns no credit.
+  const checkDefs = new Map(ctx.bundle.rubric.checks.map((x) => [x.id, x]));
+  const turnById = new Map(ctx.turns.map((t) => [t.id, t]));
+  for (const [i, ev] of c.evidence.entries()) {
+    if (ev.status !== 'observed' || !ev.check_id || checkDefs.get(ev.check_id)?.credit_requires !== 'learner_question') continue;
+    const asks = ev.learner_spans.filter((sp) => {
+      const t = turnById.get(sp.turn_id);
+      // Only verified learner quotes are judged here; a customer turn cited as learner evidence stays and is rejected below.
+      // A quote that does not match its turn is not ours to drop either: validation rejects it.
+      if (!t || t.speaker !== 'learner' || cpSlice(t.text, sp.start, sp.end) !== sp.quote) return true;
+      return sentences(t.text).some((x) => x.start <= sp.start && sp.end <= x.end && isQuestion(x.text));
+    });
+    if (asks.length === ev.learner_spans.length) continue;
+    notes.push(`evidence[${i}] ${ev.id}: ${ev.learner_spans.length - asks.length} quote(s) that do not read as a question dropped${asks.length ? '' : '; no asking quote left, recorded as uncertain (no credit)'}.`);
+    ev.learner_spans = asks;
+    if (!asks.length) ev.status = 'uncertain';
   }
   return notes;
 }
