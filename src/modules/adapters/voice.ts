@@ -494,10 +494,31 @@ export class GeminiInterpreter implements VoiceInterpreter {
       // The schema returns a string; coerce to the shape saveProfile expects.
       const raw = String(parsed.value);
       let value: Interpretation['value'] = raw;
-      if (field === 'experienceMonths' || field === 'expectedPay' || field === 'commute') {
-        const n = Number(raw.replace(/[^\d.-]/g, ''));
-        if (!Number.isFinite(n)) return this.fallback.interpret(field, transcript, language, context);
-        value = Math.round(n);
+      const numericCore = field === 'experienceMonths' || field === 'expectedPay' || field === 'commute';
+      const numericScript = !numericCore &&
+        (context.spec?.dataType === 'INT' || context.spec?.dataType === 'MONEY_PAISE');
+      if (numericCore || numericScript) {
+        // Only a plain number counts. Stripping everything else used to turn a
+        // stray word ("display") into "" and so into 0.
+        const cleaned = raw.replace(/[₹,\s]/g, '');
+        if (!/^\d+(\.\d+)?$/.test(cleaned)) return this.fallback.interpret(field, transcript, language, context);
+        const n = Math.round(Number(cleaned));
+        if (numericCore) {
+          // Put the model's number through the same rules a spoken one gets:
+          // "18" for pay is ₹18,000, and out-of-range answers are refused.
+          const checked = await this.fallback.interpret(field, String(n), language, context);
+          if (checked.value === null) return this.fallback.interpret(field, transcript, language, context);
+          value = checked.value;
+        } else {
+          // A script number (a pin code, a count) must be one the speaker
+          // actually said — written as digits, or read the same way by the
+          // rules. Otherwise the model has guessed, and the rules' reading
+          // stands so the caller's own checks can refuse it.
+          const said = asciiDigits(transcript).replace(/\D/g, '');
+          const rules = await this.fallback.interpret(field, transcript, language, context);
+          if (!said.includes(String(n)) && rules.value !== n) return rules;
+          value = n;
+        }
       } else if (field === 'skills' || field === 'shifts') {
         value = raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
       } else if (field === 'confirm') {
