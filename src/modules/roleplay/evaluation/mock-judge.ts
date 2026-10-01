@@ -22,7 +22,7 @@ import type { RuntimeExtension } from '../config/runtime-extension';
  */
 
 export interface JudgeInput {
-  contract_json: { session_id: string; transcript_hash: string; rubric_version: string; previous_errors?: string[] };
+  contract_json: { session_id: string; transcript_hash: string; rubric_version: string; previous_errors?: string[]; contract_version?: '1.0' | '1.1' };
   rubric_json: Rubric;
   risk_policy_json: RiskPolicy;
   checks_json: {
@@ -30,7 +30,9 @@ export interface JudgeInput {
     risk_candidates: { rule_id: string; evidence_id: string }[];
     assessable_learner_turn_ids: string[];
     unexplained_jargon: { term: string; turn_id: string }[];
-    runtime: RuntimeExtension;
+    runtime: Omit<RuntimeExtension, 'translations'> & { translations?: unknown };
+    /** Cue follow-up checks whose cue never came up: left out of the count, neither met nor missed. */
+    inapplicable_check_ids?: string[];
   };
 }
 
@@ -64,7 +66,10 @@ export function mockJudge(input: JudgeInput): EvaluationCandidate {
     return e.status === 'observed';
   };
 
+  const inapplicable = new Set(ce.inapplicable_check_ids ?? []);
+  const checksDesc = new Map(rubric.checks.map((c) => [c.id, c.description]));
   const dimension_scores: DimensionScoreCandidate[] = rubric.dimensions.map((d) => {
+    const applicable = d.check_ids.filter((c) => !inapplicable.has(c));
     const riskHere = ce.risk_candidates.filter((c) => risks.get(c.rule_id)?.dimension_ids.includes(d.id));
     const ids = [...d.check_ids.map((c) => byCheck.get(c)?.id).filter((x): x is string => !!x), ...riskHere.map((r) => r.evidence_id)];
     let score: number;
@@ -72,21 +77,24 @@ export function mockJudge(input: JudgeInput): EvaluationCandidate {
     if (riskHere.length) {
       score = d.min_score;
       rationale = `Anchor ${score}: ${anchor(d, score)} Confirmed risk: ${[...new Set(riskHere.map((r) => r.rule_id))].join(', ')}.`;
-    } else if (!anyDiscovery && d.check_ids.every((c) => !satisfied(c))) {
+    } else if (!anyDiscovery && applicable.every((c) => !satisfied(c))) {
       score = d.min_score;
       rationale = `Anchor ${score}: ${anchor(d, score)} No relevant learner behaviour was observed.`;
     } else {
-      const total = d.check_ids.length || 1;
-      const met = d.check_ids.filter(satisfied).length;
+      const total = applicable.length || 1;
+      const met = applicable.filter(satisfied).length;
       score = d.min_score + Math.round(((d.max_score - d.min_score) * met) / total);
-      const missed = d.check_ids.filter((c) => !satisfied(c));
+      const missed = applicable.filter((c) => !satisfied(c));
       rationale = `Anchor ${score}: ${anchor(d, score)} ${met} of ${total} supporting checks met${missed.length ? `; not met: ${missed.join(', ')}` : ''}.`;
     }
-    return { dimension_id: d.id, score, anchor_score: score, evidence_ids: ids, rationale, status: 'scored' };
+    // Contract 1.1: one template coaching line, from the first unmet check (or a keep-doing line).
+    const firstMissed = applicable.find((c) => !satisfied(c));
+    const coaching = firstMissed ? `Next time: ${(checksDesc.get(firstMissed) ?? firstMissed).split(':')[0].replace(/\.$/, '')}.` : `Keep doing this: ${anchor(d, d.max_score)}`;
+    return { dimension_id: d.id, score, anchor_score: score, evidence_ids: ids, rationale, status: 'scored', ...(input.contract_json.contract_version === '1.1' ? { coaching } : {}) };
   });
 
   return {
-    contract_version: '1.0',
+    contract_version: input.contract_json.contract_version ?? '1.0',
     session_id: input.contract_json.session_id,
     transcript_hash: input.contract_json.transcript_hash,
     rubric_version: input.contract_json.rubric_version,

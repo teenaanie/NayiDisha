@@ -40,10 +40,22 @@ export function evidenceOutcomes(bundle: ScenarioBundle, candidate: EvaluationCa
   return out;
 }
 
-export const MAX_MISSED_QUESTIONS = 5;
+/** "Top 3 questions that were missed" (owner's report format). */
+export const MAX_MISSED_QUESTIONS = 3;
 const LIST_CAPS: Record<string, number> = Object.fromEntries(
   Object.entries((coachingCandidateSchema as { properties: Record<string, { maxItems?: number }> }).properties)
     .filter(([, v]) => typeof v?.maxItems === 'number').map(([k, v]) => [k, v.maxItems!]));
+
+/**
+ * Missed questions in priority order: the evaluation guide's framework order when the
+ * scenario has one, otherwise rubric check order. The report keeps the first three.
+ */
+export function orderMissedQuestions(bundle: ScenarioBundle, candidate: EvaluationCandidate, findings: Finding[]): Finding[] {
+  const order = runtimeOf(bundle).evaluation_guide?.framework.map((a) => a.check_id) ?? bundle.rubric.checks.map((c) => c.id);
+  const checkOf = new Map(candidate.evidence.map((e) => [e.id, e.check_id]));
+  const rank = (f: Finding) => Math.min(...f.evidence_ids.map((id) => { const i = order.indexOf(checkOf.get(id) ?? ''); return i < 0 ? order.length : i; }), order.length);
+  return [...findings].map((f, i) => ({ f, i })).sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i).map((x) => x.f);
+}
 
 /** Evidence for discovery-question (coverage) checks: the only kind a "missed question" may cite. */
 export function coverageEvidenceIds(bundle: ScenarioBundle, candidate: EvaluationCandidate): Set<string> {
@@ -99,17 +111,23 @@ export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCan
       target_check_ids: targetCheckIds,
       dimensions: candidate.dimension_scores.map((d) => {
         const def = bundle.rubric.dimensions.find((x) => x.id === d.dimension_id)!;
-        return { id: d.dimension_id, name: def.name, score: d.score, max: def.max_score, rationale: d.rationale, anchor: def.anchors.find((a) => a.score === d.score)?.description ?? '', evidence_ids: d.evidence_ids };
+        return { id: d.dimension_id, name: def.name, score: d.score, max: def.max_score, rationale: d.rationale, anchor: def.anchors.find((a) => a.score === d.score)?.description ?? '', evidence_ids: d.evidence_ids,
+          ...(d.coaching ? { coaching: d.coaching } : {}), ...(bundle.scoring.mode === 'weighted_percent' ? { weight: bundle.scoring.weights[d.dimension_id] } : {}) };
       }),
       evidence: candidate.evidence.map((e) => ({ ...e, outcome: outcomes.get(e.id) })),
       learner_messages: turns.filter((t) => t.speaker === 'learner').map((t) => t.text),
+      // Ready-made citations (live coach_v2 runs cited unclear or missed evidence as strengths,
+      // and gave improvements no evidence at all).
+      praise_evidence_ids: candidate.evidence.filter((e) => outcomes.get(e.id) === 'met').map((e) => e.id),
+      gaps_by_skill: Object.fromEntries(bundle.rubric.dimensions.map((d) => [d.id, candidate.evidence.filter((e) => e.check_id && d.check_ids.includes(e.check_id) && ['missed', 'violated', 'unclear'].includes(outcomes.get(e.id)!)).map((e) => e.id)])),
       rules: [
         'Each evidence item has an outcome decided by the platform: met, missed, violated, unclear or other. Use it as given.',
-        'Strengths and the best moment may cite only evidence whose outcome is met.',
+        'Strengths and the best moment may cite only evidence whose outcome is met (see praise_evidence_ids).',
+        'Every improvement must cite at least one evidence id from gaps_by_skill for the skill it is about.',
         'Missed questions, improvements and the missed opportunity may cite only evidence whose outcome is missed or violated (improvements may also cite unclear).',
         'Never say the learner did not ask something that appears in learner_messages, and do not credit behaviour the evidence does not show.',
         ...(L.feedback_instruction ? [L.feedback_instruction] : []),
-        `List at most ${MAX_MISSED_QUESTIONS} missed questions, the most important first. Missed questions cite only coverage (discovery question) checks; conversation skills go under improvements.`,
+        `List at most ${MAX_MISSED_QUESTIONS} missed questions, the most important first (priority: ${(runtimeOf(bundle).evaluation_guide?.framework.map((a) => a.area) ?? []).join(' > ') || 'rubric order'}). Missed questions cite only coverage (discovery question) checks; conversation skills go under improvements.`,
       ],
       checks: bundle.rubric.checks.map((c) => ({ id: c.id, description: c.description, category: c.category, suggested_question: exampleFor(c.accepted_intents), absence: c.id in rt.absence_checks })),
       risk_flags: candidate.risk_flags.filter((f) => f.status === 'confirmed').map((f) => ({ rule_id: f.rule_id, description: bundle.risk_policy.rules.find((r) => r.id === f.rule_id)?.description ?? f.rule_id, evidence_ids: f.evidence_ids })),
@@ -118,16 +136,18 @@ export function buildCoachInput(bundle: ScenarioBundle, candidate: EvaluationCan
   };
 }
 
-export function validateCoaching(raw: string, evidence: Evidence[], turns: TranscriptTurn[], outcomes?: Map<string, Outcome>, coverageEvidenceIds?: Set<string>): { ok: true; candidate: CoachingCandidate } | { ok: false; errors: string[] } {
+export function validateCoaching(raw: string, evidence: Evidence[], turns: TranscriptTurn[], outcomes?: Map<string, Outcome>, coverageEvidenceIds?: Set<string>): { ok: true; candidate: CoachingCandidate; notes: string[] } | { ok: false; errors: string[]; notes: string[] } {
+  const notes: string[] = [];
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'] }; }
+  try { parsed = JSON.parse(raw); } catch { return { ok: false, errors: ['Output is not valid JSON.'], notes }; }
   // Lists come in priority order; items past a list's cap (a 4th improvement or 7th strength
   // in live Hindi runs, 29 Sep 2026) are dropped rather than failing the whole report.
   // Everything kept is still validated below. Caps come from the report contract.
   const p = parsed as Record<string, unknown>;
   for (const [k, max] of Object.entries(LIST_CAPS)) if (Array.isArray(p?.[k]) && (p[k] as unknown[]).length > max) p[k] = (p[k] as unknown[]).slice(0, max);
-  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`) };
+  if (!checkShape(parsed)) return { ok: false, errors: (checkShape.errors ?? []).map((e) => `${e.instancePath || '/'} ${e.message}`), notes };
   const c = parsed as unknown as CoachingCandidate;
+  if (outcomes) dropUncitableFindings(c, outcomes, notes);
   const ids = new Set(evidence.map((e) => e.id));
   const learnerText = turns.filter((t) => t.speaker === 'learner').map((t) => t.text).join('\n');
   const errors: string[] = [];
@@ -164,7 +184,29 @@ export function validateCoaching(raw: string, evidence: Evidence[], turns: Trans
     const other = f.evidence_ids.filter((id) => ids.has(id) && !coverageEvidenceIds.has(id));
     if (other.length) errors.push(`missed_questions[${i}]: cites ${other.map((id) => `"${id}"`).join(', ')}, which is not a discovery question; put conversation skills under improvement_areas.`);
   });
-  return errors.length ? { ok: false, errors } : { ok: true, candidate: c };
+  return errors.length ? { ok: false, errors, notes } : { ok: true, candidate: c, notes };
+}
+
+/**
+ * A citation whose outcome does not fit the finding (praise citing a gap, a gap citing a met
+ * result) is removed, and a finding left with no valid citation is dropped, so one misjudged
+ * line cannot cost the learner the whole written report. Everything kept still cites evidence.
+ */
+function dropUncitableFindings(c: CoachingCandidate, outcomes: Map<string, Outcome>, notes: string[]) {
+  const allowed: Record<string, Outcome[]> = {
+    strengths: ['met'], missed_questions: ['missed', 'violated'], improvement_areas: ['missed', 'violated', 'unclear'],
+  };
+  for (const [key, ok] of Object.entries(allowed) as [keyof CoachingCandidate, Outcome[]][]) {
+    const list = c[key] as Finding[];
+    const kept = list.map((f) => ({ ...f, evidence_ids: f.evidence_ids.filter((id) => !outcomes.has(id) || ok.includes(outcomes.get(id)!)) }))
+      .filter((f, i) => { const keep = f.evidence_ids.length > 0; if (!keep) notes.push(`${key}[${i}] dropped: no citation with an allowed outcome.`); return keep; });
+    if (kept.some((f, i) => f.evidence_ids.length !== list[i]?.evidence_ids.length)) notes.push(`${key}: citations with the wrong outcome removed.`);
+    (c as unknown as Record<string, Finding[]>)[key] = kept;
+  }
+  for (const key of ['best_moment', 'missed_opportunity'] as const) {
+    const f = c[key]; const ok = key === 'best_moment' ? ['met'] : ['missed', 'violated'];
+    if (f && !f.evidence_ids.some((id) => !outcomes.has(id) || ok.includes(outcomes.get(id)!))) { c[key] = null; notes.push(`${key} dropped: no citation with an allowed outcome.`); }
+  }
 }
 
 /**

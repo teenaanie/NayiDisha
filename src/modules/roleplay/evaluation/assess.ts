@@ -7,7 +7,7 @@ import { completeWithRetry, type CompletionResult } from '../providers';
 import { scoreAssessment, ScoringError } from '../scoring';
 import { extractRuleEvidence, RULE_VERSION, type RuleEvidence, type RecordedIntent } from './extract';
 import { validateCandidate, VALIDATOR_VERSION } from './validate';
-import { evaluationCandidateSchema } from '../contracts/schemas';
+import { evaluationCandidateSchemaFor } from '../contracts/schemas';
 
 /**
  * Assessment of one frozen transcript (spec §13 pipeline):
@@ -32,6 +32,8 @@ export interface AssessInput {
   recordedIntents?: Map<string, RecordedIntent[]>;
   /** Conversation language; quotes stay in it, explanations are written in English. */
   language?: Language;
+  /** The pinned evaluator prompt ID; evaluator_v2 and later use contract 1.1 (per-skill coaching). */
+  template_id?: string;
 }
 export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; /** Mechanical slips the validator normalised (see validate.ts). */ notes?: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
 export type AssessResult =
@@ -54,7 +56,8 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   const broken = transcriptIntegrity(input.turns);
   if (broken) return { status: 'unscorable', reason: broken, rule: null, outputs };
   const { bundle } = input;
-  const rule = extractRuleEvidence(bundle, input.turns, { excludeOrigins: input.mode === 'focused' ? ['retry_prefix'] : [], recordedIntents: input.recordedIntents });
+  const rule = extractRuleEvidence(bundle, input.turns, { excludeOrigins: input.mode === 'focused' ? ['retry_prefix'] : [], recordedIntents: input.recordedIntents, language: input.language });
+  const contract = contractVersionFor(input.template_id);
   if (!rule.assessable_learner_turn_ids.length) return { status: 'unscorable', reason: 'No assessable learner turns.', rule, outputs };
 
   const rubricVersion = rubricVersionOf(bundle);
@@ -69,13 +72,18 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     rubric_json: bundle.rubric,
     checks_json: {
       rule_evidence: rule.evidence.map(ids.evidenceOut), risk_candidates: rule.risk_candidates.map((r) => ({ ...r, turn_id: ids.out(r.turn_id) })),
-      assessable_learner_turn_ids: rule.assessable_learner_turn_ids.map(ids.out), unexplained_jargon: rule.unexplained_jargon.map((j) => ({ ...j, turn_id: ids.out(j.turn_id) })), runtime: runtimeOf(bundle),
+      assessable_learner_turn_ids: rule.assessable_learner_turn_ids.map(ids.out), unexplained_jargon: rule.unexplained_jargon.map((j) => ({ ...j, turn_id: ids.out(j.turn_id) })),
+      // Translations are for the customer's lines and the coach; the evaluator never needs them (≈20 KB per call).
+      runtime: (({ translations, ...rest }) => rest)(runtimeOf(bundle)),
+      inapplicable_check_ids: rule.inapplicable_check_ids,
     },
+    // The evaluator's knowledge base (owner spec). Unused by evaluator_v1, whose template has no placeholder.
+    evaluation_guide_json: evaluationGuideFor(bundle, rule, ids.out),
     risk_policy_json: bundle.risk_policy,
     knowledge_status_json: { pack: (bundle.extensions as { knowledge_pack?: unknown } | undefined)?.knowledge_pack ?? 'absent', product_policy_accuracy: 'not_assessed' },
     transcript_json: input.turns.map((t) => ({ turn_id: ids.out(t.id), sequence: t.sequence, speaker: t.speaker, origin: t.origin, text: t.text, ...(t.input_mode === 'voice' ? { input_mode: 'voice (learner-checked transcript)' } : {}) })),
     contract_json: {
-      contract_version: '1.0', session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion,
+      contract_version: contract, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion,
       offsets: 'unicode code points, start inclusive, end exclusive',
       conversation_language: englishName(input.language ?? 'en'),
       language_rule: (input.language ?? 'en') === 'en' ? null : `The conversation is in ${englishName(input.language ?? 'en')}. Judge it by the same rubric. Quote learner and customer words exactly as written, in their original script; write rationales and explanations in English.`,
@@ -92,16 +100,18 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
         'contradicted: the learner did the opposite; cite the learner quote(s).',
         `For checks satisfied by absence (${Object.keys(runtimeOf(bundle).absence_checks).join(', ')}), a violation is contradicted with the learner quote, never not_observed with a quote. A question that mentions a topic (e.g. asking about a guarantee) is not a violation.`,
         'risk_flags[].rule_id must be one of allowed_risk_rule_ids (never a check ID).',
+        'Risk evidence (for a risk flag) has no check_id: omit the field rather than leaving it empty or putting the risk rule there.',
       ],
+      ...(contract === '1.1' ? { coaching_rule: `Every dimension_scores item needs "coaching": ONE specific, actionable suggestion for that skill, tied to a moment in the transcript, at most 300 characters, written in ${englishName(input.language ?? 'en')}. "rationale" is the evidence summary, in English.` } : {}),
       previous_errors: [] as string[],
     },
   };
 
   let accepted: EvaluationCandidate | null = null;
   for (let attempt = 1; attempt <= 2 && !accepted; attempt++) {
-    const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchema, temperature: 0, maxTokens: 12000, correlation: input.correlation });
+    const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchemaFor(contract), temperature: 0, maxTokens: 12000, correlation: input.correlation });
     const text = ids.answerIn(res.text);
-    const v = validateCandidate(text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids });
+    const v = validateCandidate(text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids, contract_version: contract });
     outputs.push({ attempt, text, ok: v.ok, errors: v.ok ? [] : v.errors, notes: v.notes, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
     if (v.ok) accepted = v.candidate;
     // One repair request with the same evidence snapshot, told what was wrong.
@@ -174,7 +184,13 @@ export function turnAliases(turns: TranscriptTurn[]) {
     answerIn: (raw: string): string => {
       let c: { evidence?: { learner_spans?: Span[]; context_spans?: Span[]; searched_turn_ids?: string[] }[] };
       try { c = JSON.parse(raw); } catch { return raw; }
+      // Free text may cite turns by alias ("(T6)"); learners never see those.
+      for (const d of Array.isArray((c as any)?.dimension_scores) ? (c as any).dimension_scores : []) {
+        if (typeof d?.rationale === 'string') d.rationale = stripTurnAliases(d.rationale);
+        if (typeof d?.coaching === 'string') d.coaching = stripTurnAliases(d.coaching);
+      }
       for (const e of Array.isArray(c?.evidence) ? c.evidence : []) {
+        if (typeof (e as any).explanation === 'string') (e as any).explanation = stripTurnAliases((e as any).explanation);
         if (Array.isArray(e.learner_spans)) e.learner_spans = e.learner_spans.map((sp) => ({ ...sp, turn_id: back(sp?.turn_id) as string }));
         if (Array.isArray(e.context_spans)) e.context_spans = e.context_spans.map((sp) => ({ ...sp, turn_id: back(sp?.turn_id) as string }));
         if (Array.isArray(e.searched_turn_ids)) e.searched_turn_ids = e.searched_turn_ids.map((id) => back(id) as string);
@@ -184,4 +200,30 @@ export function turnAliases(turns: TranscriptTurn[]) {
     /** Validation messages name real IDs; the repair request speaks in aliases. */
     textOut: (msg: string) => msg.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, (m) => toAlias.get(m) ?? m),
   };
+}
+
+/** evaluator_v1 sessions keep contract 1.0; newer prompts ask for per-skill coaching (1.1). */
+export const contractVersionFor = (templateId?: string): '1.0' | '1.1' => (!templateId || templateId === 'evaluator_v1' ? '1.0' : '1.1');
+
+/** The scenario's evaluation guide with each cue's turn marked, or null when the scenario has none. */
+function evaluationGuideFor(bundle: ScenarioBundle, rule: RuleEvidence, out: (id: string) => string) {
+  const g = runtimeOf(bundle).evaluation_guide;
+  if (!g) return null;
+  return {
+    ...g,
+    cues: g.cues.map((c) => {
+      const t = rule.cue_turns.find((x) => x.fact_id === c.fact_id);
+      return { ...c, raised_in_turn: t ? out(t.turn_id) : null, applicable: !!t };
+    }),
+    note: 'A cue the customer never raised (applicable: false) is not a missed follow-up.',
+  };
+}
+
+/** Remove turn-alias citations ("(T6)", "(T0, T4)", "in T3") from text shown to people. */
+export function stripTurnAliases(text: string): string {
+  return text
+    .replace(/\s*\((?:turns?\s+)?T\d+(?:\s*(?:,|and|&|-|–)\s*T\d+)*\)/gi, '')
+    .replace(/\s+(?:in|at|from)\s+(?:turns?\s+)?T\d+\b/gi, '')
+    .replace(/\bT\d+\b/g, '')
+    .replace(/\s+([.,;:!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
 }

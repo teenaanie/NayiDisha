@@ -10,6 +10,8 @@ export interface CoachInput {
     dimensions: { id: string; name: string; score: number; max: number; rationale: string; anchor: string; evidence_ids: string[] }[];
     evidence: (Evidence & { outcome?: string })[];
     learner_messages?: string[];
+    praise_evidence_ids?: string[];
+    gaps_by_skill?: Record<string, string[]>;
     rules?: string[];
     checks: { id: string; description: string; category: string; suggested_question: string | null; absence: boolean }[];
     risk_flags: { rule_id: string; description: string; evidence_ids: string[] }[];

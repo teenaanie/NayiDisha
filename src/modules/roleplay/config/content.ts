@@ -10,8 +10,13 @@ import { parseStrictJson, sha256 } from './compile';
  */
 export const CONTENT_ROOT = join(process.cwd(), 'content');
 
-export function loadScenarioPackage(id: string) {
-  const dir = join(CONTENT_ROOT, 'scenarios', id);
+/**
+ * `archived` loads a frozen earlier package from content/archive/<id>/<version>/ (kept
+ * byte-for-byte so its overlay still verifies; tests use it as a fixture). The seed only
+ * ever publishes content/scenarios/.
+ */
+export function loadScenarioPackage(id: string, opts: { archived?: string } = {}) {
+  const dir = opts.archived ? join(CONTENT_ROOT, 'archive', id, opts.archived) : join(CONTENT_ROOT, 'scenarios', id);
   const sourceText = readFileSync(join(dir, 'source.json'), 'utf8');
   const source = parseStrictJson(sourceText);
   const overlayPath = join(dir, 'overlay.json');

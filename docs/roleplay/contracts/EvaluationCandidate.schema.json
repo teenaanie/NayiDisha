@@ -5,7 +5,10 @@
   "additionalProperties": false,
   "properties": {
     "contract_version": {
-      "const": "1.0"
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
     },
     "session_id": {
       "type": "string"
@@ -175,6 +178,11 @@
               "scored",
               "uncertain"
             ]
+          },
+          "coaching": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600
           }
         },
         "required": [

@@ -100,6 +100,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
 
   if (plan.kind === 'clarify') return { text: L.clarification_response, disclosed_fact_ids: [], method: 'configured', attempts };
 
+  const volunteeredFacts = plan.parts.flatMap((p) => (p.kind === 'volunteer' ? p.fact_ids : []));
   const fixtureFacts = plan.parts.flatMap((p) => (p.kind === 'fixture' ? factRules.get(p.rule_id)!.reveal_fact_ids.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id)) : []));
   const answerFactIds = plan.parts.flatMap((p) => (p.kind === 'facts' ? p.fact_ids : []));
   const needsModel = plan.kind === 'acknowledge' || answerFactIds.length > 0;
@@ -109,7 +110,9 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   let degraded = false;
   if (needsModel) {
     const facts = new Map(bundle.facts.map((f) => [f.id, f]));
-    const allowedFacts = plan.allowed_fact_ids.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
+    // The cue is appended verbatim after the answer; the model must not say it too.
+    const modelAllowed = plan.allowed_fact_ids.filter((id) => !volunteeredFacts.includes(id));
+    const allowedFacts = modelAllowed.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
     const data = {
       persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: [bundle.persona.speaking_style, L.reply_instruction].filter(Boolean).join(' ') },
       allowed_facts_json: allowedFacts,
@@ -123,7 +126,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
       try {
         const res = await completeWithRetry({ task: 'roleplay', template: input.template, data, schema: roleplayCandidateSchema, temperature: 0.4, maxTokens: 400, correlation: input.correlation });
-        const v = validateRoleplayOutput(bundle, res.text, plan.allowed_fact_ids, input.learnerText, input.history);
+        const v = validateRoleplayOutput(bundle, res.text, modelAllowed, input.learnerText, input.history);
         attempts.push({ ok: v.ok, reason: v.ok ? null : v.reason, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
         if (v.ok) { generated = v.candidate.text; generatedFacts = v.candidate.used_fact_ids; }
       } catch (e) {
@@ -154,7 +157,9 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     else if (!usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
   }
   if (plan.kind === 'acknowledge' && generated) pieces.push(generated);
-  const hasFixture = plan.parts.some((p) => p.kind === 'fixture');
+  // A volunteered cue is the customer's own verbatim line, spoken after the answer.
+  for (const p of plan.parts) if (p.kind === 'volunteer') pieces.push(L.cueResponse(p.cue_id, p.text));
+  const hasFixture = plan.parts.some((p) => p.kind === 'fixture' || p.kind === 'volunteer');
   const method = degraded ? 'fallback' : generated ? (hasFixture ? 'mixed' : 'generated') : hasFixture ? 'fixture' : 'configured';
-  return { text: pieces.join(' '), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
+  return { text: pieces.join(' '), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...volunteeredFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
 }

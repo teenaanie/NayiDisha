@@ -100,6 +100,16 @@ A scenario can offer Hindi and Marathi alongside its source language (`extension
 - Translations carry `review_status`. Until a fluent reviewer changes it to `reviewed`, the picker labels the language "Draft translation".
 - The deterministic phrase matcher only knows the source language, so without a live model a Hindi or Marathi question gets a neutral acknowledgement instead of an answer.
 
+## Scenario v3: the owner's evaluator design
+
+`EDU_DISCOVERY_001` 3.0.0 follows the owner's "Simulation Prototype" (see `content/scenarios/EDU_DISCOVERY_001/PROVENANCE.md`; 2.1.0 is archived in `content/archive/`).
+
+- **Four skills, weighted:** Questioning & Discovery 30%, Active Listening & Probing 30%, Understanding Customer Needs and Managing the Conversation 25%, Communication Clarity 15%. Each is scored 1–5; the server computes the overall score out of 100 (`scoring.mode: weighted_percent`), with bands 85–100 Strong, 70–84 Effective, 55–69 Developing, below 55 Needs Coaching. A confirmed serious risky statement caps the score at 54 and goes to manager review (`risk_effect: cap`).
+- **Customer cues:** Mr. Sharma opens with "I need the money quite soon" and volunteers "I don't want a very high EMI", "I already have another EMI" and "my previous loan had extra charges" if the conversation has not reached them by the 3rd, 5th and 7th message (`nd_runtime.volunteered_cues`). Follow-ups to each cue are Active Listening checks (`nd_runtime.cue_follow_ups`); a cue that never came up is not applicable rather than missed.
+- **Evaluator knowledge base** (`nd_runtime.evaluation_guide`): what each skill measures, what to look for, the owner's 1–5 guidance, the discovery framework (not a checklist), cues and expected follow-ups, acceptable question variations, and the exclusions that stop one behaviour being scored twice. `evaluator_v2` reads it; its answer (contract 1.1) gives every skill a rationale and one coaching suggestion.
+- **Report** (owner's format): a table of Skill · What you are measuring · Weight · Your score · Evidence · Coaching feedback, the overall score and band with the interpretation line, a "What each level means" table, then What went well, Areas of improvement and Top 3 questions that were missed (in the framework's priority order).
+- **Timing:** target 12–15 minutes; reminders at 12 and 15 (`nd_runtime.reminder_minutes`); no forced end.
+
 ## Demo walkthrough (about 10 minutes)
 
 1. **Learner (Farah):** Practice, then Education Loan, then Start. Ask "How much loan do you need?" and you get the source partial answer. Then ask about savings, scholarship, deadline and repayment. Finish, and the report shows six anchored dimensions with evidence that jumps to highlighted transcript spans.

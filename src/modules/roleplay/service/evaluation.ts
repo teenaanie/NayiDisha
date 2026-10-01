@@ -1,9 +1,10 @@
 import { sql } from '@/lib/db';
 import type { Language } from '../runtime/language';
-import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, CoachingReport } from '../contracts/types';
-import { assess, EVALUATOR_VERSION, rubricVersionOf, type AssessResult } from '../evaluation/assess';
+import { runtimeOf } from '../config/runtime-extension';
+import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, CoachingReport, CoachingCandidate } from '../contracts/types';
+import { assess, EVALUATOR_VERSION, rubricVersionOf, stripTurnAliases, type AssessResult } from '../evaluation/assess';
 import { scoreAssessment } from '../scoring';
-import { buildCoachInput, validateCoaching, focusedCheckpoint, evidenceOutcomes, coverageEvidenceIds, personalRetryTargets, retryInstruction, MAX_MISSED_QUESTIONS, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
+import { buildCoachInput, validateCoaching, focusedCheckpoint, evidenceOutcomes, coverageEvidenceIds, orderMissedQuestions, personalRetryTargets, retryInstruction, MAX_MISSED_QUESTIONS, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
 import { completeWithRetry } from '../providers';
 import { coachingCandidateSchema } from '../contracts/schemas';
 import { ApiError, audit, conflict, forbidden, metric, notFound, requireRole, type Actor } from './context';
@@ -59,7 +60,7 @@ async function processEvaluate(job: Job) {
   const result = await assess({
     recordedIntents: new Map(recorded.map((r) => [r.turn_id, r.intents])),
     bundle, turns: snap.content, session_id: s.id, transcript_hash: snap.hash, mode: run.mode,
-    target_check_ids: s.retry_scope?.target_check_ids ?? [], template: template.content,
+    target_check_ids: s.retry_scope?.target_check_ids ?? [], template: template.content, template_id: s.prompt_versions.evaluator.id,
     correlation: { tenant_id: s.tenant_id, session_id: s.id, evaluation_id: run.id }, language: s.language ?? 'en',
   });
   await storeAssessment(run.id, s, bundle, result, String(job.payload.operation_id));
@@ -152,12 +153,13 @@ async function processCoach(job: Job) {
     review: provisional ? { required: true, reasons: full.review_reasons } : { required: false, reasons: [] },
     mode: run.mode,
   };
-  const ok = coach?.ok ? coach.candidate : null;
+  const ok = coach?.ok ? cleanFindings(coach.candidate) : null;
   const content: CoachingReport & Record<string, unknown> = {
     ...base,
     status: provisional ? 'provisional' : ok ? 'final' : 'partial',
-    strengths: ok?.strengths ?? [], improvement_areas: ok?.improvement_areas ?? [], missed_questions: (ok?.missed_questions ?? []).slice(0, MAX_MISSED_QUESTIONS),
-    risky_statements: ok?.risky_statements ?? [], best_moment: ok?.best_moment ?? null, missed_opportunity: ok?.missed_opportunity ?? null,
+    strengths: ok?.strengths ?? [], improvement_areas: ok?.improvement_areas ?? [], missed_questions: orderMissedQuestions(bundle, full.candidate, ok?.missed_questions ?? []).slice(0, MAX_MISSED_QUESTIONS),
+    // The owner's report format (coach_v2 and later) has no best-moment or missed-opportunity sections.
+    risky_statements: ok?.risky_statements ?? [], best_moment: s.prompt_versions.coach.id === 'coach_v1' ? ok?.best_moment ?? null : null, missed_opportunity: s.prompt_versions.coach.id === 'coach_v1' ? ok?.missed_opportunity ?? null : null,
     ...(full.candidate.risk_flags.some((f) => f.status === 'confirmed') ? {} : { no_risk_statement: NO_RISK_TEXT }),
   };
   const reportStatus = content.status;
@@ -236,7 +238,7 @@ export async function getReport(actor: Actor, sessionId: string) {
     if (s.state === 'active') throw conflict('NOT_FINISHED', 'Finish the practice to get a report.');
     throw notFound('Report');
   }
-  const [run] = await sql<{ id: string; status: string; mode: string; score: ScoreResult | null; review_reasons: string[]; error: unknown }[]>`SELECT id, status, mode, score, review_reasons, error FROM rp.evaluation_run WHERE id = ${s.current_run_id}`;
+  const [run] = await sql<{ id: string; status: string; mode: string; score: ScoreResult | null; review_reasons: string[]; error: unknown; candidate: EvaluationCandidate | null }[]>`SELECT id, status, mode, score, review_reasons, error, candidate FROM rp.evaluation_run WHERE id = ${s.current_run_id}`;
   const [rep] = await sql<{ status: string; content: CoachingReport }[]>`SELECT status, content FROM rp.coaching_report WHERE run_id = ${run.id}`;
   const processing = ['queued', 'evaluating', 'coaching'].includes(run.status) && !rep;
   if (processing) return { status: 202 as const, body: { session_id: s.id, state: run.status, message: 'Your conversation is being assessed.' } };
@@ -258,8 +260,17 @@ export async function getReport(actor: Actor, sessionId: string) {
       report: rep?.content ?? null, report_status: rep?.status ?? null,
       dimensions: [...dims].sort((a, b) => dimOrder.indexOf(a.dimension_id) - dimOrder.indexOf(b.dimension_id)).map((d) => {
         const def = bundle.rubric.dimensions.find((x) => x.id === d.dimension_id)!;
-        return { ...d, name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score) };
+        const skill = runtimeOf(bundle).evaluation_guide?.skills.find((k) => k.dimension_id === d.dimension_id);
+        return {
+          ...d, name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score), anchors: def.anchors,
+          // Report columns from the owner's format; absent for older scenarios.
+          measures: skill?.measures ?? null,
+          weight: bundle.scoring.mode === 'weighted_percent' ? bundle.scoring.weights[d.dimension_id] ?? null : null,
+          coaching: run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching ?? null,
+        };
       }),
+      scoring: { mode: bundle.scoring.mode, bands: bundle.scoring.bands },
+      level_labels: runtimeOf(bundle).evaluation_guide?.level_labels ?? null,
       evidence, risk_findings: risks.map((r) => ({ ...r, description: bundle.risk_policy.rules.find((x) => x.id === r.rule_id)?.description })),
       checks: bundle.rubric.checks.map((c) => ({ id: c.id, description: c.description, category: c.category })),
       transcript: turns,
@@ -279,7 +290,7 @@ export interface ReviewInput {
 export async function listReviewQueue(actor: Actor) {
   requireRole(actor, 'reviewer');
   return sql`
-    SELECT r.id, r.session_id, r.review_reasons, r.score->>'raw_total' AS raw_total, r.score->>'band_label' AS band_label, r.created_at,
+    SELECT r.id, r.session_id, r.review_reasons, r.score->>'raw_total' AS raw_total, r.score->>'raw_max' AS raw_max, r.score->>'band_label' AS band_label, r.score->>'mode' AS score_mode, r.score->>'final_percent' AS final_percent, r.created_at,
            s.scenario_id, s.scenario_version, u.display_name AS learner
       FROM rp.evaluation_run r JOIN rp.session s ON s.id = r.session_id JOIN rp.app_user u ON u.id = s.learner_id
      WHERE r.tenant_id = ${actor.tenant_id} AND r.status = 'review_required' ORDER BY r.created_at`;
@@ -369,3 +380,14 @@ export async function startRetry(actor: Actor, sessionId: string, input: RetryIn
 }
 
 export { idempotent };
+
+/** Coach text can echo the evaluator's turn aliases ("(T6)"); learners never see those. */
+function cleanFindings(c: CoachingCandidate): CoachingCandidate {
+  const clean = <F extends { text: string } | null>(f: F): F => (f ? { ...f, text: stripTurnAliases(f.text) } : f);
+  return {
+    ...c,
+    strengths: c.strengths.map(clean), improvement_areas: c.improvement_areas.map(clean),
+    missed_questions: c.missed_questions.map(clean), risky_statements: c.risky_statements.map(clean),
+    best_moment: clean(c.best_moment), missed_opportunity: clean(c.missed_opportunity),
+  };
+}

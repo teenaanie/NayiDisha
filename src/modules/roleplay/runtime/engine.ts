@@ -42,7 +42,9 @@ export async function respond(input: TurnInput): Promise<TurnOutput> {
       classifierFallback = (e as Error).message.slice(0, 120);
     }
   }
-  const plan = resolveDisclosure(input.bundle, classification, input.disclosed);
+  // Learner messages so far, including this one: drives when the customer volunteers a cue.
+  const learnerTurnIndex = input.history.filter((t) => t.speaker === 'learner').length + 1;
+  const plan = resolveDisclosure(input.bundle, classification, input.disclosed, { learnerTurnIndex });
   const reply = await generateCustomerReply({ bundle: input.bundle, plan, history: input.history, learnerText: input.learnerText, template: input.template, correlation: input.correlation, language: input.language ?? 'en' });
   return { classification, plan, reply, engine: { classifier_version: classification.classifier_version, output_validator_version: OUTPUT_VALIDATOR_VERSION, classifier_fallback: classifierFallback } };
 }

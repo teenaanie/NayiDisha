@@ -19,14 +19,37 @@ export interface DisclosurePlan {
   /** Released + previously disclosed facts: the only facts generation may use. */
   allowed_fact_ids: string[];
   /** Ordered reply parts. Fixture parts are used verbatim; fact parts are generated. */
-  parts: ({ kind: 'fixture'; rule_id: string; text: string } | { kind: 'facts'; rule_id: string; fact_ids: string[] } | { kind: 'unknown'; intent_id: string })[];
+  parts: ({ kind: 'fixture'; rule_id: string; text: string } | { kind: 'facts'; rule_id: string; fact_ids: string[] } | { kind: 'unknown'; intent_id: string }
+    | { kind: 'volunteer'; cue_id: string; text: string; fact_ids: string[] })[];
   /** Intents recognised but not answered this turn (cap reached); they can be asked again. */
   deferred_intent_ids: string[];
 }
 
 const byPriority = (a: DisclosureRule, b: DisclosureRule) => b.priority - a.priority || a.id.localeCompare(b.id);
 
-export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, disclosed: Set<string>): DisclosurePlan {
+export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, disclosed: Set<string>, opts: { learnerTurnIndex?: number } = {}): DisclosurePlan {
+  const plan = resolveAnswer(bundle, cls, disclosed);
+  return opts.learnerTurnIndex ? volunteerCue(bundle, plan, disclosed, opts.learnerTurnIndex) : plan;
+}
+
+/**
+ * A due cue the customer has not yet said is appended to the reply (spec: the customer reveals
+ * cues the learner should pick up). One per turn, only when the reply is not a clarification,
+ * and only if none of its facts is already out or being released this turn.
+ */
+function volunteerCue(bundle: ScenarioBundle, plan: DisclosurePlan, disclosed: Set<string>, learnerTurnIndex: number): DisclosurePlan {
+  if (plan.kind === 'clarify') return plan;
+  const out = new Set([...disclosed, ...plan.released_fact_ids]);
+  const cue = runtimeOf(bundle).volunteered_cues.find((c) => learnerTurnIndex >= c.after_learner_turns && c.reveal_fact_ids.every((f) => !out.has(f)));
+  if (!cue) return plan;
+  plan.parts.push({ kind: 'volunteer', cue_id: cue.id, text: cue.text, fact_ids: [...cue.reveal_fact_ids] });
+  plan.released_fact_ids = [...plan.released_fact_ids, ...cue.reveal_fact_ids];
+  plan.allowed_fact_ids = Array.from(new Set([...plan.allowed_fact_ids, ...cue.reveal_fact_ids]));
+  if (plan.kind === 'acknowledge') plan.kind = 'answer';
+  return plan;
+}
+
+function resolveAnswer(bundle: ScenarioBundle, cls: Classification, disclosed: Set<string>): DisclosurePlan {
   const intentIds = new Set(cls.hits.map((h) => h.intent_id));
   const facts = new Map(bundle.facts.map((f) => [f.id, f]));
   const plan: DisclosurePlan = { kind: 'answer', matched_rule_ids: [], released_fact_ids: [], allowed_fact_ids: [], parts: [], deferred_intent_ids: [] };
@@ -113,6 +136,11 @@ export function discoveryComplete(bundle: ScenarioBundle, askedIntentIds: Set<st
   const gate = runtimeOf(bundle).discovery_gate;
   if (!gate) return true;
   const checks = new Map(bundle.rubric.checks.map((c) => [c.id, c]));
+  if ((gate.min_asked_checks ?? 1) > 1) {
+    const asked = new Set(gate.dimension_ids.flatMap((dimId) => bundle.rubric.dimensions.find((d) => d.id === dimId)?.check_ids ?? [])
+      .filter((cid) => { const c = checks.get(cid); return c?.category === 'coverage' && c.accepted_intents.some((i) => askedIntentIds.has(i)); }));
+    if (asked.size < gate.min_asked_checks!) return false;
+  }
   return gate.dimension_ids.every((dimId) => {
     const dim = bundle.rubric.dimensions.find((d) => d.id === dimId);
     return !!dim?.check_ids.some((cid) => {

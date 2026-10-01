@@ -13,8 +13,12 @@ import type { Issue } from './compile';
 export interface RuntimeExtension {
   /** Intents that match statements as well as questions (e.g. a product pitch). */
   question_free_intents: string[];
-  /** Discovery counts as complete once each listed dimension has at least one observed coverage check. */
-  discovery_gate: { dimension_ids: string[] } | null;
+  /**
+   * Discovery counts as complete once each listed dimension has at least one observed coverage
+   * check, and at least `min_asked_checks` distinct coverage checks have been asked across them
+   * (default 1; a single-dimension gate needs a higher minimum to mean anything).
+   */
+  discovery_gate: { dimension_ids: string[]; min_asked_checks?: number } | null;
   /** Intents and risk rules that only fire while discovery is incomplete. */
   discovery_conditioned: string[];
   /** Checks satisfied by the absence of a behaviour rather than an action. */
@@ -36,6 +40,44 @@ export interface RuntimeExtension {
    * `reply_instruction`. Anything missing falls back to the source text.
    */
   translations: Record<string, Translation>;
+  /**
+   * Lines the customer volunteers unprompted, so a learner has cues to pick up on (spec:
+   * "customer cues and expected probing opportunities"). A cue is spoken at the end of the
+   * reply once the learner has sent `after_learner_turns` messages, if none of its facts has
+   * been disclosed yet; at most one per turn, never in a clarification.
+   */
+  volunteered_cues: { id: string; text: string; reveal_fact_ids: string[]; after_learner_turns: number }[];
+  /**
+   * Follow-up checks tied to cues: once a customer turn has stated one of `cue_fact_ids`, a
+   * later learner question on one of `follow_up_intents` earns the check. A cue that never
+   * surfaced makes the check inapplicable rather than missed.
+   */
+  cue_follow_ups: { check_id: string; cue_fact_ids: string[]; follow_up_intents: string[] }[];
+  /**
+   * The evaluator's knowledge base (spec "Knowledge base the evaluator needs"): the discovery
+   * framework (not a checklist), cues with the expected follow-up, acceptable question
+   * variations, and rules that stop one behaviour being scored under several skills.
+   */
+  evaluation_guide: EvaluationGuide | null;
+  /** Practice reminders, in minutes; default the scenario's target range. */
+  reminder_minutes: number[] | null;
+}
+
+export interface EvaluationGuide {
+  /**
+   * Per skill: what it measures (shown in the report), what the evaluator looks for, and the
+   * owner's fuller guidance for every score (the rubric anchors stay the short report wording).
+   */
+  skills: { dimension_id: string; measures: string; look_for: string[]; score_guidance: { score: number; guidance: string }[] }[];
+  /** Names for each score level, e.g. {"1": "Needs Improvement", "3": "Competent"} (report labels). */
+  level_labels?: Record<string, string>;
+  framework_note: string;
+  /** Discovery areas in priority order (also the order of "top missed questions"). */
+  framework: { area: string; information: string; check_id: string }[];
+  cues: { fact_id: string; customer_line: string; expected_follow_up: string; check_id: string }[];
+  variations: { check_id: string; examples: string[] }[];
+  exclusions: string[];
+  principles: string[];
 }
 
 export interface Translation {
@@ -58,6 +100,8 @@ export interface Translation {
   reply_instruction: string;
   /** Tells the coach which language to write feedback in. */
   feedback_instruction: string;
+  /** Exact translations of volunteered cue lines, by cue ID. */
+  cue_responses?: Record<string, string>;
 }
 
 export const TRANSLATABLE_LANGUAGES = ['hi', 'mr'] as const;
@@ -65,6 +109,7 @@ export const TRANSLATABLE_LANGUAGES = ['hi', 'mr'] as const;
 export const EMPTY_RUNTIME: RuntimeExtension = {
   question_free_intents: [], discovery_gate: null, discovery_conditioned: [], absence_checks: {},
   check_cues: {}, jargon_terms: [], acknowledgement_text: null, derivations: [], translations: {},
+  volunteered_cues: [], cue_follow_ups: [], evaluation_guide: null, reminder_minutes: null,
 };
 
 export function runtimeOf(b: ScenarioBundle): RuntimeExtension {
@@ -92,6 +137,8 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
   if (x.discovery_gate) {
     if (!strings(x.discovery_gate.dimension_ids) || !x.discovery_gate.dimension_ids.length) err(`${P}/discovery_gate`, 'Needs dimension_ids.');
     else x.discovery_gate.dimension_ids.forEach((id, i) => { if (!dims.has(id)) err(`${P}/discovery_gate/dimension_ids/${i}`, `Unknown dimension "${id}".`); });
+    const m = x.discovery_gate.min_asked_checks;
+    if (m !== undefined && !(Number.isInteger(m) && m >= 1 && m <= 50)) err(`${P}/discovery_gate/min_asked_checks`, 'Must be a whole number from 1 to 50.');
   }
   if (!strings(x.discovery_conditioned)) err(`${P}/discovery_conditioned`, 'Must be a list of IDs.');
   else x.discovery_conditioned.forEach((id, i) => { if (!intents.has(id) && !risks.has(id)) err(`${P}/discovery_conditioned/${i}`, `"${id}" is neither an intent nor a risk rule.`); });
@@ -132,6 +179,52 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
       if (!intents.has(iid)) err(`${T}/intent_examples/${iid}`, `Unknown intent "${iid}".`);
       if (!text(v)) err(`${T}/intent_examples/${iid}`, 'Required text.');
     }
+    for (const c of x.volunteered_cues ?? []) if (!text(t.cue_responses?.[c.id])) err(`${T}/cue_responses`, `Missing translation for cue "${c.id}".`);
+    for (const id of Object.keys(t.cue_responses ?? {})) if (!(x.volunteered_cues ?? []).some((c) => c.id === id)) err(`${T}/cue_responses/${id}`, `Unknown cue "${id}".`);
+  }
+
+  // ---- volunteered cues, cue follow-ups, evaluation guide, reminders --------------
+  const cueIds = new Set<string>();
+  let lastTurn = 0;
+  (x.volunteered_cues ?? []).forEach((c, i) => {
+    const C = `${P}/volunteered_cues/${i}`;
+    if (!text(c.id) || cueIds.has(c.id)) err(`${C}/id`, 'Needs a unique id.');
+    cueIds.add(c.id);
+    if (!text(c.text)) err(`${C}/text`, 'Required text.');
+    if (!strings(c.reveal_fact_ids) || !c.reveal_fact_ids.length) err(`${C}/reveal_fact_ids`, 'Needs at least one fact.');
+    else c.reveal_fact_ids.forEach((f) => { if (facts.get(f)?.knowledge !== 'known') err(`${C}/reveal_fact_ids`, `"${f}" is not a known fact.`); });
+    if (!(Number.isInteger(c.after_learner_turns) && c.after_learner_turns >= 1)) err(`${C}/after_learner_turns`, 'Must be a whole number of at least 1.');
+    else { if (c.after_learner_turns < lastTurn) err(`${C}/after_learner_turns`, 'Cues must be listed in the order they become due.'); lastTurn = c.after_learner_turns; }
+  });
+  (x.cue_follow_ups ?? []).forEach((c, i) => {
+    const C = `${P}/cue_follow_ups/${i}`;
+    if (!checks.has(c.check_id)) err(`${C}/check_id`, `Unknown check "${c.check_id}".`);
+    if (!strings(c.cue_fact_ids) || !c.cue_fact_ids.length) err(`${C}/cue_fact_ids`, 'Needs at least one fact.');
+    else c.cue_fact_ids.forEach((f) => { if (!facts.has(f)) err(`${C}/cue_fact_ids`, `Unknown fact "${f}".`); });
+    if (!strings(c.follow_up_intents) || !c.follow_up_intents.length) err(`${C}/follow_up_intents`, 'Needs at least one intent.');
+    else c.follow_up_intents.forEach((id) => { if (!intents.has(id)) err(`${C}/follow_up_intents`, `Unknown intent "${id}".`); });
+  });
+  const g = x.evaluation_guide;
+  if (g) {
+    const G = `${P}/evaluation_guide`;
+    (g.skills ?? []).forEach((k, i) => {
+      const dim = b.rubric.dimensions.find((d) => d.id === k.dimension_id);
+      if (!dim) err(`${G}/skills/${i}/dimension_id`, `Unknown dimension "${k.dimension_id}".`);
+      if (!text(k.measures)) err(`${G}/skills/${i}/measures`, 'Required text.');
+      if (!strings(k.look_for)) err(`${G}/skills/${i}/look_for`, 'Must be a list of behaviours.');
+      (k.score_guidance ?? []).forEach((sg, j) => { if (dim && !dim.anchors.some((a) => a.score === sg.score)) err(`${G}/skills/${i}/score_guidance/${j}`, `Score ${sg.score} is not an anchor of "${dim.id}".`); if (!text(sg.guidance)) err(`${G}/skills/${i}/score_guidance/${j}`, 'Required text.'); });
+    });
+    if (!text(g.framework_note)) err(`${G}/framework_note`, 'Required text.');
+    if (!Array.isArray(g.framework) || !g.framework.length) err(`${G}/framework`, 'Needs at least one discovery area.');
+    else g.framework.forEach((a, i) => { if (!text(a.area) || !text(a.information)) err(`${G}/framework/${i}`, 'Needs area and information.'); if (!checks.has(a.check_id)) err(`${G}/framework/${i}/check_id`, `Unknown check "${a.check_id}".`); });
+    (g.cues ?? []).forEach((c, i) => { if (!facts.has(c.fact_id)) err(`${G}/cues/${i}/fact_id`, `Unknown fact "${c.fact_id}".`); if (!checks.has(c.check_id)) err(`${G}/cues/${i}/check_id`, `Unknown check "${c.check_id}".`); if (!text(c.customer_line) || !text(c.expected_follow_up)) err(`${G}/cues/${i}`, 'Needs customer_line and expected_follow_up.'); });
+    (g.variations ?? []).forEach((v, i) => { if (!checks.has(v.check_id)) err(`${G}/variations/${i}/check_id`, `Unknown check "${v.check_id}".`); if (!strings(v.examples) || v.examples.length < 2) err(`${G}/variations/${i}/examples`, 'Give at least two equivalent wordings.'); });
+    if (!strings(g.exclusions)) err(`${G}/exclusions`, 'Must be a list of rules.');
+    if (!strings(g.principles)) err(`${G}/principles`, 'Must be a list of rules.');
+  }
+  if (x.reminder_minutes !== null && x.reminder_minutes !== undefined) {
+    const r = x.reminder_minutes;
+    if (!Array.isArray(r) || !r.length || r.some((m, i) => !(Number.isInteger(m) && m > 0 && m <= 120) || (i > 0 && m <= r[i - 1]))) err(`${P}/reminder_minutes`, 'Must be ascending whole minutes between 1 and 120.');
   }
 }
 

@@ -45,6 +45,12 @@ The validator reports each failure with its JSON-pointer path.
 | `jargon_terms` | Terms counted as jargon unless explained in the same turn. |
 | `acknowledgement_text` | Neutral in-character reply to a non-question. |
 | `derivations` | Server-side money arithmetic (`subtract`), always labelled conditional with assumptions. Given to the evaluator; never spoken, never a loan offer. |
+| `discovery_gate.min_asked_checks` | Optional (default 1): distinct coverage checks that must be asked across the gate dimensions. Needed when the gate is a single discovery skill. |
+| `translations` | Hindi/Marathi lines: opening, brief, every `response_text` (`rule_responses`), every volunteered cue (`cue_responses`), example questions, retry lead, reply and feedback instructions; `review_status` draft/reviewed. |
+| `volunteered_cues` | Lines the customer adds unprompted once the learner has sent `after_learner_turns` messages, if none of `reveal_fact_ids` is out yet. One per turn, listed in due order. |
+| `cue_follow_ups` | Checks earned by following a cue: after a customer turn states one of `cue_fact_ids`, a learner question on one of `follow_up_intents`. A cue that never came up makes the check not applicable. |
+| `evaluation_guide` | The evaluator's knowledge base: `skills` (what each measures, what to look for, 1–5 guidance), `level_labels`, `framework` (priority order also orders "top missed questions"), `cues`, `variations`, `exclusions`, `principles`. The report reads `measures` and `level_labels`. |
+| `reminder_minutes` | Practice reminders in minutes (default: the scenario's target range). |
 
 ## Provenance
 

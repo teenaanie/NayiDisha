@@ -31,7 +31,7 @@ import { runtimeOf } from '../config/runtime-extension';
  *    (`contradicted` + span).
  */
 
-export const VALIDATOR_VERSION = 'evaluation-validator-1.5.0';
+export const VALIDATOR_VERSION = 'evaluation-validator-1.7.0';
 
 /** Relocate a quote to its occurrence in the turn nearest the stated start; null if absent. */
 function relocate(text: string, quote: string, start: number): { start: number; end: number } | null {
@@ -124,6 +124,8 @@ export interface ValidationContext {
   rubric_version: string;
   /** Learner turns that may carry credit; prefix turns of a focused retry are excluded. */
   assessable_learner_turn_ids: string[];
+  /** 1.1 requires a coaching suggestion on every scored dimension. Default 1.0. */
+  contract_version?: '1.0' | '1.1';
 }
 
 export function validateCandidate(raw: string, ctx: ValidationContext): { ok: true; candidate: EvaluationCandidate; notes: string[] } | { ok: false; errors: string[]; notes: string[] } {
@@ -137,6 +139,16 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
   for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { confidence?: unknown; id?: string }[]).entries()) {
     if (typeof ev?.confidence === 'number' && ev.confidence > 1) { preNotes.push(`evidence[${i}] ${ev.id}: confidence ${ev.confidence} capped at 1.`); ev.confidence = 1; }
   }
+  // Risk evidence belongs to a risk rule, not a check; live runs (1 Oct 2026) sent check_id ""
+  // or the risk rule's id there. Either is cleared rather than failing the assessment.
+  const riskRuleIds = new Set(ctx.bundle.risk_policy.rules.map((r) => r.id));
+  const checkIds = new Set(ctx.bundle.rubric.checks.map((c) => c.id));
+  for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { check_id?: unknown; id?: string }[]).entries()) {
+    if (ev && 'check_id' in ev && (ev.check_id === '' || ev.check_id === null || (typeof ev.check_id === 'string' && riskRuleIds.has(ev.check_id) && !checkIds.has(ev.check_id)))) {
+      preNotes.push(`evidence[${i}] ${ev.id}: check_id ${JSON.stringify(ev.check_id)} cleared (risk evidence has no check).`);
+      delete ev.check_id;
+    }
+  }
   const knownCategories = new Set([...ctx.bundle.rubric.evidence_categories, 'compliance']);
   for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { category?: unknown; id?: string }[]).entries()) {
     if (typeof ev?.category === 'string' && !knownCategories.has(ev.category)) { preNotes.push(`evidence[${i}] ${ev.id}: unknown category "${ev.category}" recorded as compliance.`); ev.category = 'compliance'; }
@@ -148,6 +160,7 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
   const e = (m: string) => errors.push(m);
 
   if (c.session_id !== ctx.session_id) e('session_id does not match the session under assessment.');
+  if (c.contract_version !== (ctx.contract_version ?? '1.0')) e(`contract_version must be ${ctx.contract_version ?? '1.0'}.`);
   if (c.transcript_hash !== ctx.transcript_hash) e('transcript_hash does not match the frozen snapshot.');
   if (c.rubric_version !== ctx.rubric_version) e('rubric_version does not match the pinned rubric.');
 
@@ -204,6 +217,10 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
     if (d.score < def.min_score || d.score > def.max_score) e(`${w}: score ${d.score} outside ${def.min_score}–${def.max_score}.`);
     if (d.anchor_score !== d.score || !def.anchors.some((a) => a.score === d.anchor_score)) e(`${w}: anchor_score must be the defined anchor for the awarded score (got score ${d.score}, anchor_score ${d.anchor_score}; allowed ${def.anchors.map((a) => a.score).join(', ')}). Set both to the one anchor that fits.`);
     for (const id of d.evidence_ids) if (!ids.has(id)) e(`${w}: cites unknown evidence "${id}".`);
+  }
+  if ((ctx.contract_version ?? '1.0') === '1.1') {
+    // Coaching may quote suggested wording, so its quotes are not checked against the transcript.
+    for (const [i, d] of c.dimension_scores.entries()) if (!d.coaching?.trim()) e(`dimension_scores[${i}] ${d.dimension_id}: needs one coaching suggestion.`);
   }
   for (const d of dims) if (d.applicability === 'required' && !seen.has(d.id)) e(`Missing required dimension "${d.id}".`);
 
