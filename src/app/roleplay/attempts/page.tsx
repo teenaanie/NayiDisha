@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { scoreHeadline } from '../score';
 import { listMySessions } from '@/modules/roleplay/service';
 import { fmtDateTime } from '@/lib/clock';
 import { withActor, WhoAmI, SignInFirst } from '../shared';
@@ -21,7 +22,7 @@ export default async function Attempts() {
         <td className="small">{r.title} <span className="muted">v{r.scenario_version}</span></td>
         <td>{r.is_preview ? <Pill tone="warn">preview (test)</Pill> : r.retry_mode ? <Pill tone="info">{r.retry_mode} retry</Pill> : <Pill>first attempt</Pill>}</td>
         <td className="small">{label[r.state] ?? r.state}</td>
-        <td className="num">{r.retry_mode === 'focused' ? 'focused practice' : r.raw_total ? `${r.raw_total}/${r.raw_max} · ${r.band_label}` : '—'}</td>
+        <td className="num">{r.retry_mode === 'focused' ? 'focused practice' : r.raw_total ? scoreHeadline({ mode: r.score_mode, final_percent: r.final_percent, raw_total: r.raw_total, raw_max: r.raw_max, band_label: r.band_label }) : '—'}</td>
         <td>{r.state === 'active' ? <Link href={`/roleplay/s/${r.id}`}>Continue</Link> : r.state !== 'abandoned' ? <Link href={`/roleplay/s/${r.id}/report`}>Report</Link> : null}</td>
       </tr>)}</tbody>
     </table></div></div></section>

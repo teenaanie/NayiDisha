@@ -1,0 +1,213 @@
+For this simulation, I would separate the evaluator design into two parts: Evaluator Instructions and Evaluator Knowledge Base. The evaluator should score only what the learner demonstrates in the conversation and should not infer skills that were not observable.
+A good overall instruction to the evaluator agent would be:
+Evaluator Objective: Assess the learner’s performance during a 15-minute loan discovery conversation with a customer. Evaluate the learner on four skills: Questioning & Discovery, Active Listening & Probing, Understanding Customer Needs and Managing the Conversation, and Communication Clarity.
+Base the assessment only on the conversation transcript and the customer profile provided for the simulation. Do not reward the learner for simply asking many questions. Judge whether the learner asked useful questions, understood the answers, followed up appropriately, kept the conversation focused, and communicated clearly.
+Do not penalize minor grammar or language mistakes if the learner’s meaning is clear. Do not expect the learner to use the exact wording shown in the knowledge base. Equivalent questions and responses should receive the same credit.
+Score each skill independently using the defined rubric. For each score, provide evidence from the conversation and one specific coaching suggestion.
+1. Questioning & Discovery Skills
+Skill definition: Ability to ask relevant questions to understand the customer’s situation, needs, priorities and concerns.
+The evaluator should assess whether the learner:
+	•	asks relevant questions rather than random or premature product questions;
+	•	uses open-ended questions where appropriate;
+	•	covers the important areas of loan discovery;
+	•	asks questions in a logical order;
+	•	explores the customer’s needs, priorities and concerns;
+	•	avoids turning the conversation into a rigid checklist.
+A useful 1–5 rubric is:
+Score
+Evaluator guidance
+5 – Excellent
+Covers almost all important discovery areas using relevant, purposeful and well-sequenced questions. Goes beyond basic facts to understand priorities and concerns.
+4 – Good
+Covers most important discovery areas and asks relevant questions, but misses one or two useful areas or opportunities.
+3 – Competent
+Understands the basic loan requirement but discovery is somewhat limited or checklist-driven.
+2 – Developing
+Asks some useful questions but misses several important areas or asks many closed/repetitive questions.
+1 – Needs Improvement
+Fails to understand the basic borrowing need or moves quickly to a solution without sufficient discovery.
+2. Active Listening & Probing
+Skill definition: Ability to listen carefully, notice important customer information and ask useful follow-up questions.
+This skill should be scored differently from Questioning & Discovery. Here, the evaluator is judging whether the learner uses what the customer says.
+The evaluator should look for whether the learner:
+	•	acknowledges important customer information;
+	•	identifies cues or important statements;
+	•	asks follow-up questions based on those cues;
+	•	clarifies vague, incomplete or contradictory information;
+	•	avoids asking a question that the customer has already answered;
+	•	adapts the next question based on the customer's response.
+For example, if the customer says:
+“I need the money for my daughter's college admission next month, but I already have a vehicle EMI.”
+A strong learner might ask:
+“You mentioned you already have a vehicle EMI. How much do you currently pay each month?”
+That should score strongly because the learner is responding to information given, rather than simply asking the next scripted question.
+Score
+Evaluator guidance
+5 – Excellent
+Consistently listens for important cues and uses them to ask relevant follow-up questions. Clarifies unclear information and explores important issues naturally.
+4 – Good
+Responds to most important cues and asks useful follow-ups, but misses a small number of opportunities.
+3 – Competent
+Shows some listening and probing but often returns to prepared questions rather than building on customer responses.
+2 – Developing
+Limited follow-up questioning. Frequently ignores useful information provided by the customer.
+1 – Needs Improvement
+Mostly follows a script, repeats already answered questions or shows little evidence of listening to customer responses.
+3. Understanding Customer Needs and Managing the Conversation
+Skill definition: Ability to understand the customer’s main needs, keep the discussion focused and summarize what has been understood.
+The evaluator should assess whether the learner:
+	•	identifies the customer's main borrowing need;
+	•	distinguishes between important and less important information;
+	•	understands the customer's key priorities;
+	•	keeps the conversation relevant to the loan requirement;
+	•	redirects the discussion appropriately if it moves away from the purpose;
+	•	manages the 15-minute conversation reasonably well;
+	•	summarizes the customer's situation accurately;
+	•	confirms understanding with the customer.
+An especially strong behaviour near the end would be something like:
+“So, from what I understand, you need around ₹4 lakh for your daughter's college fees next month. You already have a vehicle EMI, and keeping the monthly repayment affordable is your main concern. Is that correct?”
+That shows both understanding and conversation management.
+Score
+Evaluator guidance
+5 – Excellent
+Clearly identifies the customer’s main need and priorities, keeps the conversation focused and provides an accurate summary that is confirmed with the customer.
+4 – Good
+Understands the main need and manages the conversation well, with a mostly accurate summary.
+3 – Competent
+Understands the basic need and keeps the conversation reasonably focused but provides a weak or incomplete summary.
+2 – Developing
+Understands only part of the customer’s need, allows the conversation to become unfocused or misses important priorities.
+1 – Needs Improvement
+Does not clearly understand the customer’s main need or fails to manage and summarize the conversation.
+4. Communication Clarity
+Skill definition: Ability to speak in a simple, clear and easy-to-understand manner.
+For this skill, the evaluator should assess communication independently from loan knowledge.
+Look for whether the learner:
+	•	uses simple words;
+	•	asks one clear question at a time;
+	•	avoids unnecessary jargon;
+	•	keeps questions reasonably short;
+	•	explains anything complex in simple language;
+	•	speaks in a professional and respectful manner;
+	•	avoids confusing or overly long questions;
+	•	checks understanding when appropriate.
+The evaluator should not heavily penalize grammar, accent, or minor language mistakes if the customer's ability to understand is not affected.
+Score
+Evaluator guidance
+5 – Excellent
+Communication is consistently clear, simple and easy to understand. Questions are concise and customer-friendly.
+4 – Good
+Mostly clear and simple, with only occasional complicated wording or long questions.
+3 – Competent
+Generally understandable but sometimes uses complicated wording, jargon or lengthy questions.
+2 – Developing
+Frequently difficult to understand because of unclear wording, long questions or unnecessary jargon.
+1 – Needs Improvement
+Communication significantly affects the customer's ability to understand or respond appropriately.
+Knowledge base the evaluator needs
+The evaluator should ideally have five types of knowledge.
+First, give it a customer discovery framework. This defines what information a reasonable loan discovery conversation may uncover. It should include:
+Discovery Area
+Information to uncover
+Loan purpose
+Why the customer needs the money
+Loan amount
+Approximate amount required
+Timing
+When the funds are required
+Customer profile
+Employment/business/source of income
+Income
+Approximate income or cash flow
+Existing commitments
+Existing EMIs or important financial obligations
+Repayment comfort
+Approximate affordable monthly repayment
+Preferred tenure
+Desired repayment period, if relevant
+Prior borrowing
+Previous loan experience where useful
+Customer priorities
+EMI, interest cost, speed, loan amount, flexibility, etc.
+Concerns
+Charges, approval, repayment, documentation, process, etc.
+This is a framework, not a mandatory checklist. The learner should not automatically lose points for failing to ask every question.
+Second, provide a scenario-specific customer profile that acts as the ground truth. For example:
+Customer information
+Hidden scenario data
+Purpose
+Daughter's college admission
+Required loan
+₹4 lakh
+Required by
+Within 30 days
+Occupation
+Salaried employee
+Monthly income
+₹55,000
+Existing vehicle EMI
+₹8,000
+Comfortable additional EMI
+Around ₹10,000–₹12,000
+Priority
+Affordable monthly repayment
+Secondary priority
+Quick processing
+Concern
+Hidden charges
+Previous loan experience
+Vehicle loan
+Important cue
+“Last time I was surprised by some additional charges.”
+Third, provide the evaluator with customer cues and expected probing opportunities. This is critical for assessing Active Listening.
+For example:
+Customer cue
+Good follow-up behaviour
+“I already have another EMI.”
+Ask about the amount or current monthly commitments
+“I need the money quite soon.”
+Ask when exactly the funds are required
+“I don't want a very high EMI.”
+Explore what monthly repayment would be comfortable
+“My previous loan had extra charges.”
+Ask what happened and what concerns the customer has now
+“My income varies every month.”
+Explore the source and approximate range of income
+This lets the evaluator distinguish between good discovery questions and true listening and probing.
+Fourth, give it examples of acceptable question variations. The evaluator should understand that these all achieve the same purpose:
+“What's a comfortable EMI for you?”
+“How much could you comfortably repay every month?”
+“What monthly payment would work for your budget?”
+The agent should score the discovery intent, not exact wording.
+Fifth, include assessment exclusions so the AI does not double-score behaviours across categories.
+For example:
+	•	Product knowledge should not affect Questioning & Discovery unless the learner asks an irrelevant or misleading question.
+	•	Grammar should primarily affect Communication Clarity only when it interferes with understanding.
+	•	Follow-up questions triggered by customer responses should primarily contribute to Active Listening & Probing.
+	•	Summarizing customer needs should primarily contribute to Understanding Customer Needs and Managing the Conversation.
+	•	The same behaviour can be referenced across skills when genuinely relevant, but the evaluator should explain why.
+Recommended evaluator output
+For consistency, I would make the evaluator return something like this for each learner:
+Skill
+Score / 5
+Evidence
+Coaching Feedback
+Questioning & Discovery
+4
+Learner identified purpose, amount, urgency, income and current EMI but did not explore concerns.
+Ask at least one question about what matters most to the customer when choosing the loan.
+Active Listening & Probing
+3
+Learner followed up on existing EMI but did not explore the customer's comment about previous hidden charges.
+Listen for concerns mentioned by the customer and ask a follow-up before moving to the next topic.
+Understanding Needs & Managing Conversation
+4
+Learner correctly identified the main need and summarized it at the end.
+Include the customer's key concern in the final summary.
+Communication Clarity
+5
+Questions were short, simple and easy to understand throughout.
+Continue using simple, customer-friendly language.
+I would also have the evaluator provide an overall score out of 100, using your earlier weights of 30% Questioning & Discovery, 30% Active Listening & Probing, 25% Understanding Customer Needs and Managing the Conversation, and 15% Communication Clarity.
+The most important design principle is that the evaluator's knowledge base should contain the information available to be discovered, the cues the customer will reveal, and the expected discovery objectives—not a fixed script of questions. That will make the role play feel much more natural while still allowing consistent AI scoring.
+

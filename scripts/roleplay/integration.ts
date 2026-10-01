@@ -18,7 +18,8 @@ const EDU_V = EDU_BUNDLE.scenario.version;
 const EDU_RUBRIC = (() => { const r = (loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle).rubric; return `${r.id}@${r.version}`; })();
 import { check, type Check } from './harness';
 
-const HIDDEN = [/4 lakh/, /Riya/, /three weeks/, /applied for one/, /heavy EMI/, /savings_dilemma|savings_reservation|emi_concern/, /release_intents|reveal_fact_ids|anchors/];
+// v3 values a learner must discover (never in a start payload), plus internals.
+const HIDDEN = [/4 lakh/, /55,000/, /8,000/, /10,000/, /30 days/, /vehicle/, /additional charges/, /cue_other_emi|comfortable_emi|concern_charges/, /release_intents|reveal_fact_ids|anchors/];
 
 export async function integrationTests(): Promise<Check[]> {
   const out: Check[] = [];
@@ -61,17 +62,17 @@ export async function integrationTests(): Promise<Check[]> {
   const started = await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V });
   const sid = started.session.session_id;
   const payload = JSON.stringify(started);
-  ok('AT01', 'Start returns the exact opening as turn 0', started.session.transcript[0]?.text.startsWith('Hello, my daughter has got admission for an MBA') && started.session.transcript[0].sequence === 0);
+  ok('AT01', 'Start returns the exact opening as turn 0', started.session.transcript[0]?.text === 'Hello. I need a loan, and I need the money quite soon. Can you help me?' && started.session.transcript[0].sequence === 0);
   ok('FR02', 'The start payload carries no hidden facts, rules or rubric internals', !HIDDEN.some((re) => re.test(payload)), payload.length + ' bytes');
 
   // ---- conversation with durable turns --------------------------------------------
   const r1 = await say(asha, sid, 'How much loan do you need?');
-  ok('AT02', 'Via the API: loan-amount question gets the source partial answer', r1 === 'We are not sure. The course is around ₹14 lakh, but we have some savings.', r1);
-  const [ledger] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.disclosure_event WHERE session_id = ${sid} AND fact_id = 'savings'`;
-  ok('AT02', 'Ledger: savings not disclosed after the loan-amount question', ledger.n === 0);
-  const r2 = await say(asha, sid, 'How much can your family contribute comfortably?');
+  ok('AT02', 'Via the API: the loan-amount question gets its configured answer (amount plus the EMI cue)', r1 === 'I need about ₹4 lakh. But I don\'t want a very high EMI.', r1);
+  const [ledger] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.disclosure_event WHERE session_id = ${sid} AND fact_id = 'concern_charges'`;
+  ok('AT02', 'Ledger: the hidden-charges concern is not disclosed by the loan-amount question', ledger.n === 0);
+  const r2 = await say(asha, sid, 'Do you have any concerns about taking a loan?');
   const ev2 = await sql<{ fact_id: string; method: string }[]>`SELECT fact_id, method FROM rp.disclosure_event WHERE session_id = ${sid} AND trigger_turn_id IS NOT NULL ORDER BY created_at`;
-  ok('AT03', 'Savings fixture recorded in the disclosure ledger with its trigger turn', r2.startsWith('We can arrange around ₹4 lakh') && ev2.some((e) => e.fact_id === 'savings' && e.method === 'fixture'), ev2.map((e) => e.fact_id).join(','));
+  ok('AT03', 'The concern fixture is recorded in the disclosure ledger with its trigger turn', r2.startsWith('Last time I was surprised by some additional charges') && ev2.some((e) => e.fact_id === 'concern_charges' && e.method === 'fixture'), ev2.map((e) => e.fact_id).join(','));
   const sessView = JSON.stringify(await rp.getSession(asha, sid));
   ok('FR02', 'Session reads expose transcript only, never the ledger or facts', !/disclosure|fact_id|reveal_fact|release_intents/.test(sessView));
 
@@ -91,8 +92,8 @@ export async function integrationTests(): Promise<Check[]> {
   ok('AT16', 'A re-delivered reply job after a timeout adds no speech', after16.n === before16.n);
   const s17 = await rp.getSession(asha, sid);
   const both = await Promise.allSettled([
-    rp.submitTurn(asha, sid, { client_message_id: 'c17a', text: 'Has the scholarship been confirmed?', expected_revision: s17.revision }),
-    rp.submitTurn(asha, sid, { client_message_id: 'c17b', text: 'What is the total cost?', expected_revision: s17.revision }),
+    rp.submitTurn(asha, sid, { client_message_id: 'c17a', text: 'What do you need the loan for?', expected_revision: s17.revision }),
+    rp.submitTurn(asha, sid, { client_message_id: 'c17b', text: 'What is your monthly income?', expected_revision: s17.revision }),
   ]);
   const rejected = both.filter((x) => x.status === 'rejected').map((x) => ((x as PromiseRejectedResult).reason as rp.ApiError));
   ok('AT17', 'Two messages at the same revision: one accepted, one 409', both.filter((x) => x.status === 'fulfilled').length === 1 && rejected.length === 1 && rejected[0].status === 409, rejected[0]?.code);
@@ -101,7 +102,7 @@ export async function integrationTests(): Promise<Check[]> {
   ok('AT17', 'Transcript stays gap-free and ordered', seqs.every((s, i) => s === i), seqs.join(','));
 
   await say(asha, sid, 'What monthly repayment would feel manageable?');
-  await say(asha, sid, 'Which course is she doing and which university is it?');
+  await say(asha, sid, 'Do you have any other EMIs?');
   await say(asha, sid, 'Your loan will definitely be approved.');
 
   // ---- finish, AT18, report, AT08 review -------------------------------------------
@@ -120,8 +121,8 @@ export async function integrationTests(): Promise<Check[]> {
   const finding = (await sql<{ rule_id: string; evidence_ids: string[] }[]>`SELECT rule_id, evidence_ids FROM rp.risk_finding WHERE run_id = ${runRow.id}`).find((f) => f.rule_id === 'guaranteed_approval');
   const [fev] = finding ? await sql<{ learner_spans: { quote: string }[] }[]>`SELECT learner_spans FROM rp.evidence WHERE run_id = ${runRow.id} AND id = ${finding.evidence_ids[0]}` : [];
   ok('AT08', 'The finding cites the exact learner span', fev?.learner_spans[0]?.quote === 'Your loan will definitely be approved.');
-  const [dimR] = await sql<{ score: number }[]>`SELECT score FROM rp.dimension_score WHERE run_id = ${runRow.id} AND dimension_id = 'responsible'`;
-  ok('AT08', 'The source anchor applies: responsible selling scores 1', dimR?.score === 1, String(dimR?.score));
+  const capped = runRow.score as unknown as { final_percent: number; base_percent: number; band_label: string; adjustments: unknown[] };
+  ok('AT08', 'A confirmed serious risk caps the score at 54 (Needs Coaching), keeping the uncapped base', capped.final_percent <= 54 && capped.band_label === 'Needs Coaching' && capped.adjustments.length === 1, `${capped.base_percent} → ${capped.final_percent} ${capped.band_label}`);
   ok('§19', 'A provisional report is visible while review is pending', rep.status === 200 && (rep.body as { report_status: string }).report_status === 'provisional', (rep.body as { report_status: string }).report_status);
   const q = await rp.listReviewQueue(rahul);
   ok('§19', 'The reviewer queue lists it', q.some((x) => x.id === runRow.id));
@@ -132,11 +133,11 @@ export async function integrationTests(): Promise<Check[]> {
   await drain();
   const final = await rp.getReport(asha, sid);
   const fb = final.body as unknown as { state: string; report_status: string; report: { strengths: { evidence_ids: string[] }[]; risky_statements: unknown[]; retry_plans: { full: { id: string }; focused: { id: string } } }; dimensions: unknown[]; evidence: { id: string }[] };
-  ok('§20', 'After review the report is final with six evidence-backed dimensions', fb.state === 'reported' && fb.report_status === 'final' && fb.dimensions.length === 6, `${fb.state} ${fb.report_status}`);
+  ok('§20', 'After review the report is final with every evidence-backed skill', fb.state === 'reported' && fb.report_status === 'final' && fb.dimensions.length === EDU_BUNDLE.rubric.dimensions.length, `${fb.state} ${fb.report_status}`);
   const evIds = new Set(fb.evidence.map((e) => e.id));
   ok('§20', 'Every report finding cites stored evidence', [...fb.report.strengths, ...(fb.report.risky_statements as { evidence_ids: string[] }[])].every((f) => f.evidence_ids.every((id) => evIds.has(id))));
   const leak = JSON.stringify(fb);
-  ok('FR02', 'The learner report contains no hidden facts not disclosed to the learner', !/Riya Sharma|savings_dilemma|comfortable_contribution/.test(leak));
+  ok('FR02', 'The learner report contains no hidden facts not disclosed to the learner', !/has not decided the tenure|whatever keeps the EMI comfortable|quick processing/i.test(leak));
 
   // ---- AT26 / FR12: replay arithmetic without a model ----------------------------
   const [stored] = await sql<{ score: { raw_total: number; final_percent: number; band_id: string }; candidate: { dimension_scores: { dimension_id: string; score: number }[] } }[]>`SELECT score, candidate FROM rp.evaluation_run WHERE id = ${runRow.id}`;
@@ -150,8 +151,8 @@ export async function integrationTests(): Promise<Check[]> {
   const focused = await rp.startRetry(asha, sid, { mode: 'focused', retry_plan_id: plans.focused.id, expected_assessment_id: runRow.id });
   const fsid = focused.session.session_id;
   ok('AT20', 'A focused retry clones the prefix as context', focused.session.transcript.every((t) => t.origin === 'retry_prefix') && focused.session.retry_scope?.mode === 'focused', `${focused.session.transcript.length} prefix turns`);
-  await say(asha, fsid, 'When is the first fee payment due?');
-  await say(asha, fsid, 'Has the scholarship been confirmed?');
+  await say(asha, fsid, 'When exactly do you need the money?');
+  await say(asha, fsid, 'What matters most to you in this loan?');
   const frep = await finishAndReport(asha, fsid);
   const fbody = frep.body as unknown as { mode: string; report: { score: unknown; focused_results: { checks: { check_id: string; status: string }[] } } };
   const parentAfter = (await sql`SELECT id, text FROM rp.turn WHERE session_id = ${sid} ORDER BY sequence`).map((t) => t.id + t.text).join('|');
@@ -163,8 +164,8 @@ export async function integrationTests(): Promise<Check[]> {
   const tgt = focused.session.retry_scope?.target_check_ids ?? [];
   ok('AT20', 'Focused targets are the learner\'s own missed questions, none already asked', tgt.length === 3 && tgt.every((id) => !askedInParent.has(id)) && JSON.stringify(tgt) !== JSON.stringify(EDU_BUNDLE.retry.focused_target_check_ids), `${tgt.join(',')} (asked: ${[...askedInParent].join(',')})`);
   const [frun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT r.candidate FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${fsid}`;
-  const prefixOnly = frun.candidate.evidence.find((e) => e.check_id === 'family_contribution');
-  ok('AT20', 'A question asked only in the cloned prefix earns no credit (savings)', prefixOnly?.status === 'not_observed', prefixOnly?.status);
+  const prefixOnly = frun.candidate.evidence.find((e) => e.check_id === 'loan_amount');
+  ok('AT20', 'A question asked only in the cloned prefix earns no credit (loan amount)', prefixOnly?.status === 'not_observed', prefixOnly?.status);
   const full = await rp.startRetry(asha, sid, { mode: 'full', retry_plan_id: plans.full.id, expected_assessment_id: runRow.id });
   ok('§20', 'A full retry starts fresh from the opening, pinned to the parent version', full.session.transcript.length === 1 && full.session.transcript[0].origin === 'opening' && full.session.scenario_version === started.session.scenario_version && full.session.retry_scope?.comparable === true);
 
@@ -222,8 +223,8 @@ export async function integrationTests(): Promise<Check[]> {
   const v1 = loadScenarioPackage('EDU_DISCOVERY_001').bundle as ScenarioBundle;
   const v2 = JSON.parse(JSON.stringify(v1)) as ScenarioBundle;
   v2.scenario.version = nextMajor; v2.rubric.version = nextMajor;
-  v2.rubric.dimensions[5].anchors[4].description = `Uses simple language, checks understanding and summarises (test edit ${nextMajor}).`;
-  v2.provenance.push({ path: '/rubric/dimensions/5/anchors/4/description', basis: 'recommendation', note: 'Integration-test edit for version pinning (AT19).' });
+  v2.rubric.dimensions[v2.rubric.dimensions.length - 1].anchors[4].description = `Uses simple language, checks understanding and summarises (test edit ${nextMajor}).`;
+  v2.provenance.push({ path: `/rubric/dimensions/${v2.rubric.dimensions.length - 1}/anchors/4/description`, basis: 'recommendation', note: 'Integration-test edit for version pinning (AT19).' });
   await sql`UPDATE rp.scenario_draft SET status = 'discarded' WHERE scenario_id = 'EDU_DISCOVERY_001' AND status IN ('draft','in_review')`;
   const d2 = await rp.createDraft(meera, v2);
   await rp.submitDraft(meera, d2.draft_id, d2.revision);
@@ -298,32 +299,33 @@ export async function integrationTests(): Promise<Check[]> {
     const kiran = await as(nd.id, 'synthetic:learner.kiran');
     const ks = (await rp.startSession(kiran, { scenario_id: 'EDU_DISCOVERY_001', scenario_version: EDU_V })).session.session_id;
     // The model says the message asks two things (plus one invented intent, which must be dropped).
-    overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'fee_deadline', confidence: 0.95 }, { intent_id: 'total_cost', confidence: 0.9 }, { intent_id: 'made_up_intent', confidence: 0.99 }], is_question: true })));
-    const r1 = await say(kiran, ks, 'when is the fee due and how much is the fee amount');
-    ok('LIVE', 'A two-part question understood by the model gets both answers', /three weeks/.test(r1) && /14 lakh/.test(r1), r1);
+    overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'timing', confidence: 0.95 }, { intent_id: 'loan_amount', confidence: 0.9 }, { intent_id: 'made_up_intent', confidence: 0.99 }], is_question: true })));
+    const r1 = await say(kiran, ks, 'when do you need it and how much do you need');
+    ok('LIVE', 'A two-part question understood by the model gets both answers', /30 days/.test(r1) && /4 lakh/.test(r1), r1);
     const [an] = await sql<{ intents: { intent_id: string }[]; classifier_version: string }[]>`SELECT a.intents, a.classifier_version FROM rp.turn_analysis a JOIN rp.turn t ON t.id = a.turn_id WHERE t.session_id = ${ks} ORDER BY t.sequence DESC LIMIT 1`;
     ok('LIVE', 'Only configured intents survive; the classifier version is recorded', an.intents.every((i) => i.intent_id !== 'made_up_intent') && an.classifier_version.startsWith('classifier_v1:'), an.classifier_version);
     // A paraphrase the phrase matcher cannot read, understood by the model as a repayment-comfort question.
     overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'repayment_comfort', confidence: 0.9 }], is_question: true })));
     const r2 = await say(kiran, ks, 'What sort of monthly outgo would sit easily with your household budget?');
-    ok('LIVE', 'A paraphrase the model understands reaches the right fixture', r2 === 'That is what worries me. I do not want a very heavy EMI later.', r2);
+    ok('LIVE', 'A paraphrase the model understands reaches the right fixture', r2 === 'Around ₹10,000 to ₹12,000 a month more would be comfortable. I don\'t want a very high EMI.', r2);
     // Classifier outage: the phrase matcher takes over and the conversation continues.
     overrideProvider('classify', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 429', false); } });
-    const r3 = await say(kiran, ks, 'Has the scholarship been confirmed?');
-    ok('LIVE', 'If the classifier fails, the phrase matcher answers instead', r3 === 'She has applied for one, but we do not know the result yet.', r3);
+    const r3 = await say(kiran, ks, 'What do you need the loan for?');
+    ok('LIVE', 'If the classifier fails, the phrase matcher answers instead', r3 === 'It is for my daughter\'s college admission. Her fees have to be paid.', r3);
     // Roleplay model outage: authorised facts are stated plainly instead of failing the turn.
     overrideProvider('classify', null);
     overrideProvider('roleplay', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 429', false); } });
-    const r4 = await say(kiran, ks, 'Which university is it?');
+    // Asked again, the amount is answered by the model (not the fixed line); with the model down it falls back.
+    const r4 = await say(kiran, ks, 'How much loan do you need?');
     overrideProvider('roleplay', null);
     const [g4] = await sql<{ method: string }[]>`SELECT a.generation->>'method' AS method FROM rp.turn_analysis a JOIN rp.turn t ON t.id = a.turn_id WHERE t.session_id = ${ks} ORDER BY t.sequence DESC LIMIT 1`;
-    ok('LIVE', 'If the reply model is down, the customer still answers from configured facts', r4 === 'Private university in India.' && g4.method === 'fallback', `${r4} (${g4.method})`);
+    ok('LIVE', 'If the reply model is down, the customer still answers from configured facts', /₹4 lakh/.test(r4) && g4.method === 'fallback', `${r4} (${g4.method})`);
     const kv = await rp.getSession(kiran, ks);
     await rp.finishSession(kiran, ks, { expected_revision: kv.revision });
     await drain();
     const [krun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT r.candidate FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${ks}`;
     const st = (c: string) => krun.candidate.evidence.find((e) => e.check_id === c)?.status;
-    ok('LIVE', 'Scoring credits what the customer understood, including paraphrases', st('repayment_comfort') === 'observed' && st('total_cost') === 'observed' && st('fee_deadline') === 'observed', `repayment ${st('repayment_comfort')}, cost ${st('total_cost')}`);
+    ok('LIVE', 'Scoring credits what the customer understood, including paraphrases', st('repayment_comfort') === 'observed' && st('loan_amount') === 'observed' && st('timing') === 'observed', `repayment ${st('repayment_comfort')}, amount ${st('loan_amount')}, timing ${st('timing')}`);
   }
 
   // ---- voice (spec §3: same turn contract, ASR provenance, learner correction) --------
@@ -338,11 +340,11 @@ export async function integrationTests(): Promise<Check[]> {
     try { await rp.submitTurn(dev, vs, { client_message_id: 'v1', text: 'When is the first fee payment due?', expected_revision: view.revision, input: heard }); } catch (e) { noConsent = (e as rp.ApiError).code; }
     ok('VOICE', 'A spoken turn is refused until the learner consents to voice', noConsent === 'VOICE_CONSENT_REQUIRED', noConsent);
     await rp.setVoiceConsent(dev, true);
-    const r1 = await rp.submitTurn(dev, vs, { client_message_id: 'v1', text: 'When is the first fee payment due?', expected_revision: view.revision, input: heard });
+    const r1 = await rp.submitTurn(dev, vs, { client_message_id: 'v1', text: 'When exactly do you need the money?', expected_revision: view.revision, input: heard });
     await drain();
     const op1 = await rp.getOperation(dev, r1.body.operation_id);
     const [prov] = await sql<{ asr_provider: string; asr_text: string; edited: boolean; language: string }[]>`SELECT asr_provider, asr_text, edited, language FROM rp.turn_input WHERE turn_id = ${r1.body.accepted_turn_id}`;
-    ok('VOICE', 'The learner-corrected text is the turn; the raw transcript is kept as provenance', op1.customer_turn?.text === 'The first payment is due in about three weeks.' && prov?.asr_text === heard.asr_text && prov.edited === true && prov.language === 'en-IN', `${prov?.asr_provider} edited=${prov?.edited}`);
+    ok('VOICE', 'The learner-corrected text is the turn; the raw transcript is kept as provenance', op1.customer_turn?.text === 'Within 30 days. The fees have to be paid by then.' && prov?.asr_text === heard.asr_text && prov.edited === true && prov.language === 'en-IN', `${prov?.asr_provider} edited=${prov?.edited}`);
     const v2 = await rp.getSession(dev, vs);
     const r2 = await rp.submitTurn(dev, vs, { client_message_id: 'v2', text: 'Has the scholarship been confirmed?', expected_revision: v2.revision, input: { ...heard, asr_text: 'Has the scholarship been confirmed?' } });
     await drain();
@@ -400,7 +402,7 @@ export async function integrationTests(): Promise<Check[]> {
     await rp.finishSession(dev, vs, { expected_revision: vsv.revision });
     await drain();
     const vrep = (await rp.getReport(dev, vs)).body as unknown as { transcript: { input_mode: string; asr_edited: boolean | null }[]; dimensions: unknown[] };
-    ok('VOICE', 'A voice session is assessed like any other; the report marks spoken and corrected turns', vrep.dimensions.length === 6 && vrep.transcript.some((t) => t.input_mode === 'voice' && t.asr_edited === true));
+    ok('VOICE', 'A voice session is assessed like any other; the report marks spoken and corrected turns', vrep.dimensions.length === EDU_BUNDLE.rubric.dimensions.length && vrep.transcript.some((t) => t.input_mode === 'voice' && t.asr_edited === true));
     const [snapV] = await sql<{ content: { input_mode?: string }[] }[]>`SELECT content FROM rp.transcript_snapshot WHERE session_id = ${vs}`;
     ok('VOICE', 'The frozen snapshot records which turns were spoken', snapV.content.filter((t) => t.input_mode === 'voice').length === 2);
   }
@@ -411,8 +413,8 @@ export async function integrationTests(): Promise<Check[]> {
     const hv = await rp.getSession(asha, hs.session_id);
     ok('LANG', 'A Hindi session opens with the Hindi opening line and Hindi brief', hv.language === 'hi' && /^नमस्ते/.test(hv.transcript[0].text) && /श्री शर्मा/.test(hv.learner_brief), hv.transcript[0].text);
     ok('LANG', 'Voice in a Hindi session listens and speaks hi-IN', hv.voice.language === 'hi-IN', hv.voice.language);
-    const reply = await say(asha, hs.session_id, 'When is the first fee payment due?');
-    ok('LANG', 'The customer\'s verbatim line comes from the Hindi translation', reply === 'पहली फ़ीस लगभग तीन हफ़्ते में भरनी है।', reply);
+    const reply = await say(asha, hs.session_id, 'When exactly do you need the money?');
+    ok('LANG', 'The customer\'s verbatim line comes from the Hindi translation', reply === '30 दिनों के अंदर। तब तक फ़ीस भरनी है।', reply);
     const ms = (await rp.startSession(asha, { scenario_id: 'EDU_DISCOVERY_001', language: 'mr' })).session;
     ok('LANG', 'A Marathi session opens in Marathi', /^नमस्कार/.test(ms.transcript[0].text), ms.transcript[0].text);
     let bad = '';

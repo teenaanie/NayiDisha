@@ -79,10 +79,12 @@ export interface Evidence {
 export interface DimensionScoreCandidate {
   dimension_id: string; score: number; anchor_score: number; evidence_ids: string[];
   rationale: string; status: 'scored' | 'uncertain';
+  /** Contract 1.1: one specific coaching suggestion for this skill. */
+  coaching?: string;
 }
 export interface RiskFlagCandidate { rule_id: string; evidence_ids: string[]; status: 'confirmed' | 'uncertain' }
 export interface EvaluationCandidate {
-  contract_version: '1.0'; session_id: string; transcript_hash: string; rubric_version: string;
+  contract_version: '1.0' | '1.1'; session_id: string; transcript_hash: string; rubric_version: string;
   evidence: Evidence[]; dimension_scores: DimensionScoreCandidate[]; risk_flags: RiskFlagCandidate[];
 }
 export interface RoleplayCandidate { text: string; used_fact_ids: string[]; requested_end: boolean }

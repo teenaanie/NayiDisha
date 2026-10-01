@@ -1,1632 +1,1898 @@
 {
-  "schema_version": "1.0",
-  "scenario": {
-    "id": "EDU_DISCOVERY_001",
-    "version": "1.0.0",
-    "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
-    "product": "Education Loan",
-    "skill": "Discovery Questions",
-    "difficulty": "Intermediate",
-    "locale": "en-IN",
-    "learner_role": "Education Loan Sales Officer",
-    "learner_brief": "You are speaking with Mr. Sharma, whose daughter has received admission for a postgraduate course. He wants to understand whether an education loan is suitable. Your goal is not to sell immediately. Your goal is to ask the right discovery questions and understand the student’s education plan, funding gap, repayment comfort, and decision concerns.",
-    "target_minutes": {
-      "min": 10,
-      "max": 12
-    },
-    "objective_ids": [
-      "student_name",
-      "course",
-      "institution",
-      "admission",
-      "study_location",
-      "total_cost",
-      "expense_scope",
-      "fee_deadline",
-      "family_contribution",
-      "scholarship_status",
-      "funding_gap",
-      "co_borrower",
-      "income_comfort",
-      "repayment_comfort",
-      "repayment_expectations",
-      "moratorium_understanding",
-      "logical_follow_up",
-      "discovery_before_pitch",
-      "responds_to_concern",
-      "summary_before_next_step",
-      "avoids_guarantee",
-      "clarifies_assessment",
-      "avoids_misleading_claims",
-      "simple_language",
-      "explains_jargon",
-      "checks_understanding"
-    ],
-    "success_criteria": [
-      "Discover education plan, funding need and repayment comfort before recommending a loan.",
-      "Avoid promises of loan approval or amount.",
-      "Use clear language and check understanding."
-    ]
+ "schema_version": "1.0",
+ "scenario": {
+  "id": "EDU_DISCOVERY_001",
+  "version": "3.0.0",
+  "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
+  "product": "Education Loan",
+  "skill": "Discovery Questions",
+  "difficulty": "Intermediate",
+  "locale": "en-IN",
+  "learner_role": "Loan Sales Officer",
+  "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
+  "target_minutes": {
+   "min": 12,
+   "max": 15
   },
-  "persona": {
-    "id": "rajesh_sharma",
-    "version": "1.0.0",
-    "name": "Rajesh Sharma",
-    "role": "Father of student",
-    "relationships": {
-      "student": "Riya Sharma"
-    },
-    "initial_emotion": "Polite but cautious",
-    "speaking_style": "Brief natural answers; respond to the actual question without coaching.",
-    "concerns": [
-      {
-        "id": "emi_burden",
-        "text": "EMI burden after course completion",
-        "fact_refs": [
-          "emi_concern"
-        ]
-      },
-      {
-        "id": "savings_or_loan",
-        "text": "Unsure whether to use family savings or take a loan",
-        "fact_refs": [
-          "savings_dilemma"
-        ]
-      }
-    ],
-    "forbidden_inventions": [
-      "Exact university name",
-      "Income amount",
-      "Comfortable EMI amount",
-      "Confirmed co-borrower identity",
-      "Scholarship amount",
-      "Interest rate or loan tenure",
-      "Moratorium duration",
-      "Approval or guaranteed loan amount"
-    ]
-  },
-  "facts": [
-    {
-      "id": "student",
-      "type": "text",
-      "value": "Riya Sharma",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "student_name"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "course",
-      "type": "text",
-      "value": "MBA",
-      "knowledge": "known",
-      "visibility": "opening",
-      "release_intents": [
-        "course"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "admission",
-      "type": "status",
-      "value": "Has received admission; further administrative confirmation unspecified",
-      "knowledge": "known",
-      "visibility": "opening",
-      "release_intents": [
-        "admission"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "institution",
-      "type": "text",
-      "value": "Private university in India",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "institution",
-        "study_location"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "cost",
-      "type": "money",
-      "value": {
-        "amount_minor": 140000000,
-        "currency": "INR"
-      },
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "total_cost",
-        "funding_gap"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "savings_exist",
-      "type": "text",
-      "value": "The family has some savings",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "funding_gap"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "savings",
-      "type": "money",
-      "value": {
-        "amount_minor": 40000000,
-        "currency": "INR"
-      },
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "savings"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "savings_reservation",
-      "type": "text",
-      "value": "Does not want to use all available savings",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "savings",
-        "savings_decision"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "scholarship",
-      "type": "status",
-      "value": "Applied, not confirmed",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "scholarship_status"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "deadline",
-      "type": "relative_deadline",
-      "value": {
-        "amount": 3,
-        "unit": "weeks",
-        "relative_to": "scenario_start"
-      },
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "fee_deadline"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "emi_concern",
-      "type": "text",
-      "value": "Worried about a heavy EMI after course completion",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "repayment_comfort",
-        "repayment_expectations",
-        "premature_pitch"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "savings_dilemma",
-      "type": "text",
-      "value": "Unsure whether to use family savings or take a loan",
-      "knowledge": "known",
-      "visibility": "on_intent",
-      "release_intents": [
-        "savings_decision"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": "S02"
-    },
-    {
-      "id": "exact_university",
-      "type": "text",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "institution"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "income",
-      "type": "money",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "income_comfort"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "emi_range",
-      "type": "money",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "repayment_comfort"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "co_borrower_identity",
-      "type": "text",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "co_borrower"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "expense_breakdown",
-      "type": "text",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "expense_scope"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "scholarship_amount",
-      "type": "money",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "scholarship_status"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "comfortable_contribution",
-      "type": "money",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "savings"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    },
-    {
-      "id": "moratorium_understanding",
-      "type": "status",
-      "value": null,
-      "knowledge": "unknown",
-      "visibility": "on_intent",
-      "release_intents": [
-        "moratorium_understanding"
-      ],
-      "prerequisite_fact_ids": [],
-      "source_ref": null
-    }
+  "objective_ids": [
+   "loan_purpose",
+   "loan_amount",
+   "timing",
+   "income",
+   "existing_commitments",
+   "repayment_comfort",
+   "priorities",
+   "concerns",
+   "employment",
+   "prior_borrowing",
+   "preferred_tenure",
+   "discovery_before_pitch",
+   "follows_up_timing_cue",
+   "follows_up_other_emi_cue",
+   "follows_up_low_emi_cue",
+   "follows_up_charges_cue",
+   "acknowledges_information",
+   "clarifies_vague_info",
+   "avoids_repeat_questions",
+   "identifies_main_need",
+   "keeps_focus",
+   "summary_before_next_step",
+   "confirms_summary",
+   "simple_language",
+   "explains_jargon",
+   "one_question_at_a_time",
+   "checks_understanding"
   ],
-  "conversation": {
-    "opening_text": "Hello, my daughter has got admission for an MBA, and someone told me I can take an education loan. I just want to know how much loan we can get.",
-    "intents": [
-      {
-        "id": "course",
-        "description": "Detect a learner question about course.",
-        "positive_examples": [
-          "Which course has she been admitted to?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "institution",
-        "description": "Detect a learner question about institution.",
-        "positive_examples": [
-          "Which university is this?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "admission",
-        "description": "Detect a learner question about admission.",
-        "positive_examples": [
-          "Has she received admission?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "study_location",
-        "description": "Detect a learner question about study location.",
-        "positive_examples": [
-          "Where will she study?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "student_name",
-        "description": "Detect a learner question about student name.",
-        "positive_examples": [
-          "What is your daughter’s name?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "total_cost",
-        "description": "Detect a learner question about total cost.",
-        "positive_examples": [
-          "What is the total cost of education?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "fee_deadline",
-        "description": "Detect a learner question about fee deadline.",
-        "positive_examples": [
-          "When is the first fee payment due?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "savings",
-        "description": "Detect a learner question about savings.",
-        "positive_examples": [
-          "How much can your family contribute comfortably?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "scholarship_status",
-        "description": "Detect a learner question about scholarship status.",
-        "positive_examples": [
-          "Has the scholarship been confirmed?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "funding_gap",
-        "description": "Detect a learner question about funding gap.",
-        "positive_examples": [
-          "How much loan do you need?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "expense_scope",
-        "description": "Detect a learner question about expense scope.",
-        "positive_examples": [
-          "Are you funding tuition only or other expenses too?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "co_borrower",
-        "description": "Detect a learner question about co borrower.",
-        "positive_examples": [
-          "Who will be the co-borrower?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "income_comfort",
-        "description": "Detect a learner question about income comfort.",
-        "positive_examples": [
-          "What income can support repayment comfortably?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "repayment_comfort",
-        "description": "Detect a learner question about repayment comfort.",
-        "positive_examples": [
-          "What monthly repayment would feel manageable?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "repayment_expectations",
-        "description": "Detect a learner question about repayment expectations.",
-        "positive_examples": [
-          "What are your expectations about repayment?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "moratorium_understanding",
-        "description": "Detect a learner question about moratorium understanding.",
-        "positive_examples": [
-          "Do you understand when repayment may start?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "savings_decision",
-        "description": "Detect a learner question about savings decision.",
-        "positive_examples": [
-          "How do you feel about using savings versus taking a loan?"
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      },
-      {
-        "id": "premature_pitch",
-        "description": "Detect a premature product recommendation, conditioned on discovery state.",
-        "positive_examples": [
-          "You should take this loan now and submit documents."
-        ],
-        "negative_examples": [
-          "Customer volunteers this information.",
-          "Learner merely mentions the topic without asking or checking."
-        ]
-      }
-    ],
-    "rules": [
-      {
-        "id": "respond_funding_gap",
-        "priority": 100,
-        "intent_ids": [
-          "funding_gap"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "cost",
-          "savings_exist"
-        ],
-        "response_text": "We are not sure. The course is around ₹14 lakh, but we have some savings."
-      },
-      {
-        "id": "respond_savings",
-        "priority": 100,
-        "intent_ids": [
-          "savings"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "savings",
-          "savings_reservation"
-        ],
-        "response_text": "We can arrange around ₹4 lakh, but I do not want to use everything."
-      },
-      {
-        "id": "respond_scholarship_status",
-        "priority": 100,
-        "intent_ids": [
-          "scholarship_status"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "scholarship"
-        ],
-        "response_text": "She has applied for one, but we do not know the result yet."
-      },
-      {
-        "id": "respond_fee_deadline",
-        "priority": 100,
-        "intent_ids": [
-          "fee_deadline"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "deadline"
-        ],
-        "response_text": "The first payment is due in about three weeks."
-      },
-      {
-        "id": "respond_repayment_comfort",
-        "priority": 100,
-        "intent_ids": [
-          "repayment_comfort"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "emi_concern"
-        ],
-        "response_text": "That is what worries me. I do not want a very heavy EMI later."
-      },
-      {
-        "id": "respond_premature_pitch",
-        "priority": 100,
-        "intent_ids": [
-          "premature_pitch"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "emi_concern"
-        ],
-        "response_text": "But before that, I want to understand whether this will become too much burden for us."
-      },
-      {
-        "id": "disclose_course",
-        "priority": 50,
-        "intent_ids": [
-          "course"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "course"
-        ]
-      },
-      {
-        "id": "disclose_institution",
-        "priority": 50,
-        "intent_ids": [
-          "institution"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "institution"
-        ]
-      },
-      {
-        "id": "disclose_admission",
-        "priority": 50,
-        "intent_ids": [
-          "admission"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "admission"
-        ]
-      },
-      {
-        "id": "disclose_study_location",
-        "priority": 50,
-        "intent_ids": [
-          "study_location"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "institution"
-        ]
-      },
-      {
-        "id": "disclose_student_name",
-        "priority": 50,
-        "intent_ids": [
-          "student_name"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "student"
-        ]
-      },
-      {
-        "id": "disclose_total_cost",
-        "priority": 50,
-        "intent_ids": [
-          "total_cost"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "cost"
-        ]
-      },
-      {
-        "id": "disclose_expense_scope",
-        "priority": 50,
-        "intent_ids": [
-          "expense_scope"
-        ],
-        "match": "any",
-        "reveal_fact_ids": []
-      },
-      {
-        "id": "disclose_co_borrower",
-        "priority": 50,
-        "intent_ids": [
-          "co_borrower"
-        ],
-        "match": "any",
-        "reveal_fact_ids": []
-      },
-      {
-        "id": "disclose_income_comfort",
-        "priority": 50,
-        "intent_ids": [
-          "income_comfort"
-        ],
-        "match": "any",
-        "reveal_fact_ids": []
-      },
-      {
-        "id": "disclose_repayment_expectations",
-        "priority": 50,
-        "intent_ids": [
-          "repayment_expectations"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "emi_concern"
-        ]
-      },
-      {
-        "id": "disclose_moratorium_understanding",
-        "priority": 50,
-        "intent_ids": [
-          "moratorium_understanding"
-        ],
-        "match": "any",
-        "reveal_fact_ids": []
-      },
-      {
-        "id": "disclose_savings_decision",
-        "priority": 50,
-        "intent_ids": [
-          "savings_decision"
-        ],
-        "match": "any",
-        "reveal_fact_ids": [
-          "savings_reservation",
-          "savings_dilemma"
-        ]
-      }
-    ],
-    "unknown_response": "I don’t have that detail with me right now.",
-    "clarification_response": "Could you explain what you mean?",
-    "multi_intent_mode": "answer_asked_only",
-    "off_topic_mode": "brief_redirect",
-    "injection_mode": "stay_in_character",
-    "max_new_facts_per_turn": 4
-  },
-  "rubric": {
-    "id": "education_discovery",
-    "version": "1.0.0",
-    "title": "Education Loan Discovery Rubric",
-    "dimensions": [
-      {
-        "id": "course_admission",
-        "name": "Course and admission discovery",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Does not understand education plan",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Asks course but misses some key details",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Clearly asks course, institution, admission status, study location",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "student_name",
-          "course",
-          "institution",
-          "admission",
-          "study_location"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      },
-      {
-        "id": "cost_funding",
-        "name": "Cost and funding gap discovery",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Does not calculate or understand funding need",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Asks basic loan amount but misses some funding details",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Explores total cost, savings, scholarship, deadline and funding gap",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "total_cost",
-          "expense_scope",
-          "fee_deadline",
-          "family_contribution",
-          "scholarship_status",
-          "funding_gap"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      },
-      {
-        "id": "repayment",
-        "name": "Repayment comfort",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Ignores repayment concern",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Mentions repayment but does not explore comfort deeply",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Explores co-borrower, EMI concern, moratorium and repayment expectations",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "co_borrower",
-          "income_comfort",
-          "repayment_comfort",
-          "repayment_expectations",
-          "moratorium_understanding"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      },
-      {
-        "id": "listening",
-        "name": "Listening and sequencing",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Gives product pitch too early",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Mixes questions and product explanation",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Asks logical follow-up questions before pitching",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "logical_follow_up",
-          "discovery_before_pitch",
-          "responds_to_concern",
-          "summary_before_next_step"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      },
-      {
-        "id": "responsible",
-        "name": "Responsible selling",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Promises approval or loan amount",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Mostly compliant but slightly overstates certainty",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Avoids guarantees, clarifies that approval depends on assessment",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "avoids_guarantee",
-          "clarifies_assessment",
-          "avoids_misleading_claims"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      },
-      {
-        "id": "clarity",
-        "name": "Communication clarity",
-        "min_score": 1,
-        "max_score": 5,
-        "anchors": [
-          {
-            "score": 1,
-            "description": "Confusing or overly technical",
-            "basis": "source"
-          },
-          {
-            "score": 2,
-            "description": "Exceeds score 1 with relevant observable behaviour but does not meet score 3.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 3,
-            "description": "Mostly clear but uses some jargon",
-            "basis": "source"
-          },
-          {
-            "score": 4,
-            "description": "Meets score 3 and most of score 5, with a specific evidence-backed gap.",
-            "basis": "recommendation"
-          },
-          {
-            "score": 5,
-            "description": "Uses simple language and checks understanding",
-            "basis": "source"
-          }
-        ],
-        "check_ids": [
-          "simple_language",
-          "explains_jargon",
-          "checks_understanding"
-        ],
-        "evaluation_method": "hybrid",
-        "applicability": "required"
-      }
-    ],
-    "checks": [
-      {
-        "id": "student_name",
-        "description": "Asks the student name",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "student_name"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "student"
-        ]
-      },
-      {
-        "id": "course",
-        "description": "Asks which course the student will study",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "course"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "course"
-        ]
-      },
-      {
-        "id": "institution",
-        "description": "Asks which institution admitted the student",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "institution"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "institution",
-          "exact_university"
-        ]
-      },
-      {
-        "id": "admission",
-        "description": "Checks admission status",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "admission"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "admission"
-        ]
-      },
-      {
-        "id": "study_location",
-        "description": "Asks study location",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "study_location"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "institution"
-        ]
-      },
-      {
-        "id": "total_cost",
-        "description": "Asks total education cost",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "total_cost"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "cost"
-        ]
-      },
-      {
-        "id": "expense_scope",
-        "description": "Asks about tuition and other education expenses",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "expense_scope"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "expense_breakdown"
-        ]
-      },
-      {
-        "id": "fee_deadline",
-        "description": "Asks when first fee payment is due",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "fee_deadline"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "deadline"
-        ]
-      },
-      {
-        "id": "family_contribution",
-        "description": "Asks how much family can comfortably contribute without exhausting savings",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "savings"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "savings",
-          "savings_reservation",
-          "comfortable_contribution"
-        ]
-      },
-      {
-        "id": "scholarship_status",
-        "description": "Checks whether scholarship or other funding is confirmed",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "scholarship_status"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "scholarship",
-          "scholarship_amount"
-        ]
-      },
-      {
-        "id": "funding_gap",
-        "description": "Explores the required funding after confirmed comfortable contribution",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "funding_gap"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "cost",
-          "savings_exist"
-        ]
-      },
-      {
-        "id": "co_borrower",
-        "description": "Asks who will be co-borrower",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "co_borrower"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "co_borrower_identity"
-        ]
-      },
-      {
-        "id": "income_comfort",
-        "description": "Explores parent or co-borrower income comfort",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "income_comfort"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "income"
-        ]
-      },
-      {
-        "id": "repayment_comfort",
-        "description": "Asks what repayment or EMI would feel manageable",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "repayment_comfort"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "emi_concern",
-          "emi_range"
-        ]
-      },
-      {
-        "id": "repayment_expectations",
-        "description": "Explores repayment expectations",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "repayment_expectations"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "emi_concern"
-        ]
-      },
-      {
-        "id": "moratorium_understanding",
-        "description": "Checks understanding of moratorium and repayment start",
-        "category": "coverage",
-        "method": "semantic",
-        "accepted_intents": [
-          "moratorium_understanding"
-        ],
-        "credit_requires": "learner_question",
-        "expected_fact_ids": [
-          "moratorium_understanding"
-        ]
-      },
-      {
-        "id": "logical_follow_up",
-        "description": "Uses logical follow-up questions",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "discovery_before_pitch",
-        "description": "Discovers needs before recommending a product",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "responds_to_concern",
-        "description": "Responds to the customer concern",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "summary_before_next_step",
-        "description": "Summarizes before the next step",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "avoids_guarantee",
-        "description": "Avoids promising approval or a loan amount",
-        "category": "compliance",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "clarifies_assessment",
-        "description": "Clarifies approval depends on assessment",
-        "category": "compliance",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "avoids_misleading_claims",
-        "description": "Avoids misleading claims",
-        "category": "compliance",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "simple_language",
-        "description": "Uses simple customer-friendly language",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "explains_jargon",
-        "description": "Explains jargon when used",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      },
-      {
-        "id": "checks_understanding",
-        "description": "Checks customer understanding",
-        "category": "conversation",
-        "method": "llm",
-        "accepted_intents": [],
-        "credit_requires": "learner_action",
-        "expected_fact_ids": []
-      }
-    ],
-    "evidence_categories": [
-      "coverage",
-      "quality",
-      "compliance",
-      "conversation"
+  "success_criteria": [
+   "Understand the customer's need, priorities and concerns through relevant, well-sequenced questions.",
+   "Listen for the customer's cues and follow them up.",
+   "Keep the conversation focused, summarise and confirm understanding.",
+   "Communicate simply and clearly, and avoid misleading statements."
+  ]
+ },
+ "persona": {
+  "id": "rajesh_sharma",
+  "version": "3.0.0",
+  "name": "Rajesh Sharma",
+  "role": "Salaried father of a student",
+  "relationships": {},
+  "initial_emotion": "Polite but cautious",
+  "speaking_style": "Brief natural answers; respond to the actual question without coaching.",
+  "concerns": [
+   {
+    "id": "affordable_emi",
+    "text": "Keeping the monthly repayment affordable",
+    "fact_refs": [
+     "cue_low_emi",
+     "comfortable_emi"
     ]
-  },
-  "risk_policy": {
-    "id": "education_discovery_risks",
-    "version": "1.0.0",
-    "rules": [
-      {
-        "id": "guaranteed_approval",
-        "description": "Promises approval or loan amount",
-        "category": "selling",
-        "severity": "high",
-        "detector": "hybrid",
-        "examples": [
-          "Your loan will definitely be approved."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "review",
-        "dimension_ids": [
-          "responsible"
-        ]
-      },
-      {
-        "id": "documents_dismissed",
-        "description": "Dismisses required documentation",
-        "category": "process",
-        "severity": "high",
-        "detector": "hybrid",
-        "examples": [
-          "Don’t worry about documents."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "review",
-        "dimension_ids": [
-          "responsible"
-        ]
-      },
-      {
-        "id": "optional_as_compulsory",
-        "description": "Misrepresents optional service as compulsory",
-        "category": "selling",
-        "severity": "high",
-        "detector": "hybrid",
-        "examples": [
-          "This optional service is compulsory."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "review",
-        "dimension_ids": [
-          "responsible"
-        ]
-      },
-      {
-        "id": "income_falsification",
-        "description": "Suggests falsifying income",
-        "category": "integrity",
-        "severity": "high",
-        "detector": "hybrid",
-        "examples": [
-          "We can increase your income in the application."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "review",
-        "dimension_ids": [
-          "responsible"
-        ]
-      },
-      {
-        "id": "premature_pitch",
-        "description": "Pitches before understanding needs",
-        "category": "selling",
-        "severity": "medium",
-        "detector": "hybrid",
-        "examples": [
-          "You should take this loan now."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "dimension_evidence",
-        "dimension_ids": [
-          "listening"
-        ]
-      },
-      {
-        "id": "scholarship_assumed_confirmed",
-        "description": "Counts unconfirmed scholarship as available",
-        "category": "selling",
-        "severity": "medium",
-        "detector": "hybrid",
-        "examples": [
-          "We will subtract that scholarship as confirmed funding."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "dimension_evidence",
-        "dimension_ids": [
-          "cost_funding"
-        ]
-      },
-      {
-        "id": "premature_documents",
-        "description": "Pushes documentation before discovery",
-        "category": "process",
-        "severity": "medium",
-        "detector": "hybrid",
-        "examples": [
-          "Send your documents first; we can discuss your needs later."
-        ],
-        "context_exclusions": [
-          "Negated assertion",
-          "Quoted claim attributed to another person",
-          "Question without affirmative assertion",
-          "Appropriate response to an explicit customer request"
-        ],
-        "consequence": "dimension_evidence",
-        "dimension_ids": [
-          "listening"
-        ]
-      }
+   },
+   {
+    "id": "hidden_charges",
+    "text": "Hidden or additional charges, after his last loan",
+    "fact_refs": [
+     "concern_charges"
     ]
-  },
-  "scoring": {
-    "id": "education_sum",
-    "version": "1.0.0",
-    "mode": "unweighted_sum",
-    "weights": {},
-    "bands": [
-      {
-        "id": "guided",
-        "label": "Needs guided practice",
-        "lower": 0,
-        "upper": 13,
-        "upper_inclusive": false
-      },
-      {
-        "id": "basic",
-        "label": "Basic discovery, important gaps",
-        "lower": 13,
-        "upper": 19,
-        "upper_inclusive": false
-      },
-      {
-        "id": "good",
-        "label": "Good, but needs sharper follow-up",
-        "lower": 19,
-        "upper": 25,
-        "upper_inclusive": false
-      },
-      {
-        "id": "strong",
-        "label": "Strong discovery",
-        "lower": 25,
-        "upper": 31,
-        "upper_inclusive": false
-      }
-    ],
-    "band_scale": "raw_sum",
-    "display_decimals": 1,
-    "risk_effect": "rubric_only",
-    "risk_effect_parameters": {}
-  },
-  "prompts": {
-    "roleplay": "roleplay_v1",
-    "evaluator": "evaluator_v1",
-    "coach": "coach_v1"
-  },
-  "retry": {
-    "full_enabled": true,
-    "focused_enabled": true,
-    "focused_target_check_ids": [
-      "fee_deadline",
-      "scholarship_status",
-      "repayment_comfort"
-    ],
-    "focused_scoring": "checks_only",
-    "instruction": "Repeat the middle part of the conversation. Ask about fee deadline, confirmed funding, and repayment comfort before explaining the loan option.",
-    "version_policy": "pin_parent"
-  },
-  "provenance": [
-    {
-      "path": "/",
-      "basis": "recommendation",
-      "note": "All implementation structure and defaults are recommended unless overridden by a more specific provenance record."
-    },
-    {
-      "path": "/scenario",
-      "basis": "source",
-      "source_ref": "S02/S07",
-      "note": "Source scenario content; schema version, locale, IDs for objectives and configuration structure are recommendations."
-    },
-    {
-      "path": "/persona",
-      "basis": "source",
-      "source_ref": "S02",
-      "note": "Name, role, relationships, emotion and concerns from source. ID, version, speaking-style wording and forbidden-invention controls are recommendations."
-    },
-    {
-      "path": "/facts",
-      "basis": "source",
-      "source_ref": "S02/S03",
-      "note": "Known fact values from source; money encoding and conservative admission wording recommended. Unknown entries remain unspecified."
-    },
-    {
-      "path": "/rubric/dimensions",
-      "basis": "source",
-      "source_ref": "S04",
-      "note": "Names and anchors 1, 3, 5 from source; IDs and anchors 2, 4 recommended."
-    },
-    {
-      "path": "/scoring/bands",
-      "basis": "source",
-      "source_ref": "S04",
-      "note": "Labels and cutoffs from source; half-open interval encoding recommended."
-    },
-    {
-      "path": "/conversation/opening_text",
-      "basis": "source",
-      "source_ref": "S02",
-      "note": "Exact source opening."
-    },
-    {
-      "path": "/conversation/rules",
-      "basis": "source",
-      "source_ref": "S03",
-      "note": "First six response texts from source; triggers, disclosure mappings and remaining rules recommended."
-    },
-    {
-      "path": "/retry/instruction",
-      "basis": "source",
-      "source_ref": "S05",
-      "note": "Source suggested retry, lightly condensed."
-    },
-    {
-      "path": "/facts/12/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/13/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/14/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/15/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/16/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/17/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/18/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    },
-    {
-      "path": "/facts/19/value",
-      "basis": "unspecified",
-      "note": "Source supplies no value; do not invent one."
-    }
+   }
   ],
-  "extensions": {
-    "careerKore": {
-      "source_sha256": "27a940d12ed4969d3cda5cb5ee0f590ab8feea09fd473774772bde76ea800952",
-      "source_title": "Pasted text.txt",
-      "knowledge_pack_status": "absent",
-      "product_policy_accuracy": "not_assessed",
-      "responsible_selling_promise_score": 1,
-      "loan_gap_policy": "Conditional arithmetic only; comfortable contribution remains unknown.",
-      "funding_gap_exact_response_condition": "Learner asks only loan amount; for multi-intent turns compose only permitted answers.",
-      "moratorium_unknown_response": "Could you explain what you mean by moratorium?"
-    }
+  "forbidden_inventions": [
+   "Interest rate",
+   "Processing fee or other charge amounts",
+   "Employer name",
+   "Daughter's name, college or course",
+   "A loan tenure",
+   "Approval or guaranteed loan amount"
+  ]
+ },
+ "facts": [
+  {
+   "id": "cue_soon",
+   "type": "text",
+   "value": "needs the money quite soon",
+   "knowledge": "known",
+   "visibility": "opening",
+   "release_intents": [],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "purpose",
+   "type": "text",
+   "value": "for his daughter's college admission fees",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "loan_purpose"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "loan_amount",
+   "type": "money",
+   "value": {
+    "amount_minor": 40000000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "loan_amount"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "needed_by",
+   "type": "relative_deadline",
+   "value": {
+    "amount": 30,
+    "unit": "days",
+    "relative_to": "scenario_start"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "timing"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "employment",
+   "type": "text",
+   "value": "salaried employee",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "employment"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "monthly_income",
+   "type": "money",
+   "value": {
+    "amount_minor": 5500000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "income"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "cue_other_emi",
+   "type": "text",
+   "value": "already has another EMI",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "income",
+    "existing_commitments"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "existing_emi",
+   "type": "money",
+   "value": {
+    "amount_minor": 800000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "existing_commitments"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "cue_low_emi",
+   "type": "text",
+   "value": "does not want a very high EMI",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "loan_amount",
+    "repayment_comfort",
+    "premature_pitch"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "comfortable_emi",
+   "type": "text",
+   "value": "around ₹10,000 to ₹12,000 a month more would be comfortable",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "repayment_comfort"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "previous_loan",
+   "type": "text",
+   "value": "has taken a vehicle loan before",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "prior_borrowing",
+    "existing_commitments"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "cue_extra_charges",
+   "type": "text",
+   "value": "his previous loan had extra charges",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "prior_borrowing"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "concern_charges",
+   "type": "text",
+   "value": "last time he was surprised by some additional charges; worried about hidden charges",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "concerns"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "priority_main",
+   "type": "text",
+   "value": "an affordable monthly repayment",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "priorities"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "priority_secondary",
+   "type": "text",
+   "value": "quick processing",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "priorities"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "SP"
+  },
+  {
+   "id": "preferred_tenure",
+   "type": "text",
+   "value": "has not decided the tenure; whatever keeps the EMI comfortable",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "preferred_tenure"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation"
   }
+ ],
+ "conversation": {
+  "opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?",
+  "intents": [
+   {
+    "id": "loan_purpose",
+    "description": "Asks why the customer needs the money.",
+    "positive_examples": [
+     "What do you need the loan for?",
+     "What is the purpose of the loan?",
+     "Why do you need the money?",
+     "What will you use this money for?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "loan_amount",
+    "description": "Asks how much the customer needs.",
+    "positive_examples": [
+     "How much loan do you need?",
+     "What amount are you looking for?",
+     "How much money do you require?",
+     "Roughly how much do you need?",
+     "How much do you need?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "timing",
+    "description": "Asks when the funds are required.",
+    "positive_examples": [
+     "When exactly do you need the money?",
+     "By what date do you need the funds?",
+     "How soon do you need it?",
+     "When do the fees have to be paid?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "employment",
+    "description": "Asks about the customer's work or source of income.",
+    "positive_examples": [
+     "What do you do for a living?",
+     "Are you salaried or self-employed?",
+     "Where does your income come from?",
+     "What is your occupation?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "income",
+    "description": "Asks about the customer's income or cash flow.",
+    "positive_examples": [
+     "What is your monthly income?",
+     "How much do you earn every month?",
+     "What is your take-home salary?",
+     "Roughly what is your income?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "existing_commitments",
+    "description": "Asks about existing EMIs or financial obligations.",
+    "positive_examples": [
+     "Do you have any other EMIs?",
+     "How much is your current EMI?",
+     "Are you repaying any other loan right now?",
+     "What other monthly commitments do you have?",
+     "You mentioned another EMI. How much do you pay for it each month?",
+     "How much do you pay every month for that loan?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "repayment_comfort",
+    "description": "Asks what monthly repayment would be comfortable.",
+    "positive_examples": [
+     "What's a comfortable EMI for you?",
+     "How much could you comfortably repay every month?",
+     "What monthly payment would work for your budget?",
+     "What EMI can you manage each month?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "preferred_tenure",
+    "description": "Asks how long the customer wants to repay over.",
+    "positive_examples": [
+     "Over how many years would you like to repay?",
+     "What loan tenure do you prefer?",
+     "How long would you like the repayment period to be?",
+     "Do you have a repayment period in mind?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "prior_borrowing",
+    "description": "Asks about previous loan experience.",
+    "positive_examples": [
+     "Have you taken a loan before?",
+     "Do you have any previous loan experience?",
+     "Have you borrowed from a bank earlier?",
+     "How was your experience with your last loan?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "priorities",
+    "description": "Asks what matters most to the customer in a loan.",
+    "positive_examples": [
+     "What matters most to you in this loan?",
+     "What is most important for you: EMI, interest or speed?",
+     "What are you looking for in a loan?",
+     "What would make a loan right for you?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "concerns",
+    "description": "Asks about the customer's worries or what happened before.",
+    "positive_examples": [
+     "Do you have any concerns about taking a loan?",
+     "What happened with those charges?",
+     "Is anything worrying you about the loan?",
+     "What would you like to avoid this time?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "premature_pitch",
+    "description": "Detect a premature product recommendation, conditioned on discovery state.",
+    "positive_examples": [
+     "You should take this loan now and submit documents.",
+     "Our loan is the best option for you.",
+     "You should apply for our loan right away.",
+     "We offer a great loan at a low interest rate, apply today."
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   }
+  ],
+  "rules": [
+   {
+    "id": "respond_loan_purpose",
+    "priority": 100,
+    "intent_ids": [
+     "loan_purpose"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "purpose"
+    ],
+    "response_text": "It is for my daughter's college admission. Her fees have to be paid."
+   },
+   {
+    "id": "respond_loan_amount",
+    "priority": 100,
+    "intent_ids": [
+     "loan_amount"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "loan_amount",
+     "cue_low_emi"
+    ],
+    "response_text": "I need about ₹4 lakh. But I don't want a very high EMI."
+   },
+   {
+    "id": "respond_timing",
+    "priority": 100,
+    "intent_ids": [
+     "timing"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "needed_by"
+    ],
+    "response_text": "Within 30 days. The fees have to be paid by then."
+   },
+   {
+    "id": "respond_employment",
+    "priority": 100,
+    "intent_ids": [
+     "employment"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "employment"
+    ],
+    "response_text": "I am a salaried employee."
+   },
+   {
+    "id": "respond_income",
+    "priority": 100,
+    "intent_ids": [
+     "income"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "monthly_income",
+     "cue_other_emi"
+    ],
+    "response_text": "I earn about ₹55,000 a month. I already have another EMI, though."
+   },
+   {
+    "id": "respond_existing_commitments",
+    "priority": 100,
+    "intent_ids": [
+     "existing_commitments"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "cue_other_emi",
+     "existing_emi",
+     "previous_loan"
+    ],
+    "response_text": "Yes, I pay ₹8,000 a month for my vehicle loan."
+   },
+   {
+    "id": "respond_repayment_comfort",
+    "priority": 100,
+    "intent_ids": [
+     "repayment_comfort"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "cue_low_emi",
+     "comfortable_emi"
+    ],
+    "response_text": "Around ₹10,000 to ₹12,000 a month more would be comfortable. I don't want a very high EMI."
+   },
+   {
+    "id": "respond_preferred_tenure",
+    "priority": 100,
+    "intent_ids": [
+     "preferred_tenure"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "preferred_tenure"
+    ],
+    "response_text": "I haven't decided. Whatever keeps the EMI comfortable."
+   },
+   {
+    "id": "respond_prior_borrowing",
+    "priority": 100,
+    "intent_ids": [
+     "prior_borrowing"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "previous_loan",
+     "cue_extra_charges"
+    ],
+    "response_text": "Yes, I took a vehicle loan before. My previous loan had extra charges."
+   },
+   {
+    "id": "respond_priorities",
+    "priority": 100,
+    "intent_ids": [
+     "priorities"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "priority_main",
+     "priority_secondary"
+    ],
+    "response_text": "Most important for me is an EMI I can manage every month. Quick processing would also help."
+   },
+   {
+    "id": "respond_concerns",
+    "priority": 100,
+    "intent_ids": [
+     "concerns"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "concern_charges"
+    ],
+    "response_text": "Last time I was surprised by some additional charges. I don't want any hidden charges this time."
+   },
+   {
+    "id": "respond_premature_pitch",
+    "priority": 100,
+    "intent_ids": [
+     "premature_pitch"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "cue_low_emi"
+    ],
+    "response_text": "Before that, I want to be sure the EMI will be manageable for me."
+   }
+  ],
+  "unknown_response": "I don’t have that detail with me right now.",
+  "clarification_response": "Could you explain what you mean?",
+  "multi_intent_mode": "answer_asked_only",
+  "off_topic_mode": "brief_redirect",
+  "injection_mode": "stay_in_character",
+  "max_new_facts_per_turn": 4
+ },
+ "rubric": {
+  "id": "education_discovery",
+  "version": "3.0.0",
+  "title": "Loan Discovery Skills Rubric",
+  "evidence_categories": [
+   "coverage",
+   "quality",
+   "compliance",
+   "conversation"
+  ],
+  "dimensions": [
+   {
+    "id": "questioning_discovery",
+    "name": "Questioning & Discovery Skills",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Mostly asks closed, unclear or unrelated questions. Misses important areas.",
+      "basis": "source"
+     },
+     {
+      "score": 2,
+      "description": "Asks some useful questions but misses several important areas or asks many closed/repetitive questions.",
+      "basis": "source"
+     },
+     {
+      "score": 3,
+      "description": "Asks a good mix of open and closed questions and covers most important areas.",
+      "basis": "source"
+     },
+     {
+      "score": 4,
+      "description": "Covers most important discovery areas and asks relevant questions, but misses one or two useful areas or opportunities.",
+      "basis": "source"
+     },
+     {
+      "score": 5,
+      "description": "Asks clear, relevant and well-sequenced questions that uncover both stated and unstated customer needs.",
+      "basis": "source"
+     }
+    ],
+    "check_ids": [
+     "loan_purpose",
+     "loan_amount",
+     "timing",
+     "income",
+     "existing_commitments",
+     "repayment_comfort",
+     "priorities",
+     "concerns",
+     "employment",
+     "prior_borrowing",
+     "preferred_tenure",
+     "discovery_before_pitch"
+    ],
+    "evaluation_method": "hybrid",
+    "applicability": "required"
+   },
+   {
+    "id": "active_listening",
+    "name": "Active Listening & Probing",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Moves to the next question without using the customer's response. Misses important information or cues.",
+      "basis": "source"
+     },
+     {
+      "score": 2,
+      "description": "Limited follow-up questioning. Frequently ignores useful information provided by the customer.",
+      "basis": "source"
+     },
+     {
+      "score": 3,
+      "description": "Listens to the customer and asks follow-up questions on important points.",
+      "basis": "source"
+     },
+     {
+      "score": 4,
+      "description": "Responds to most important cues and asks useful follow-ups, but misses a small number of opportunities.",
+      "basis": "source"
+     },
+     {
+      "score": 5,
+      "description": "Uses the customer's answers to decide what to ask next, explores important cues and clarifies unclear information.",
+      "basis": "source"
+     }
+    ],
+    "check_ids": [
+     "follows_up_timing_cue",
+     "follows_up_other_emi_cue",
+     "follows_up_low_emi_cue",
+     "follows_up_charges_cue",
+     "acknowledges_information",
+     "clarifies_vague_info",
+     "avoids_repeat_questions"
+    ],
+    "evaluation_method": "llm",
+    "applicability": "required"
+   },
+   {
+    "id": "needs_conversation",
+    "name": "Understanding Customer Needs and Managing the Conversation",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Conversation is not well organized. Misses the main customer need or does not summarize it correctly.",
+      "basis": "source"
+     },
+     {
+      "score": 2,
+      "description": "Understands only part of the customer's need, allows the conversation to become unfocused or misses important priorities.",
+      "basis": "source"
+     },
+     {
+      "score": 3,
+      "description": "Keeps the conversation mostly focused and summarizes the main customer needs.",
+      "basis": "source"
+     },
+     {
+      "score": 4,
+      "description": "Understands the main need and manages the conversation well, with a mostly accurate summary.",
+      "basis": "source"
+     },
+     {
+      "score": 5,
+      "description": "Clearly identifies the customer's key needs and priorities, keeps the conversation on track and confirms understanding with the customer.",
+      "basis": "source"
+     }
+    ],
+    "check_ids": [
+     "identifies_main_need",
+     "keeps_focus",
+     "summary_before_next_step",
+     "confirms_summary"
+    ],
+    "evaluation_method": "llm",
+    "applicability": "required"
+   },
+   {
+    "id": "clarity",
+    "name": "Communication Clarity",
+    "min_score": 1,
+    "max_score": 5,
+    "anchors": [
+     {
+      "score": 1,
+      "description": "Uses unclear, complicated or confusing language. Speaks too fast or gives long explanations.",
+      "basis": "source"
+     },
+     {
+      "score": 2,
+      "description": "Frequently difficult to understand because of unclear wording, long questions or unnecessary jargon.",
+      "basis": "source"
+     },
+     {
+      "score": 3,
+      "description": "Usually speaks clearly and uses simple language that the customer can understand.",
+      "basis": "source"
+     },
+     {
+      "score": 4,
+      "description": "Mostly clear and simple, with only occasional complicated wording or long questions.",
+      "basis": "source"
+     },
+     {
+      "score": 5,
+      "description": "Communicates in a clear, simple and confident way. Uses short sentences, appropriate language and checks that the customer understands.",
+      "basis": "source"
+     }
+    ],
+    "check_ids": [
+     "simple_language",
+     "explains_jargon",
+     "one_question_at_a_time",
+     "checks_understanding"
+    ],
+    "evaluation_method": "llm",
+    "applicability": "required"
+   }
+  ],
+  "checks": [
+   {
+    "id": "loan_purpose",
+    "description": "Asks why the customer needs the money",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "loan_purpose"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "purpose"
+    ]
+   },
+   {
+    "id": "loan_amount",
+    "description": "Asks the approximate amount required",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "loan_amount"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "loan_amount"
+    ]
+   },
+   {
+    "id": "timing",
+    "description": "Asks when the funds are required",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "timing"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "needed_by"
+    ]
+   },
+   {
+    "id": "income",
+    "description": "Asks the customer's approximate income or cash flow",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "income"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "monthly_income"
+    ]
+   },
+   {
+    "id": "existing_commitments",
+    "description": "Asks about existing EMIs or important financial obligations",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "existing_commitments"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "existing_emi"
+    ]
+   },
+   {
+    "id": "repayment_comfort",
+    "description": "Asks what monthly repayment would be affordable",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "repayment_comfort"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "comfortable_emi"
+    ]
+   },
+   {
+    "id": "priorities",
+    "description": "Asks what matters most to the customer (EMI, interest cost, speed, amount, flexibility)",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "priorities"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "priority_main",
+     "priority_secondary"
+    ]
+   },
+   {
+    "id": "concerns",
+    "description": "Asks about the customer's concerns (charges, approval, repayment, documents, process)",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "concerns"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "concern_charges"
+    ]
+   },
+   {
+    "id": "employment",
+    "description": "Asks about the customer's employment or source of income",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "employment"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "employment"
+    ]
+   },
+   {
+    "id": "prior_borrowing",
+    "description": "Asks about previous loan experience",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "prior_borrowing"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "previous_loan"
+    ]
+   },
+   {
+    "id": "preferred_tenure",
+    "description": "Asks the desired repayment period, where relevant",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "preferred_tenure"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "preferred_tenure"
+    ]
+   },
+   {
+    "id": "discovery_before_pitch",
+    "description": "Understands the need before recommending a product or asking for documents",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "follows_up_timing_cue",
+    "description": "Follows up 'I need the money quite soon' by asking when exactly the funds are required",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "follows_up_other_emi_cue",
+    "description": "Follows up 'I already have another EMI' by asking the amount or other current commitments",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "follows_up_low_emi_cue",
+    "description": "Follows up 'I don't want a very high EMI' by exploring what monthly repayment would be comfortable",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "follows_up_charges_cue",
+    "description": "Follows up 'My previous loan had extra charges' by asking what happened and what concerns the customer now",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "acknowledges_information",
+    "description": "Acknowledges important information the customer shares before moving on",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "clarifies_vague_info",
+    "description": "Clarifies vague, incomplete or contradictory information",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "avoids_repeat_questions",
+    "description": "Does not ask a question the customer has already answered",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "identifies_main_need",
+    "description": "Identifies the customer's main borrowing need and key priority (an affordable monthly repayment)",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "keeps_focus",
+    "description": "Keeps the conversation relevant to the loan requirement and redirects when it drifts",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "summary_before_next_step",
+    "description": "Summarizes the customer's situation accurately (need, amount, timing, repayment comfort, concerns)",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "confirms_summary",
+    "description": "Confirms the summary or understanding with the customer",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "simple_language",
+    "description": "Uses simple words and avoids unnecessary jargon",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "explains_jargon",
+    "description": "Explains anything complex in simple language",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "one_question_at_a_time",
+    "description": "Asks one clear, reasonably short question at a time",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   },
+   {
+    "id": "checks_understanding",
+    "description": "Checks the customer's understanding when appropriate",
+    "category": "conversation",
+    "method": "llm",
+    "accepted_intents": [],
+    "credit_requires": "learner_action",
+    "expected_fact_ids": []
+   }
+  ]
+ },
+ "risk_policy": {
+  "id": "education_discovery_risks",
+  "version": "2.0.0",
+  "rules": [
+   {
+    "id": "guaranteed_approval",
+    "description": "Promises approval or loan amount",
+    "category": "selling",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "Your loan will definitely be approved.",
+     "I guarantee you will get the full amount.",
+     "Approval is certain, don't worry.",
+     "You will surely get this loan."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "review",
+    "dimension_ids": []
+   },
+   {
+    "id": "documents_dismissed",
+    "description": "Dismisses required documentation",
+    "category": "process",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "Don’t worry about documents.",
+     "You don't need to submit any documents.",
+     "Documents are not important for this loan."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "review",
+    "dimension_ids": []
+   },
+   {
+    "id": "optional_as_compulsory",
+    "description": "Misrepresents optional service as compulsory",
+    "category": "selling",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "This optional service is compulsory.",
+     "You have to buy this insurance to get the loan.",
+     "This add-on is mandatory for everyone."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "review",
+    "dimension_ids": []
+   },
+   {
+    "id": "income_falsification",
+    "description": "Suggests falsifying income",
+    "category": "integrity",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "We can increase your income in the application.",
+     "Just write a higher salary on the form.",
+     "Show more income so the loan gets approved."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "review",
+    "dimension_ids": []
+   },
+   {
+    "id": "charges_misrepresented",
+    "description": "Claims there are no charges or hides applicable charges",
+    "category": "selling",
+    "severity": "high",
+    "detector": "hybrid",
+    "examples": [
+     "There are no other charges at all.",
+     "You will not pay any processing fee or other charges.",
+     "There are absolutely no hidden or extra charges, I promise."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "review",
+    "dimension_ids": []
+   },
+   {
+    "id": "premature_pitch",
+    "description": "Pitches before understanding needs",
+    "category": "selling",
+    "severity": "medium",
+    "detector": "hybrid",
+    "examples": [
+     "You should take this loan now.",
+     "Our loan is the best option for you.",
+     "You should apply for our loan right away.",
+     "We offer a great loan at a low interest rate, apply today."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "dimension_evidence",
+    "dimension_ids": [
+     "questioning_discovery"
+    ]
+   },
+   {
+    "id": "premature_documents",
+    "description": "Pushes documentation before discovery",
+    "category": "process",
+    "severity": "medium",
+    "detector": "hybrid",
+    "examples": [
+     "Send your documents first; we can discuss your needs later.",
+     "Please send me all your documents now.",
+     "First submit your documents, then we will talk."
+    ],
+    "context_exclusions": [
+     "Negated assertion",
+     "Quoted claim attributed to another person",
+     "Question without affirmative assertion",
+     "Appropriate response to an explicit customer request"
+    ],
+    "consequence": "dimension_evidence",
+    "dimension_ids": [
+     "questioning_discovery"
+    ]
+   }
+  ]
+ },
+ "scoring": {
+  "id": "discovery_weighted",
+  "version": "1.0.0",
+  "mode": "weighted_percent",
+  "weights": {
+   "questioning_discovery": 30,
+   "active_listening": 30,
+   "needs_conversation": 25,
+   "clarity": 15
+  },
+  "bands": [
+   {
+    "id": "needs_coaching",
+    "label": "Needs Coaching",
+    "lower": 0,
+    "upper": 55,
+    "upper_inclusive": false
+   },
+   {
+    "id": "developing",
+    "label": "Developing",
+    "lower": 55,
+    "upper": 70,
+    "upper_inclusive": false
+   },
+   {
+    "id": "effective",
+    "label": "Effective",
+    "lower": 70,
+    "upper": 85,
+    "upper_inclusive": false
+   },
+   {
+    "id": "strong",
+    "label": "Strong",
+    "lower": 85,
+    "upper": 100,
+    "upper_inclusive": true
+   }
+  ],
+  "band_scale": "percent",
+  "display_decimals": 0,
+  "risk_effect": "cap",
+  "risk_effect_parameters": {
+   "rule_ids": [
+    "guaranteed_approval",
+    "documents_dismissed",
+    "optional_as_compulsory",
+    "income_falsification",
+    "charges_misrepresented"
+   ],
+   "max_percent": 54
+  }
+ },
+ "prompts": {
+  "roleplay": "roleplay_v1",
+  "evaluator": "evaluator_v2",
+  "coach": "coach_v2"
+ },
+ "retry": {
+  "full_enabled": true,
+  "focused_enabled": true,
+  "focused_target_check_ids": [
+   "existing_commitments",
+   "repayment_comfort",
+   "concerns"
+  ],
+  "focused_scoring": "checks_only",
+  "instruction": "Repeat the middle part of the conversation. Ask about existing EMIs, a comfortable monthly repayment and the customer's concerns before explaining any loan option.",
+  "version_policy": "pin_parent"
+ },
+ "provenance": [
+  {
+   "path": "/",
+   "basis": "recommendation",
+   "note": "Structure, IDs and runtime configuration are implementation recommendations unless a more specific record applies."
+  },
+  {
+   "path": "/rubric/dimensions",
+   "basis": "source",
+   "source_ref": "SP rubric table + evaluator rubrics",
+   "note": "Skill names, weights and anchors from the owner's 'Simulation Prototype' (30 Sep 2026). Anchors 1/3/5 use the report-format table wording; 2/4 use the document's evaluator rubric."
+  },
+  {
+   "path": "/scoring",
+   "basis": "source",
+   "source_ref": "SP weights and interpretation",
+   "note": "Weights 30/30/25/15, overall out of 100, bands 85–100 Strong, 70–84 Effective, 55–69 Developing, below 55 Needs Coaching. The 54 cap on serious risky statements is the owner's decision (1 Oct 2026)."
+  },
+  {
+   "path": "/facts",
+   "basis": "source",
+   "source_ref": "SP customer profile",
+   "note": "Customer profile and the important cue from the owner's document; cue facts and tenure wording are recommendations."
+  },
+  {
+   "path": "/extensions/nd_runtime/evaluation_guide",
+   "basis": "source",
+   "source_ref": "SP knowledge base",
+   "note": "Discovery framework, cues and expected follow-ups, acceptable variations, exclusions and principles from the owner's document."
+  },
+  {
+   "path": "/extensions/nd_runtime/translations",
+   "basis": "recommendation",
+   "note": "Draft Hindi and Marathi translations; need a fluent reviewer."
+  }
+ ],
+ "extensions": {
+  "nd_runtime": {
+   "question_free_intents": [
+    "premature_pitch"
+   ],
+   "discovery_gate": {
+    "dimension_ids": [
+     "questioning_discovery"
+    ],
+    "min_asked_checks": 3
+   },
+   "discovery_conditioned": [
+    "premature_pitch",
+    "premature_documents"
+   ],
+   "absence_checks": {
+    "discovery_before_pitch": {
+     "risk_rule_ids": [
+      "premature_pitch",
+      "premature_documents"
+     ],
+     "requires_discovery": true
+    },
+    "avoids_repeat_questions": {
+     "requires_discovery": true
+    },
+    "one_question_at_a_time": {
+     "requires_discovery": true
+    },
+    "simple_language": {
+     "unexplained_jargon": true,
+     "requires_discovery": true
+    },
+    "explains_jargon": {
+     "unexplained_jargon": true,
+     "requires_discovery": true
+    }
+   },
+   "check_cues": {
+    "acknowledges_information": [
+     "thank you for sharing",
+     "thanks for sharing",
+     "got it",
+     "i see",
+     "that helps",
+     "noted",
+     "understood"
+    ],
+    "summary_before_next_step": [
+     "to summarise",
+     "to summarize",
+     "let me summarise",
+     "let me summarize",
+     "just to recap",
+     "so from what i understand",
+     "if i understand correctly"
+    ],
+    "confirms_summary": [
+     "is that correct",
+     "is that right",
+     "did i get that right",
+     "have i understood",
+     "does that sound right"
+    ],
+    "checks_understanding": [
+     "does that make sense",
+     "is that clear",
+     "any questions",
+     "shall i explain",
+     "would you like me to explain",
+     "is that okay"
+    ],
+    "explains_jargon": [
+     "which means",
+     "that means",
+     "in simple terms",
+     "in other words",
+     "simply put"
+    ]
+   },
+   "jargon_terms": [
+    "LTV",
+    "FOIR",
+    "CIBIL",
+    "collateral",
+    "hypothecation",
+    "amortisation",
+    "amortization",
+    "foreclosure",
+    "moratorium"
+   ],
+   "acknowledgement_text": "I see. Please go on.",
+   "derivations": [],
+   "translations": {
+    "hi": {
+     "label": "हिन्दी",
+     "review_status": "draft",
+     "opening_text": "नमस्ते। मुझे एक लोन चाहिए, और पैसे जल्दी चाहिए। क्या आप मेरी मदद कर सकते हैं?",
+     "learner_brief": "श्री शर्मा लोन के बारे में बात करने आए हैं। लगभग 15 मिनट में उनकी ज़रूरत, प्राथमिकताएँ और चिंताएँ समझिए। अभी कुछ बेचिए मत। अगला कदम सुझाने से पहले सारांश बताइए और उनसे पुष्टि कीजिए।",
+     "unknown_response": "यह जानकारी अभी मेरे पास नहीं है।",
+     "clarification_response": "आप क्या कहना चाह रहे हैं, थोड़ा समझाएँगे?",
+     "acknowledgement_text": "अच्छा। आगे बताइए।",
+     "rule_responses": {
+      "respond_loan_purpose": "यह मेरी बेटी के कॉलेज एडमिशन के लिए है। उसकी फ़ीस भरनी है।",
+      "respond_loan_amount": "मुझे लगभग ₹4 लाख चाहिए। लेकिन मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
+      "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
+      "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ। वैसे मेरी एक EMI पहले से चल रही है।",
+      "respond_existing_commitments": "हाँ, मैं अपने वाहन लोन के लिए हर महीने ₹8,000 भरता हूँ।",
+      "respond_repayment_comfort": "हर महीने लगभग ₹10,000 से ₹12,000 और ठीक रहेगा। मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "respond_preferred_tenure": "मैंने अभी तय नहीं किया है। जितने में EMI आराम से भरी जा सके।",
+      "respond_prior_borrowing": "हाँ, मैंने पहले वाहन लोन लिया था। उस लोन में कुछ अतिरिक्त चार्ज लगे थे।",
+      "respond_priorities": "मेरे लिए सबसे ज़रूरी है ऐसी EMI जो मैं हर महीने भर सकूँ। प्रोसेस जल्दी हो जाए तो वह भी अच्छा रहेगा।",
+      "respond_concerns": "पिछली बार कुछ अतिरिक्त चार्ज देखकर मैं हैरान रह गया था। इस बार मुझे कोई छुपा हुआ चार्ज नहीं चाहिए।",
+      "respond_premature_pitch": "उससे पहले मैं पक्का करना चाहता हूँ कि EMI मेरे बस में होगी।"
+     },
+     "cue_responses": {
+      "low_emi": "और हाँ, मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "other_emi": "और मेरी एक EMI पहले से चल रही है।",
+      "extra_charges": "और हाँ, पिछले लोन में कुछ अतिरिक्त चार्ज लगे थे।"
+     },
+     "intent_examples": {
+      "loan_purpose": "आपको लोन किस लिए चाहिए?",
+      "loan_amount": "आपको कितने लोन की ज़रूरत है?",
+      "timing": "आपको पैसे ठीक कब तक चाहिए?",
+      "employment": "आप क्या काम करते हैं?",
+      "income": "आपकी महीने की आमदनी कितनी है?",
+      "existing_commitments": "क्या आपकी कोई और EMI चल रही है?",
+      "repayment_comfort": "हर महीने कितनी EMI आप आराम से भर सकते हैं?",
+      "preferred_tenure": "आप कितने सालों में लोन चुकाना चाहेंगे?",
+      "prior_borrowing": "क्या आपने पहले कभी लोन लिया है?",
+      "priorities": "इस लोन में आपके लिए सबसे ज़रूरी क्या है?",
+      "concerns": "लोन को लेकर आपकी कोई चिंता है?"
+     },
+     "retry_lead": "बातचीत का बीच वाला हिस्सा फिर से करें। इस बार कोई भी प्रोडक्ट बताने से पहले वे बातें पूछें जो छूट गई थीं। उदाहरण के लिए:",
+     "reply_instruction": "Reply only in Hindi, written in Devanagari script, as a salaried middle-class father would speak. Keep the everyday English banking words people use (EMI, loan, fees). Write amounts with Western digits, for example ₹55,000.",
+     "feedback_instruction": "Write every text and suggested_question field in simple Hindi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."
+    },
+    "mr": {
+     "label": "मराठी",
+     "review_status": "draft",
+     "opening_text": "नमस्कार. मला एक लोन हवं आहे, आणि पैसे लवकर हवे आहेत. तुम्ही मला मदत करू शकाल का?",
+     "learner_brief": "श्री. शर्मा लोनबद्दल बोलायला आले आहेत. साधारण 15 मिनिटांत त्यांची गरज, प्राधान्यं आणि चिंता समजून घ्या. अजून काही विकू नका. पुढची पायरी सुचवण्याआधी सारांश सांगा आणि त्यांच्याकडून खात्री करून घ्या.",
+     "unknown_response": "ही माहिती आत्ता माझ्याकडे नाही.",
+     "clarification_response": "तुम्हाला नेमकं काय म्हणायचं आहे, जरा समजावून सांगाल का?",
+     "acknowledgement_text": "बरं. पुढे सांगा.",
+     "rule_responses": {
+      "respond_loan_purpose": "माझ्या मुलीच्या कॉलेज प्रवेशासाठी. तिची फी भरायची आहे.",
+      "respond_loan_amount": "मला साधारण ₹4 लाख हवे आहेत. पण EMI खूप जास्त नको.",
+      "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
+      "respond_employment": "मी पगारदार नोकरी करतो.",
+      "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो. तसं माझा एक EMI आधीच चालू आहे.",
+      "respond_existing_commitments": "हो, मी माझ्या वाहन कर्जासाठी दर महिन्याला ₹8,000 भरतो.",
+      "respond_repayment_comfort": "दर महिन्याला साधारण ₹10,000 ते ₹12,000 अजून जमतील. EMI खूप जास्त नको.",
+      "respond_preferred_tenure": "मी अजून ठरवलं नाही. ज्यात EMI आरामात भरता येईल तेवढं.",
+      "respond_prior_borrowing": "हो, मी आधी वाहन कर्ज घेतलं होतं. त्या कर्जात काही जादा चार्जेस लागले होते.",
+      "respond_priorities": "माझ्यासाठी सगळ्यात महत्त्वाचं म्हणजे दर महिन्याला भरता येईल असा EMI. प्रोसेस लवकर झाली तर तेही बरं.",
+      "respond_concerns": "मागच्या वेळी काही जादा चार्जेस पाहून मला धक्काच बसला होता. या वेळी कोणतेही लपवलेले चार्जेस नकोत.",
+      "respond_premature_pitch": "त्याआधी मला खात्री करायची आहे की EMI मला परवडेल."
+     },
+     "cue_responses": {
+      "low_emi": "आणि हो, EMI खूप जास्त नको.",
+      "other_emi": "आणि माझा एक EMI आधीच चालू आहे.",
+      "extra_charges": "आणि हो, मागच्या कर्जात काही जादा चार्जेस लागले होते."
+     },
+     "intent_examples": {
+      "loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?",
+      "loan_amount": "तुम्हाला किती कर्ज लागेल?",
+      "timing": "तुम्हाला पैसे नेमके कधीपर्यंत हवे आहेत?",
+      "employment": "तुम्ही काय काम करता?",
+      "income": "तुमचं मासिक उत्पन्न किती आहे?",
+      "existing_commitments": "तुमचा दुसरा कोणता EMI चालू आहे का?",
+      "repayment_comfort": "दर महिन्याला किती EMI तुम्हाला आरामात भरता येईल?",
+      "preferred_tenure": "किती वर्षांत कर्ज फेडायला आवडेल?",
+      "prior_borrowing": "तुम्ही आधी कधी कर्ज घेतलं आहे का?",
+      "priorities": "या कर्जात तुमच्यासाठी सगळ्यात महत्त्वाचं काय आहे?",
+      "concerns": "कर्जाबद्दल तुम्हाला काही काळजी आहे का?"
+     },
+     "retry_lead": "संभाषणाचा मधला भाग पुन्हा करा. या वेळी कोणतंही प्रॉडक्ट सांगण्याआधी जे विचारायचं राहिलं ते विचारा. उदाहरणार्थ:",
+     "reply_instruction": "Reply only in Marathi, written in Devanagari script, as a salaried middle-class father from Maharashtra would speak. Keep the everyday English banking words people use (EMI, loan, fees). Write amounts with Western digits, for example ₹55,000.",
+     "feedback_instruction": "Write every text and suggested_question field in simple Marathi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."
+    }
+   },
+   "volunteered_cues": [
+    {
+     "id": "low_emi",
+     "text": "Also, I don't want a very high EMI.",
+     "reveal_fact_ids": [
+      "cue_low_emi"
+     ],
+     "after_learner_turns": 3
+    },
+    {
+     "id": "other_emi",
+     "text": "And I already have another EMI.",
+     "reveal_fact_ids": [
+      "cue_other_emi"
+     ],
+     "after_learner_turns": 5
+    },
+    {
+     "id": "extra_charges",
+     "text": "Also, my previous loan had extra charges.",
+     "reveal_fact_ids": [
+      "cue_extra_charges"
+     ],
+     "after_learner_turns": 7
+    }
+   ],
+   "cue_follow_ups": [
+    {
+     "check_id": "follows_up_timing_cue",
+     "cue_fact_ids": [
+      "cue_soon"
+     ],
+     "follow_up_intents": [
+      "timing"
+     ]
+    },
+    {
+     "check_id": "follows_up_other_emi_cue",
+     "cue_fact_ids": [
+      "cue_other_emi"
+     ],
+     "follow_up_intents": [
+      "existing_commitments"
+     ]
+    },
+    {
+     "check_id": "follows_up_low_emi_cue",
+     "cue_fact_ids": [
+      "cue_low_emi"
+     ],
+     "follow_up_intents": [
+      "repayment_comfort"
+     ]
+    },
+    {
+     "check_id": "follows_up_charges_cue",
+     "cue_fact_ids": [
+      "cue_extra_charges"
+     ],
+     "follow_up_intents": [
+      "concerns"
+     ]
+    }
+   ],
+   "evaluation_guide": {
+    "skills": [
+     {
+      "dimension_id": "questioning_discovery",
+      "measures": "Ability to ask relevant questions to understand the customer's situation, needs, priorities and concerns",
+      "look_for": [
+       "asks relevant questions rather than random or premature product questions",
+       "uses open-ended questions where appropriate",
+       "covers the important areas of loan discovery",
+       "asks questions in a logical order",
+       "explores the customer's needs, priorities and concerns",
+       "avoids turning the conversation into a rigid checklist"
+      ],
+      "score_guidance": [
+       {
+        "score": 5,
+        "guidance": "Covers almost all important discovery areas using relevant, purposeful and well-sequenced questions. Goes beyond basic facts to understand priorities and concerns."
+       },
+       {
+        "score": 4,
+        "guidance": "Covers most important discovery areas and asks relevant questions, but misses one or two useful areas or opportunities."
+       },
+       {
+        "score": 3,
+        "guidance": "Understands the basic loan requirement but discovery is somewhat limited or checklist-driven."
+       },
+       {
+        "score": 2,
+        "guidance": "Asks some useful questions but misses several important areas or asks many closed/repetitive questions."
+       },
+       {
+        "score": 1,
+        "guidance": "Fails to understand the basic borrowing need or moves quickly to a solution without sufficient discovery."
+       }
+      ]
+     },
+     {
+      "dimension_id": "active_listening",
+      "measures": "Ability to listen carefully, notice important customer information and ask useful follow-up questions",
+      "look_for": [
+       "acknowledges important customer information",
+       "identifies cues or important statements",
+       "asks follow-up questions based on those cues",
+       "clarifies vague, incomplete or contradictory information",
+       "avoids asking a question that the customer has already answered",
+       "adapts the next question based on the customer's response"
+      ],
+      "score_guidance": [
+       {
+        "score": 5,
+        "guidance": "Consistently listens for important cues and uses them to ask relevant follow-up questions. Clarifies unclear information and explores important issues naturally."
+       },
+       {
+        "score": 4,
+        "guidance": "Responds to most important cues and asks useful follow-ups, but misses a small number of opportunities."
+       },
+       {
+        "score": 3,
+        "guidance": "Shows some listening and probing but often returns to prepared questions rather than building on customer responses."
+       },
+       {
+        "score": 2,
+        "guidance": "Limited follow-up questioning. Frequently ignores useful information provided by the customer."
+       },
+       {
+        "score": 1,
+        "guidance": "Mostly follows a script, repeats already answered questions or shows little evidence of listening to customer responses."
+       }
+      ]
+     },
+     {
+      "dimension_id": "needs_conversation",
+      "measures": "Ability to understand the customer's main needs, keep the discussion focused and summarize what has been understood",
+      "look_for": [
+       "identifies the customer's main borrowing need",
+       "distinguishes between important and less important information",
+       "understands the customer's key priorities",
+       "keeps the conversation relevant to the loan requirement",
+       "redirects the discussion appropriately if it moves away from the purpose",
+       "manages the 15-minute conversation reasonably well",
+       "summarizes the customer's situation accurately",
+       "confirms understanding with the customer"
+      ],
+      "score_guidance": [
+       {
+        "score": 5,
+        "guidance": "Clearly identifies the customer's main need and priorities, keeps the conversation focused and provides an accurate summary that is confirmed with the customer."
+       },
+       {
+        "score": 4,
+        "guidance": "Understands the main need and manages the conversation well, with a mostly accurate summary."
+       },
+       {
+        "score": 3,
+        "guidance": "Understands the basic need and keeps the conversation reasonably focused but provides a weak or incomplete summary."
+       },
+       {
+        "score": 2,
+        "guidance": "Understands only part of the customer's need, allows the conversation to become unfocused or misses important priorities."
+       },
+       {
+        "score": 1,
+        "guidance": "Does not clearly understand the customer's main need or fails to manage and summarize the conversation."
+       }
+      ]
+     },
+     {
+      "dimension_id": "clarity",
+      "measures": "Ability to speak in a simple, clear and easy-to-understand manner",
+      "look_for": [
+       "uses simple words",
+       "asks one clear question at a time",
+       "avoids unnecessary jargon",
+       "keeps questions reasonably short",
+       "explains anything complex in simple language",
+       "speaks in a professional and respectful manner",
+       "avoids confusing or overly long questions",
+       "checks understanding when appropriate",
+       "does not heavily penalize grammar, accent or minor language mistakes if understanding is not affected"
+      ],
+      "score_guidance": [
+       {
+        "score": 5,
+        "guidance": "Communication is consistently clear, simple and easy to understand. Questions are concise and customer-friendly."
+       },
+       {
+        "score": 4,
+        "guidance": "Mostly clear and simple, with only occasional complicated wording or long questions."
+       },
+       {
+        "score": 3,
+        "guidance": "Generally understandable but sometimes uses complicated wording, jargon or lengthy questions."
+       },
+       {
+        "score": 2,
+        "guidance": "Frequently difficult to understand because of unclear wording, long questions or unnecessary jargon."
+       },
+       {
+        "score": 1,
+        "guidance": "Communication significantly affects the customer's ability to understand or respond appropriately."
+       }
+      ]
+     }
+    ],
+    "level_labels": {
+     "1": "Needs Improvement",
+     "2": "Developing",
+     "3": "Competent",
+     "4": "Good",
+     "5": "Excellent"
+    },
+    "framework_note": "This is a framework, not a mandatory checklist. The learner should not automatically lose points for failing to ask every question.",
+    "framework": [
+     {
+      "area": "Loan purpose",
+      "information": "Why the customer needs the money",
+      "check_id": "loan_purpose"
+     },
+     {
+      "area": "Loan amount",
+      "information": "Approximate amount required",
+      "check_id": "loan_amount"
+     },
+     {
+      "area": "Timing",
+      "information": "When the funds are required",
+      "check_id": "timing"
+     },
+     {
+      "area": "Income",
+      "information": "Approximate income or cash flow",
+      "check_id": "income"
+     },
+     {
+      "area": "Existing commitments",
+      "information": "Existing EMIs or important financial obligations",
+      "check_id": "existing_commitments"
+     },
+     {
+      "area": "Repayment comfort",
+      "information": "Approximate affordable monthly repayment",
+      "check_id": "repayment_comfort"
+     },
+     {
+      "area": "Customer priorities",
+      "information": "EMI, interest cost, speed, loan amount, flexibility, etc.",
+      "check_id": "priorities"
+     },
+     {
+      "area": "Concerns",
+      "information": "Charges, approval, repayment, documentation, process, etc.",
+      "check_id": "concerns"
+     },
+     {
+      "area": "Customer profile",
+      "information": "Employment/business/source of income",
+      "check_id": "employment"
+     },
+     {
+      "area": "Prior borrowing",
+      "information": "Previous loan experience where useful",
+      "check_id": "prior_borrowing"
+     },
+     {
+      "area": "Preferred tenure",
+      "information": "Desired repayment period, if relevant",
+      "check_id": "preferred_tenure"
+     }
+    ],
+    "cues": [
+     {
+      "fact_id": "cue_soon",
+      "customer_line": "I need the money quite soon.",
+      "expected_follow_up": "Ask when exactly the funds are required",
+      "check_id": "follows_up_timing_cue"
+     },
+     {
+      "fact_id": "cue_other_emi",
+      "customer_line": "I already have another EMI.",
+      "expected_follow_up": "Ask about the amount or current monthly commitments",
+      "check_id": "follows_up_other_emi_cue"
+     },
+     {
+      "fact_id": "cue_low_emi",
+      "customer_line": "I don't want a very high EMI.",
+      "expected_follow_up": "Explore what monthly repayment would be comfortable",
+      "check_id": "follows_up_low_emi_cue"
+     },
+     {
+      "fact_id": "cue_extra_charges",
+      "customer_line": "My previous loan had extra charges.",
+      "expected_follow_up": "Ask what happened and what concerns the customer has now",
+      "check_id": "follows_up_charges_cue"
+     }
+    ],
+    "variations": [
+     {
+      "check_id": "repayment_comfort",
+      "examples": [
+       "What's a comfortable EMI for you?",
+       "How much could you comfortably repay every month?",
+       "What monthly payment would work for your budget?"
+      ]
+     },
+     {
+      "check_id": "existing_commitments",
+      "examples": [
+       "Do you have any other EMIs?",
+       "How much do you currently pay each month for other loans?",
+       "You mentioned another EMI. How much is it?"
+      ]
+     },
+     {
+      "check_id": "timing",
+      "examples": [
+       "When exactly do you need the money?",
+       "By what date do the fees have to be paid?",
+       "How soon do you need the funds?"
+      ]
+     }
+    ],
+    "exclusions": [
+     "Product knowledge should not affect Questioning & Discovery unless the learner asks an irrelevant or misleading question.",
+     "Grammar should primarily affect Communication Clarity only when it interferes with understanding.",
+     "Follow-up questions triggered by customer responses should primarily contribute to Active Listening & Probing.",
+     "Summarizing customer needs should primarily contribute to Understanding Customer Needs and Managing the Conversation.",
+     "The same behaviour can be referenced across skills when genuinely relevant, but the evaluator should explain why."
+    ],
+    "principles": [
+     "Score only what the learner demonstrates in the conversation; do not infer skills that were not observable.",
+     "Base the assessment only on the conversation transcript and the customer profile provided for the simulation.",
+     "Do not reward the learner for simply asking many questions. Judge whether the learner asked useful questions, understood the answers, followed up appropriately, kept the conversation focused, and communicated clearly.",
+     "Do not penalize minor grammar or language mistakes if the learner's meaning is clear.",
+     "Do not expect the learner to use the exact wording shown in the knowledge base. Equivalent questions and responses should receive the same credit.",
+     "Score each skill independently using the defined rubric. For each score, provide evidence from the conversation and one specific coaching suggestion."
+    ]
+   },
+   "reminder_minutes": [
+    12,
+    15
+   ]
+  }
+ }
 }

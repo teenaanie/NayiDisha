@@ -6,7 +6,7 @@ import { useVoice, VoiceConsent, type VoiceCaps, type VoiceMeta } from './voice'
 
 type Turn = { turn_id: string; sequence: number; speaker: 'learner' | 'customer'; text: string; origin: string; input_mode?: 'text' | 'voice' };
 type Session = { session_id: string; revision: number; state: string; transcript: Turn[]; pending_operation: { id: string } | null; started_at: string; retry_scope: { mode: string; target_check_ids: string[] } | null; limits: { max_message_chars: number; max_learner_turns: number; reminder_minutes: number[] }; voice?: VoiceCaps };
-type Brief = { learner_brief: string; learner_role: string; customer: { name: string; role: string }; target_minutes: { min: number; max: number } };
+type Brief = { learner_brief: string; learner_role: string; customer: { name: string; role: string }; target_minutes: { min: number; max: number }; reminder_minutes?: number[] };
 
 export function PracticeClient({ initial, brief }: { initial: Session; brief: Brief }) {
   const router = useRouter();
@@ -88,7 +88,7 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
 
   const learnerTurns = s.transcript.filter((t) => t.speaker === 'learner' && t.origin !== 'retry_prefix').length;
   // Reminders say only how long it has been; they never hint at what to ask (spec §7).
-  const reminder = s.limits.reminder_minutes.filter((m) => minutes >= m).pop();
+  const reminder = (brief.reminder_minutes ?? s.limits.reminder_minutes).filter((m) => minutes >= m).pop();
   return <div className="grid g2">
     <section className="card"><div className="card-head"><h2>Your brief</h2></div><div className="card-body">
       <p className="small muted">You are the {brief.learner_role}. Suggested length {brief.target_minutes.min}–{brief.target_minutes.max} minutes; there is no forced ending.</p>

@@ -2,6 +2,7 @@ import type { ScenarioBundle, TranscriptTurn, Evidence, Span, RiskRule } from '.
 import { runtimeOf } from '../config/runtime-extension';
 import { classify, CLASSIFIER_VERSION } from '../runtime/intents';
 import { discoveryComplete } from '../runtime/disclosure';
+import { localized, type Language } from '../runtime/language';
 import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothetical, coverage, cpSlice, cpIndexOf, cpLength, type Sentence } from '../runtime/text';
 
 /**
@@ -25,6 +26,10 @@ export interface RuleEvidence {
   /** Intents asked per learner turn, in order; drives the discovery gate. */
   asked_by_turn: { turn_id: string; intents: string[] }[];
   unexplained_jargon: { term: string; turn_id: string }[];
+  /** Cue follow-up checks whose cue never came up: not applicable, so neither met nor missed. */
+  inapplicable_check_ids: string[];
+  /** Where each configured cue first came up (customer turn), for the evaluator's guide. */
+  cue_turns: { fact_id: string; turn_id: string }[];
 }
 
 const spanOf = (turn: TranscriptTurn, s: Sentence): Span => ({ turn_id: turn.id, start: s.start, end: s.end, quote: s.text });
@@ -58,7 +63,7 @@ export interface RecordedIntent { intent_id: string; question: boolean; start?: 
  * (from turn_analysis). Using them keeps scoring consistent with what the
  * customer understood; turns without a record fall back to the phrase matcher.
  */
-export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; recordedIntents?: Map<string, RecordedIntent[]> } = {}): RuleEvidence {
+export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; recordedIntents?: Map<string, RecordedIntent[]>; language?: Language } = {}): RuleEvidence {
   const rt = runtimeOf(bundle);
   const excluded = new Set(opts.excludeOrigins ?? []);
   const learner = turns.filter((t) => t.speaker === 'learner');
@@ -69,6 +74,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
   const asked = new Set<string>();
   const askedByTurn: RuleEvidence['asked_by_turn'] = [];
   const observed = new Map<string, Span[]>();   // check_id -> spans
+  const questionHits = new Map<string, { intent_id: string; span: Span }[]>();   // learner turn -> asked intents
 
   // ---- coverage: which checks did the learner actually ask about? ----------
   const checksByIntent = new Map<string, string[]>();
@@ -84,6 +90,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
       if (!h.question) continue;
       intents.push(h.intent_id);
       if (excluded.has(t.origin)) continue;   // prefix turns set context, never earn credit
+      questionHits.set(t.id, [...(questionHits.get(t.id) ?? []), { intent_id: h.intent_id, span: spanOf(t, h.sentence) }]);
       for (const cid of checksByIntent.get(h.intent_id) ?? []) {
         const spans = observed.get(cid) ?? [];
         if (!spans.some((s) => s.turn_id === t.id && s.start === h.sentence.start)) spans.push(spanOf(t, h.sentence));
@@ -146,6 +153,39 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     }
   }
 
+  // ---- cue follow-ups: did the learner pick up what the customer volunteered? --
+  // A cue "comes up" in the customer turn that says its line: the opening, the verbatim
+  // rule answer that releases it, or the volunteered cue line (in the session language).
+  const L = localized(bundle, opts.language ?? 'en');
+  const facts = new Map(bundle.facts.map((f) => [f.id, f]));
+  const linesFor = (factId: string) => [
+    ...bundle.conversation.rules.filter((r) => r.response_text && r.reveal_fact_ids.includes(factId)).map((r) => L.ruleResponse(r.id, r.response_text!)),
+    ...rt.volunteered_cues.filter((c) => c.reveal_fact_ids.includes(factId)).map((c) => L.cueResponse(c.id, c.text)),
+  ].map((x) => x.trim()).filter(Boolean);
+  const customer = turns.filter((t) => t.speaker === 'customer');
+  const cueTurn = (factId: string) => {
+    if (facts.get(factId)?.visibility === 'opening') return customer.find((t) => t.origin === 'opening' || t.sequence === 0);
+    const lines = linesFor(factId);
+    return customer.find((t) => lines.some((line) => t.text.includes(line)));
+  };
+  const inapplicable: string[] = [];
+  const cueTurns: RuleEvidence['cue_turns'] = [];
+  for (const f of new Set(rt.cue_follow_ups.flatMap((c) => c.cue_fact_ids))) { const ct = cueTurn(f); if (ct) cueTurns.push({ fact_id: f, turn_id: ct.id }); }
+  for (const cf of rt.cue_follow_ups) {
+    const surfaced = cf.cue_fact_ids.map((f) => cueTurns.find((x) => x.fact_id === f)).filter(Boolean).map((x) => turns.find((t) => t.id === x!.turn_id)!).sort((a, b) => a.sequence - b.sequence)[0];
+    if (!surfaced) { inapplicable.push(cf.check_id); continue; }
+    const after = assessable.filter((t) => t.sequence > surfaced.sequence);
+    const hit = after.flatMap((t) => (questionHits.get(t.id) ?? []).filter((h) => cf.follow_up_intents.includes(h.intent_id)))[0];
+    if (hit) observed.set(cf.check_id, [...(observed.get(cf.check_id) ?? []), hit.span]);
+    else if (!observed.has(cf.check_id)) {
+      evidence.push({
+        id: safeId(`ev_${cf.check_id}`), category: bundle.rubric.checks.find((c) => c.id === cf.check_id)?.category ?? 'conversation', check_id: cf.check_id, status: 'not_observed',
+        learner_spans: [], context_spans: [{ turn_id: surfaced.id, start: 0, end: cpLength(surfaced.text), quote: surfaced.text }], searched_turn_ids: after.map((t) => t.id),
+        explanation: `The customer raised this cue but no later learner question followed it up.`, method: 'rule', confidence: 0.8, rule_version: RULE_VERSION,
+      });
+    }
+  }
+
   // ---- one evidence record per check: observed spans, or a complete search --
   for (const c of bundle.rubric.checks) {
     const spans = observed.get(c.id);
@@ -179,7 +219,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     });
   }
 
-  return { evidence, risk_candidates: risk, assessable_learner_turn_ids: assessableIds, asked_by_turn: askedByTurn, unexplained_jargon: jargon };
+  return { evidence, risk_candidates: risk, assessable_learner_turn_ids: assessableIds, asked_by_turn: askedByTurn, unexplained_jargon: jargon, inapplicable_check_ids: inapplicable, cue_turns: cueTurns };
 }
 
 /** The cited sentence for a recorded intent: its stored span, else the first sentence that asks something. */

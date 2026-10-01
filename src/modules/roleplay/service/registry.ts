@@ -18,7 +18,7 @@ import { ApiError, audit, conflict, forbidden, notFound, requireRole, type Actor
  * instructions even if a template is later retired.
  */
 
-export const PROMPT_IDS = ['roleplay_v1', 'evaluator_v1', 'coach_v1'];
+export const PROMPT_IDS = ['roleplay_v1', 'evaluator_v1', 'coach_v1', 'evaluator_v2', 'coach_v2'];
 
 export async function ensurePrompts() {
   for (const id of PROMPT_IDS) {
@@ -288,6 +288,8 @@ export function publicBrief(versionId: string, b: ScenarioBundle) {
     languages: languagesOf(b).map((l) => ({ ...l, learner_brief: localized(b, l.id).learner_brief })),
     success_criteria: b.scenario.success_criteria,
     customer: { name: b.persona.name, role: b.persona.role },
+    // Practice reminders: the scenario's own, else its target range (e.g. 12 and 15 minutes).
+    reminder_minutes: runtimeOf(b).reminder_minutes ?? [b.scenario.target_minutes.min, b.scenario.target_minutes.max],
     retry: { full_enabled: b.retry.full_enabled, focused_enabled: b.retry.focused_enabled },
   };
 }

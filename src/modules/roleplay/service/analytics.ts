@@ -67,7 +67,8 @@ export async function managerAnalytics(actor: Actor, q: AnalyticsQuery) {
     const byId = new Map(fullFacts.map((f) => [f.session_id, f]));
     const pairs = full.filter((s) => s.parent_session_id && s.comparable !== false).flatMap((child) => {
       const c = byId.get(child.id); const p = child.parent_session_id ? byId.get(child.parent_session_id) : undefined;
-      return c && p ? [{ delta: c.raw_total! - p.raw_total!, days: (new Date(c.completed_at).getTime() - new Date(p.completed_at).getTime()) / 86400000 }] : [];
+      // Points out of 100: comparable for raw-sum and weighted scoring alike.
+      return c && p ? [{ delta: Math.round((Number(c.final_percent) - Number(p.final_percent)) * 10) / 10, days: (new Date(c.completed_at).getTime() - new Date(p.completed_at).getTime()) / 86400000 }] : [];
     });
     const focused = gf.filter((f) => f.mode === 'focused');
     const latest = new Map<string, typeof fullFacts[number]>();

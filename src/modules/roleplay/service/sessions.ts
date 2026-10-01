@@ -178,7 +178,7 @@ export async function getSession(actor: Actor, sessionId: string) {
 export async function listMySessions(actor: Actor) {
   return sql`
     SELECT s.id, s.scenario_id, s.scenario_version, s.state, s.started_at, s.completed_at, s.parent_session_id, s.retry_scope->>'mode' AS retry_mode,
-           s.is_preview, r.score->>'raw_total' AS raw_total, r.score->>'raw_max' AS raw_max, r.score->>'band_label' AS band_label,
+           s.is_preview, r.score->>'raw_total' AS raw_total, r.score->>'raw_max' AS raw_max, r.score->>'band_label' AS band_label, r.score->>'mode' AS score_mode, r.score->>'final_percent' AS final_percent,
            r.score->>'final_percent' AS final_percent, r.status AS run_status, v.bundle->'scenario'->>'title' AS title
       FROM rp.session s JOIN rp.scenario_version v ON v.id = s.scenario_version_id
       LEFT JOIN rp.evaluation_run r ON r.id = s.current_run_id

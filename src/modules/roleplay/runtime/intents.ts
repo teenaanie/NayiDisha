@@ -16,7 +16,7 @@ import { sentences, isQuestion, coverage, contentWords, type Sentence } from './
  * its output is filtered to configured IDs the same way.
  */
 
-export const CLASSIFIER_VERSION = 'lexical-1.0.0';
+export const CLASSIFIER_VERSION = 'lexical-1.1.0';
 export const ACCEPT = 0.6;
 export const PARTIAL = 0.34;
 
@@ -38,18 +38,19 @@ function examplesOf(intent: Intent): string[] {
   return [...intent.positive_examples, topic];
 }
 
-function scoreIntent(intent: Intent, text: string): number {
-  let best = 0;
+/** Best coverage of the sentence by one of the intent's examples, and how many words that match used. */
+function scoreIntent(intent: Intent, text: string): { score: number; matched: number } {
+  let best = { score: 0, matched: 0 };
   for (const ex of examplesOf(intent)) {
     const c = coverage(ex, text);
     // A one-word match on a long example is noise; require two words unless the example only has one or two.
     const needed = Math.min(2, c.total);
-    if (c.matched >= needed) best = Math.max(best, c.score);
+    if (c.matched >= needed && (c.score > best.score || (c.score === best.score && c.matched > best.matched))) best = { score: c.score, matched: c.matched };
   }
   for (const neg of intent.negative_examples) {
     // Negative examples reject a match only when they fit the sentence better than any positive one.
     const c = coverage(neg, text);
-    if (c.total >= 3 && c.score >= 0.8 && c.score > best) return 0;
+    if (c.total >= 3 && c.score >= 0.8 && c.score > best.score) return { score: 0, matched: 0 };
   }
   return best;
 }
@@ -90,19 +91,24 @@ export function classify(bundle: ScenarioBundle, text: string, ctx: ClassifyCont
     // A clause of a question sentence is part of that question.
     const q = isQuestion(s.text) || isQuestion(whole.text);
     asks ||= q;
-    const scored: { id: string; score: number }[] = [];
+    const scored: { id: string; score: number; matched: number }[] = [];
     for (const intent of bundle.conversation.intents) {
       const questionFree = rt.question_free_intents.includes(intent.id);
       if (!q && !questionFree) continue;
       if (rt.discovery_conditioned.includes(intent.id) && ctx.discoveryComplete) continue;
-      const score = scoreIntent(intent, s.text);
-      if (score >= ACCEPT) scored.push({ id: intent.id, score });
+      const { score, matched } = scoreIntent(intent, s.text);
+      if (score >= ACCEPT) scored.push({ id: intent.id, score, matched });
       else if (score >= PARTIAL && q) partial = true;
     }
     // A sentence asks one thing: keep the best match (and exact ties), not every
     // neighbouring topic that shares a word ("repayment" comfort vs expectations).
+    // Between equally good matches, the more specific one wins: "What matters most to you in
+    // this loan?" fully matches a 4-word priorities example and the 2-word "What do you need
+    // the loan for?"; only the first is what was asked.
     const top = Math.max(0, ...scored.map((x) => x.score));
-    for (const x of scored.filter((y) => top - y.score < 0.05)) {
+    const ties = scored.filter((y) => top - y.score < 0.05);
+    const most = Math.max(0, ...ties.map((x) => x.matched));
+    for (const x of ties.filter((y) => y.matched === most || y.matched >= 3)) {
       const confidence = Math.round(x.score * 100) / 100;
       const prior = hits.find((h) => h.intent_id === x.id);
       if (!prior) hits.push({ intent_id: x.id, confidence, sentence: s, question: q });

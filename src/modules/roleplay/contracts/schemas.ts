@@ -175,23 +175,29 @@ export const evidenceSchema = obj({
   rule_version: { type: 'string' },
 }, ['check_id', 'rule_version']);
 
+const dimensionScoreItem = (coachingRequired: boolean) => obj({
+  dimension_id: ID, score: { type: 'integer' }, anchor_score: { type: 'integer' },
+  evidence_ids: { type: 'array', items: ID }, rationale: { type: 'string', minLength: 1, maxLength: 1000 },
+  status: { enum: ['scored', 'uncertain'] },
+  // Contract 1.1: one specific coaching suggestion per skill (owner's evaluator spec).
+  coaching: { type: 'string', minLength: 1, maxLength: 600 },
+}, coachingRequired ? [] : ['coaching']);
+
 /** Provider totals are deliberately absent: the server computes every total. */
 export const evaluationCandidateSchema = obj({
-  contract_version: { const: '1.0' },
+  contract_version: { enum: ['1.0', '1.1'] },
   session_id: { type: 'string' },
   transcript_hash: { type: 'string' },
   rubric_version: { type: 'string' },
   evidence: { type: 'array', items: evidenceSchema },
-  dimension_scores: {
-    type: 'array',
-    items: obj({
-      dimension_id: ID, score: { type: 'integer' }, anchor_score: { type: 'integer' },
-      evidence_ids: { type: 'array', items: ID }, rationale: { type: 'string', minLength: 1, maxLength: 1000 },
-      status: { enum: ['scored', 'uncertain'] },
-    }),
-  },
+  dimension_scores: { type: 'array', items: dimensionScoreItem(false) },
   risk_flags: { type: 'array', items: obj({ rule_id: ID, evidence_ids: { type: 'array', items: ID }, status: { enum: ['confirmed', 'uncertain'] } }) },
 });
+
+/** The schema sent to the model for one contract version (1.1 requires per-skill coaching). */
+export function evaluationCandidateSchemaFor(version: '1.0' | '1.1') {
+  return { ...evaluationCandidateSchema, properties: { ...evaluationCandidateSchema.properties, contract_version: { const: version }, dimension_scores: { type: 'array', items: dimensionScoreItem(version === '1.1') } } };
+}
 
 export const roleplayCandidateSchema = obj({
   text: { type: 'string', minLength: 1, maxLength: 1200 },

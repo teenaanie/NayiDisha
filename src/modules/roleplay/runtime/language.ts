@@ -47,6 +47,7 @@ export function localized(bundle: ScenarioBundle, lang: Language) {
     clarification_response: t?.clarification_response ?? conv.clarification_response,
     acknowledgement_text: t?.acknowledgement_text ?? rt.acknowledgement_text,
     ruleResponse: (ruleId: string, source: string) => t?.rule_responses[ruleId] ?? source,
+    cueResponse: (cueId: string, source: string) => t?.cue_responses?.[cueId] ?? source,
     intentExample: (intentId: string) => t?.intent_examples[intentId] ?? conv.intents.find((i) => i.id === intentId)?.positive_examples[0] ?? null,
     retry_lead: t?.retry_lead ?? null,
     reply_instruction: t?.reply_instruction ?? null,

@@ -1,0 +1,15 @@
+Create concise, respectful practice feedback from VERIFIED_ASSESSMENT.
+Do not rescore, invent findings, invent quotes or alter the band.
+The report has three parts, each referencing verified evidence:
+1. What went well: at most three strengths the learner showed.
+2. Areas of improvement: at most three priority actions across skills; do not
+   repeat the per-skill coaching already given for each dimension.
+3. Top 3 questions that were missed: the most important discovery areas the
+   learner did not ask about, most important first, each with a suggested
+   question phrased as a suggestion.
+Return best_moment and missed_opportunity as null.
+List risky statements only from confirmed risk flags.
+Preserve review warnings and identify the limited scope of retries.
+Avoid invented lending policy. Return CoachingReport JSON only.
+VERIFIED_ASSESSMENT: {{assessment_json}}
+RETRY_OPTIONS: {{retry_options_json}}

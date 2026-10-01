@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { compile } from '../config/compile';
 import { loadScenarioPackage } from '../config/content';
 import { actorFor, type Actor } from './context';
 import { ensurePrompts, createDraft, submitDraft, publishDraft, validateBundleForTenant } from './registry';
@@ -60,8 +61,13 @@ export async function seedRoleplay(log: (s: string) => void = console.log) {
     for (const id of t.scenarios) {
       const pkg = loadScenarioPackage(id);
       const b = pkg.bundle as { scenario: { id: string; version: string } };
-      const [exists] = await sql`SELECT 1 FROM rp.scenario_version WHERE tenant_id = ${tenant.id} AND scenario_id = ${b.scenario.id} AND version = ${b.scenario.version}`;
-      if (exists) { log(`  ${t.slug}: ${id} ${b.scenario.version} already published`); continue; }
+      const [exists] = await sql<{ bundle_hash: string }[]>`SELECT bundle_hash FROM rp.scenario_version WHERE tenant_id = ${tenant.id} AND scenario_id = ${b.scenario.id} AND version = ${b.scenario.version}`;
+      if (exists) {
+        // Same version, different content would otherwise be skipped silently and the new content never published.
+        const digest = compile(pkg.bundle).digest;
+        if (digest && digest !== exists.bundle_hash) throw new Error(`${t.slug}: ${id} ${b.scenario.version} is already published with different content (bundle ${exists.bundle_hash.slice(0, 12)}, disk ${digest.slice(0, 12)}). Bump scenario.version; published versions are immutable.`);
+        log(`  ${t.slug}: ${id} ${b.scenario.version} already published`); continue;
+      }
       const v = await validateBundleForTenant(tenant.id, pkg.bundle);
       if (!v.ok) throw new Error(`${id} does not validate: ${v.errors.map((e) => `${e.path} ${e.message}`).join('; ')}`);
       const author = await seatActor(tenant.id, t.slug === 'nayidisha' ? 'synthetic:author.meera' : 'synthetic:acme.admin');

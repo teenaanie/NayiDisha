@@ -7,14 +7,17 @@ import { compile, parseStrictJson, digestOf } from '../../src/modules/roleplay/c
 import { computeDerivations } from '../../src/modules/roleplay/config/patch';
 import { scoreAssessment, ScoringError, qParse, cmp, q } from '../../src/modules/roleplay/scoring';
 import { respond } from '../../src/modules/roleplay/runtime/engine';
-import { openingFactIds } from '../../src/modules/roleplay/runtime/disclosure';
+import { openingFactIds, discoveryComplete } from '../../src/modules/roleplay/runtime/disclosure';
+import { classify } from '../../src/modules/roleplay/runtime/intents';
+import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
+import type { Language } from '../../src/modules/roleplay/runtime/language';
 import { validateRoleplayOutput } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
-import { assess } from '../../src/modules/roleplay/evaluation/assess';
+import { assess, stripTurnAliases } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
-import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds } from '../../src/modules/roleplay/coaching';
+import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
 import { isQuestion } from '../../src/modules/roleplay/runtime/text';
 import { cpLength, cpSlice, sentences } from '../../src/modules/roleplay/runtime/text';
@@ -28,7 +31,8 @@ export async function unitTests(): Promise<Check[]> {
   const ok = (id: string, name: string, pass: boolean, detail = '') => results.push(check(id, name, pass, detail));
 
   // ---- configuration --------------------------------------------------------
-  const pkg = loadScenarioPackage('EDU_DISCOVERY_001');
+  // Platform mechanics are pinned to the archived 2.1.0 package; v3 content has its own section below.
+  const pkg = loadScenarioPackage('EDU_DISCOVERY_001', { archived: '2.1.0' });
   const src = compile(pkg.source);
   ok('§8', 'The source Education Loan JSON validates unmodified', src.ok, src.errors.map((e) => `${e.path} ${e.message}`).join('; ') || `digest ${src.digest?.slice(0, 12)}`);
   const full = compile(pkg.bundle);
@@ -289,10 +293,10 @@ export async function unitTests(): Promise<Check[]> {
     ok('§20', 'The mock coach output satisfies the outcome rules', vg.ok, vg.ok ? '' : vg.errors.join(' '));
     const praiseGap = { ...good, strengths: [{ text: 'Good job exploring the total cost.', evidence_ids: [evOf('total_cost')], suggested_question: null }] };
     const v1 = validateCoaching(JSON.stringify(praiseGap), at.candidate.evidence, turns14, outs);
-    ok('§20', 'Praise citing a missed check is rejected', !v1.ok && v1.errors.some((e) => /strengths\[0\].*missed/.test(e)), v1.ok ? 'accepted' : v1.errors[0]);
+    ok('§20', 'Praise citing a missed check is never shown (the finding is dropped, the report survives)', v1.ok && !v1.candidate.strengths.some((f) => f.text === 'Good job exploring the total cost.') && v1.notes.some((n) => /strengths\[0\] dropped/.test(n)), v1.ok ? v1.notes.join(' ') : v1.errors[0]);
     const blameAsked = { ...good, missed_questions: [{ text: 'You did not ask about the course.', evidence_ids: [evOf('course')], suggested_question: null }] };
     const v2 = validateCoaching(JSON.stringify(blameAsked), at.candidate.evidence, turns14, outs);
-    ok('§20', '"You did not ask" citing a question the learner asked is rejected', !v2.ok && v2.errors.some((e) => /missed_questions\[0\].*met/.test(e)), v2.ok ? 'accepted' : v2.errors[0]);
+    ok('§20', '"You did not ask" citing a question the learner asked is never shown', v2.ok && !v2.candidate.missed_questions.some((f) => f.text === 'You did not ask about the course.'), v2.ok ? v2.notes.join(' ') : v2.errors[0]);
     const withSkill = clone(at.candidate);
     withSkill.evidence = withSkill.evidence.filter((e) => e.check_id !== 'summary_before_next_step');
     withSkill.evidence.push({ id: 'ev_summary_before_next_step', category: 'conversation', check_id: 'summary_before_next_step', status: 'not_observed', learner_spans: [], context_spans: [], searched_turn_ids: [...ctx.assessable_learner_turn_ids], explanation: 'No summary.', method: 'llm', confidence: 0.8 } as any);
@@ -394,6 +398,119 @@ export async function unitTests(): Promise<Check[]> {
   try { keyFrom = providerFor('roleplay').id; } catch (e) { keyFrom = (e as Error).message; }
   process.env = envBefore;
   ok('§23', 'The live adapter can read its key from a named variable (no secret copying)', keyFrom === 'openai_compatible', keyFrom);
+
+
+  // ---- v3: the owner's "Simulation Prototype" content (1 Oct 2026) ---------------------
+  {
+    const v3c = compile(loadScenarioPackage('EDU_DISCOVERY_001').bundle);
+    ok('PS01', 'v3 compiles with no errors or warnings', v3c.ok && v3c.warnings.length === 0, [...v3c.errors, ...v3c.warnings].map((e) => `${e.path} ${e.message}`).join('; '));
+    const p = v3c.bundle as ScenarioBundle;
+    ok('PS02', 'v3 opens with the "money soon" cue and discloses only that', p.conversation.opening_text === 'Hello. I need a loan, and I need the money quite soon. Can you help me?' && JSON.stringify(openingFactIds(p)) === '["cue_soon"]');
+    const tpl = loadPrompt('roleplay_v1');
+    const conv3 = (language: Language = 'en') => {
+      const turns: TranscriptTurn[] = [{ id: 'p0', sequence: 0, speaker: 'customer', text: p.conversation.opening_text, origin: 'opening' }];
+      const disclosed = new Set(openingFactIds(p)); const asked = new Set<string>();
+      return { turns, disclosed, async say(text: string) {
+        const o = await respond({ bundle: p, history: turns, learnerText: text, disclosed, askedIntentIds: asked, template: tpl, language, correlation: { tenant_id: 't', session_id: 's', operation_id: 'o' } });
+        turns.push({ id: `p${turns.length}`, sequence: turns.length, speaker: 'learner', text, origin: 'live' });
+        turns.push({ id: `p${turns.length}`, sequence: turns.length, speaker: 'customer', text: o.reply.text, origin: 'live' });
+        o.reply.disclosed_fact_ids.forEach((f) => disclosed.add(f)); o.classification.hits.filter((h) => h.question).forEach((h) => asked.add(h.intent_id));
+        return o;
+      } };
+    };
+    const rows: [string, string][] = [
+      ['What do you need the loan for?', "It is for my daughter's college admission. Her fees have to be paid."],
+      ['How much loan do you need?', "I need about ₹4 lakh. But I don't want a very high EMI."],
+      ['When exactly do you need the money?', 'Within 30 days. The fees have to be paid by then.'],
+      ['What is your monthly income?', 'I earn about ₹55,000 a month. I already have another EMI, though.'],
+      ['Do you have any other EMIs?', 'Yes, I pay ₹8,000 a month for my vehicle loan.'],
+      ["What's a comfortable EMI for you?", "Around ₹10,000 to ₹12,000 a month more would be comfortable. I don't want a very high EMI."],
+      ['Have you taken a loan before?', 'Yes, I took a vehicle loan before. My previous loan had extra charges.'],
+      ['What matters most to you in this loan?', 'Most important for me is an EMI I can manage every month. Quick processing would also help.'],
+      ['Do you have any concerns about taking a loan?', "Last time I was surprised by some additional charges. I don't want any hidden charges this time."],
+      ['What loan tenure do you prefer?', "I haven't decided. Whatever keeps the EMI comfortable."],
+    ];
+    const wrong: string[] = [];
+    for (const [qq, want] of rows) { const o = await conv3().say(qq); if (o.reply.text !== want) wrong.push(`${qq} → ${o.reply.text}`); }
+    ok('PS03', 'Each discovery question gets the customer\'s configured answer', !wrong.length, wrong.join(' | '));
+    const hitsOf = (t: string) => classify(p, t, { discoveryComplete: false }).hits.map((h) => h.intent_id);
+    const variations = ["What's a comfortable EMI for you?", 'How much could you comfortably repay every month?', 'What monthly payment would work for your budget?'];
+    ok('PS04', 'The owner\'s equivalent wordings all count as asking about repayment comfort; "current EMI" is existing commitments',
+      variations.every((v) => hitsOf(v).includes('repayment_comfort')) && hitsOf('How much is your current EMI?').includes('existing_commitments') && !hitsOf('How much is your current EMI?').includes('repayment_comfort'),
+      [...variations, 'How much is your current EMI?'].map((v) => `${v} → ${hitsOf(v).join('+')}`).join(' | '));
+
+    // Volunteered cues: the low-EMI cue is spoken after the 3rd message if not yet said; never twice.
+    const vc = conv3();
+    await vc.say('What do you need the loan for?'); await vc.say('When exactly do you need the money?');
+    const t3 = await vc.say('What matters most to you in this loan?');
+    const t4 = await vc.say('What loan tenure do you prefer?');
+    ok('PS05', 'The customer volunteers a due cue once, after the answer', t3.reply.text.endsWith("Also, I don't want a very high EMI.") && t3.reply.disclosed_fact_ids.includes('cue_low_emi') && !t4.reply.text.includes("don't want a very high EMI"), `${t3.reply.text} | ${t4.reply.text}`);
+    const vh = conv3('hi');
+    await vh.say('What do you need the loan for?'); await vh.say('When exactly do you need the money?');
+    const h3 = await vh.say('What matters most to you in this loan?');
+    ok('PS05', 'A volunteered cue is spoken in the session language', h3.reply.text.endsWith('और हाँ, मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।'), h3.reply.text);
+    const va = conv3();
+    await va.say('How much loan do you need?'); await va.say('When exactly do you need the money?');
+    const a3 = await va.say('What do you need the loan for?');
+    ok('PS05', 'A cue already said by an answer is not volunteered again', !a3.reply.text.includes("don't want a very high EMI"), a3.reply.text);
+
+    // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
+    const sc = (xs: number[], risks: string[] = []) => scoreAssessment(p.rubric, p.scoring, p.rubric.dimensions.map((d, i) => ({ dimension_id: d.id, score: xs[i] })), { confirmedRiskRuleIds: risks });
+    const edges: [number[], number, string][] = [[[5, 5, 5, 5], 100, 'strong'], [[1, 1, 1, 1], 20, 'needs_coaching'], [[4, 4, 5, 4], 85, 'strong'], [[3, 3, 5, 3], 70, 'effective'], [[3, 2, 2, 5], 55, 'developing'], [[3, 3, 3, 1], 54, 'needs_coaching']];
+    const edgeBad = edges.filter(([xs, pct, band]) => { const r = sc(xs); return r.final_percent !== pct || r.band_id !== band; });
+    ok('PS08', 'Weighted scores land on the owner\'s band edges (85 Strong, 70 Effective, 55 Developing, 54 Needs Coaching)', !edgeBad.length, edgeBad.map(([xs]) => `${xs} → ${sc(xs).final_percent} ${sc(xs).band_id}`).join('; '));
+    const capR = sc([5, 5, 5, 5], ['guaranteed_approval']);
+    const pitchR = sc([5, 5, 5, 5], ['premature_pitch']);
+    ok('PS09', 'A confirmed serious risk caps the score at 54 (Needs Coaching); an early pitch alone does not', capR.base_percent === 100 && capR.final_percent === 54 && capR.band_id === 'needs_coaching' && capR.adjustments.length === 1 && pitchR.final_percent === 100, `${capR.base_percent}→${capR.final_percent} ${capR.band_id}; pitch ${pitchR.final_percent}`);
+    ok('PS10', 'Discovery counts as done only after three discovery questions', !discoveryComplete(p, new Set(['loan_amount'])) && !discoveryComplete(p, new Set(['loan_amount', 'timing'])) && discoveryComplete(p, new Set(['loan_amount', 'timing', 'income'])));
+
+    // Cue follow-ups: followed → observed; raised but ignored → not observed; never raised → not applicable.
+    const cf = conv3();
+    await cf.say('What is your monthly income?'); await cf.say('How much is your current EMI?');
+    const rf = extractRuleEvidence(p, cf.turns);
+    const st = (r: typeof rf, id: string) => r.evidence.find((e) => e.check_id === id)?.status;
+    const cn = conv3();
+    await cn.say('What is your monthly income?'); await cn.say('What do you need the loan for?');
+    const rn = extractRuleEvidence(p, cn.turns);
+    ok('PS11', 'Cue follow-ups: followed is observed, ignored is not observed, never raised is not applicable',
+      st(rf, 'follows_up_other_emi_cue') === 'observed' && st(rn, 'follows_up_other_emi_cue') === 'not_observed' && rn.inapplicable_check_ids.includes('follows_up_charges_cue') && !rn.inapplicable_check_ids.includes('follows_up_timing_cue'),
+      `followed ${st(rf, 'follows_up_other_emi_cue')}, ignored ${st(rn, 'follows_up_other_emi_cue')}, inapplicable ${rn.inapplicable_check_ids.join(',')}`);
+
+    // Evaluator v2 / contract 1.1: a coaching suggestion per skill; missing coaching is rejected.
+    const strong = conv3();
+    for (const qq of ['What do you need the loan for?', 'How much loan do you need?', 'When exactly do you need the money?', 'What is your monthly income?', 'Do you have any other EMIs?', "What's a comfortable EMI for you?", 'Do you have any concerns about taking a loan?']) await strong.say(qq);
+    const a2 = await assess({ bundle: p, turns: strong.turns, session_id: 'v3s', transcript_hash: 'h3', mode: 'full', target_check_ids: [], template: loadPrompt('evaluator_v2'), template_id: 'evaluator_v2', correlation: { tenant_id: 't', session_id: 'v3s', evaluation_id: 'e' } });
+    ok('PS12', 'With evaluator v2 every skill gets a coaching suggestion (contract 1.1)', a2.status === 'scored' && a2.candidate.contract_version === '1.1' && a2.candidate.dimension_scores.every((d) => (d.coaching ?? '').length > 0), a2.status === 'scored' ? a2.candidate.dimension_scores.map((d) => `${d.dimension_id}:${d.score} ${d.coaching}`).join(' | ') : (a2 as any).reason);
+    if (a2.status === 'scored') {
+      const ctx3 = { bundle: p, turns: strong.turns, session_id: 'v3s', transcript_hash: 'h3', rubric_version: `${p.rubric.id}@${p.rubric.version}`, assessable_learner_turn_ids: a2.rule.assessable_learner_turn_ids, contract_version: '1.1' as const };
+      const noCoach = clone(a2.candidate); delete noCoach.dimension_scores[0].coaching;
+      const vn = validateCandidate(JSON.stringify(noCoach), ctx3);
+      ok('PS12', 'Under contract 1.1 a skill without coaching is rejected', !vn.ok && vn.errors.some((e) => /needs one coaching suggestion/.test(e)), vn.ok ? 'accepted' : vn.errors[0]);
+      ok('PS13', 'A good discovery conversation scores in a passing band on the weighted scale', a2.score !== null && a2.score.final_percent >= 55 && a2.score.mode === 'weighted_percent', `${a2.score?.final_percent} ${a2.score?.band_label}`);
+      // Top 3 missed questions follow the framework's priority order.
+      const missedEv = a2.candidate.evidence.filter((e) => e.check_id && ['preferred_tenure', 'prior_borrowing', 'priorities', 'employment'].includes(e.check_id));
+      const findings = missedEv.map((e) => ({ text: e.check_id!, evidence_ids: [e.id], suggested_question: null }));
+      const ordered = orderMissedQuestions(p, a2.candidate, findings).slice(0, MAX_MISSED_QUESTIONS).map((f) => f.text);
+      ok('PS14', 'Top 3 missed questions are the most important framework areas', MAX_MISSED_QUESTIONS === 3 && JSON.stringify(ordered) === JSON.stringify(['priorities', 'employment', 'prior_borrowing']), ordered.join(','));
+    }
+    const risky = conv3();
+    for (const qq of ['What do you need the loan for?', 'How much loan do you need?', 'What is your monthly income?', 'Your loan will definitely be approved.']) await risky.say(qq);
+    const ar = await assess({ bundle: p, turns: risky.turns, session_id: 'v3r', transcript_hash: 'hr', mode: 'full', target_check_ids: [], template: loadPrompt('evaluator_v2'), template_id: 'evaluator_v2', correlation: { tenant_id: 't', session_id: 'v3r', evaluation_id: 'e' } });
+    ok('PS13', 'A guarantee promise caps the assessment at 54 or below', ar.status === 'scored' && ar.score !== null && ar.score.final_percent <= 54 && ar.score.band_label === 'Needs Coaching', ar.status === 'scored' ? `${ar.score?.base_percent} → ${ar.score?.final_percent} ${ar.score?.band_label}` : (ar as any).reason);
+    if (ar.status === 'scored') {
+      // Live, 1 Oct 2026: risk evidence came back with check_id "" or the risk rule's id; both are cleared, not fatal.
+      const rk = clone(ar.candidate);
+      const riskEv = rk.evidence.filter((e) => e.id.startsWith('risk_'));
+      if (riskEv[0]) (riskEv[0] as any).check_id = '';
+      if (riskEv[1]) (riskEv[1] as any).check_id = 'guaranteed_approval';
+      const ctxR = { bundle: p, turns: risky.turns, session_id: 'v3r', transcript_hash: 'hr', rubric_version: `${p.rubric.id}@${p.rubric.version}`, assessable_learner_turn_ids: ar.rule.assessable_learner_turn_ids, contract_version: '1.1' as const };
+      const vr = validateCandidate(JSON.stringify(rk), ctxR);
+      ok('PS15', 'Risk evidence with an empty or risk-rule check_id is cleaned, not a failed assessment', riskEv.length > 0 && vr.ok && vr.notes.some((n) => /cleared \(risk evidence has no check\)/.test(n)), vr.ok ? vr.notes.filter((n) => /cleared/.test(n)).join(' ') : vr.errors.join(' '));
+    }
+    ok('PS18', 'Turn labels used by the evaluator never reach learners', stripTurnAliases('Follow up on cues such as existing EMIs. (T0, T4, T6)') === 'Follow up on cues such as existing EMIs.' && stripTurnAliases('Say "Income?" less often (T5).') === 'Say "Income?" less often.' && stripTurnAliases('Use TV and EMI.') === 'Use TV and EMI.');
+    ok('PS16', 'Practice reminders come from the scenario: 12 and 15 minutes in v3, 10 and 12 in 2.1.0', JSON.stringify(publicBrief('x', p).reminder_minutes) === '[12,15]' && JSON.stringify(publicBrief('x', b).reminder_minutes) === '[10,12]');
+    ok('PS17', 'v3 is a major version over 2.1.0', semanticDiff(b, p).required_bump === 'major');
+  }
 
   // ---- offsets ---------------------------------------------------------------
   const emoji = 'Namaste 🙏🏽! मेरी बेटी? When is the first fee payment due?';
