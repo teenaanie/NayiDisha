@@ -18,7 +18,7 @@ import { ApiError, audit, conflict, forbidden, notFound, requireRole, type Actor
  * instructions even if a template is later retired.
  */
 
-export const PROMPT_IDS = ['roleplay_v1', 'evaluator_v1', 'coach_v1', 'evaluator_v2', 'coach_v2', 'roleplay_v2'];
+export const PROMPT_IDS = ['roleplay_v1', 'evaluator_v1', 'coach_v1', 'evaluator_v2', 'coach_v2', 'roleplay_v2', 'roleplay_v3'];
 
 export async function ensurePrompts() {
   for (const id of PROMPT_IDS) {

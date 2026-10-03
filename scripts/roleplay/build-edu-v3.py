@@ -291,7 +291,7 @@ runtime = {
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "3.1.0", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "3.1.1", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
@@ -302,13 +302,13 @@ bundle = {
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's name or fees", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "3.1.0", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "3.1.1", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],
   "band_scale": "percent", "display_decimals": 0, "risk_effect": "cap",
   "risk_effect_parameters": {"rule_ids": ["guaranteed_approval", "documents_dismissed", "optional_as_compulsory", "income_falsification", "charges_misrepresented"], "max_percent": 54}},
- "prompts": {"roleplay": "roleplay_v2", "evaluator": "evaluator_v2", "coach": "coach_v2"},
+ "prompts": {"roleplay": "roleplay_v3", "evaluator": "evaluator_v2", "coach": "coach_v2"},
  "retry": {"full_enabled": True, "focused_enabled": True, "focused_target_check_ids": ["existing_commitments", "repayment_comfort", "concerns"], "focused_scoring": "checks_only",
   "instruction": "Repeat the middle part of the conversation. Ask about existing EMIs, a comfortable monthly repayment and the customer's concerns before explaining any loan option.", "version_policy": "pin_parent"},
  "provenance": [
