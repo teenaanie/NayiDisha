@@ -44,9 +44,12 @@ export interface RuntimeExtension {
    * Lines the customer volunteers unprompted, so a learner has cues to pick up on (spec:
    * "customer cues and expected probing opportunities"). A cue is spoken at the end of the
    * reply once the learner has sent `after_learner_turns` messages, if none of its facts has
-   * been disclosed yet; at most one per turn, never in a clarification.
+   * been disclosed yet; at most one per turn, never in a clarification. With `with_intents`
+   * it also comes straight after the answer to one of those intents ("I need about ₹4 lakh.
+   * But I don't want a very high EMI."), and `unless_fact_ids` drops it once the learner has
+   * already drawn out what the cue points to (no cue to follow up on a topic already covered).
    */
-  volunteered_cues: { id: string; text: string; reveal_fact_ids: string[]; after_learner_turns: number }[];
+  volunteered_cues: { id: string; text: string; reveal_fact_ids: string[]; after_learner_turns: number; with_intents?: string[]; unless_fact_ids?: string[] }[];
   /**
    * Follow-up checks tied to cues: once a customer turn has stated one of `cue_fact_ids`, a
    * later learner question on one of `follow_up_intents` earns the check. A cue that never
@@ -195,6 +198,8 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
     else c.reveal_fact_ids.forEach((f) => { if (facts.get(f)?.knowledge !== 'known') err(`${C}/reveal_fact_ids`, `"${f}" is not a known fact.`); });
     if (!(Number.isInteger(c.after_learner_turns) && c.after_learner_turns >= 1)) err(`${C}/after_learner_turns`, 'Must be a whole number of at least 1.');
     else { if (c.after_learner_turns < lastTurn) err(`${C}/after_learner_turns`, 'Cues must be listed in the order they become due.'); lastTurn = c.after_learner_turns; }
+     if (c.with_intents !== undefined) { if (!strings(c.with_intents)) err(`${C}/with_intents`, 'Must be a list of intent IDs.'); else c.with_intents.forEach((id) => { if (!intents.has(id)) err(`${C}/with_intents`, `Unknown intent "${id}".`); }); }
+    if (c.unless_fact_ids !== undefined) { if (!strings(c.unless_fact_ids)) err(`${C}/unless_fact_ids`, 'Must be a list of fact IDs.'); else c.unless_fact_ids.forEach((f) => { if (!facts.has(f)) err(`${C}/unless_fact_ids`, `Unknown fact "${f}".`); }); }
   });
   (x.cue_follow_ups ?? []).forEach((c, i) => {
     const C = `${P}/cue_follow_ups/${i}`;

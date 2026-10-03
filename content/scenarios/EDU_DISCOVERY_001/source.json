@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -52,7 +52,7 @@
  },
  "persona": {
   "id": "rajesh_sharma",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "name": "Rajesh Sharma",
   "role": "Salaried father of a student",
   "relationships": {},
@@ -79,7 +79,7 @@
    "Interest rate",
    "Processing fee or other charge amounts",
    "Employer name",
-   "Daughter's name, college or course",
+   "The college's name or fees",
    "A loan tenure",
    "Approval or guaranteed loan amount"
   ]
@@ -106,6 +106,18 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
+  },
+  {
+   "id": "student_details",
+   "type": "text",
+   "value": "his daughter Priya has got admission for B.Com at a college in Pune",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "student_details"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation"
   },
   {
    "id": "loan_amount",
@@ -172,8 +184,7 @@
    "knowledge": "known",
    "visibility": "on_intent",
    "release_intents": [
-    "income",
-    "existing_commitments"
+    "income"
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
@@ -201,7 +212,6 @@
    "visibility": "on_intent",
    "release_intents": [
     "loan_amount",
-    "repayment_comfort",
     "premature_pitch"
    ],
    "prerequisite_fact_ids": [],
@@ -311,6 +321,20 @@
     ]
    },
    {
+    "id": "student_details",
+    "description": "Asks about the student: the daughter's name, college or course.",
+    "positive_examples": [
+     "What is your daughter's name?",
+     "Which college has she got admission in?",
+     "Which course is she joining?",
+     "Where will she be studying?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
     "id": "loan_amount",
     "description": "Asks how much the customer needs.",
     "positive_examples": [
@@ -327,7 +351,7 @@
    },
    {
     "id": "timing",
-    "description": "Asks when the funds are required.",
+    "description": "Asks when the funds are required (not when the customer can provide documents or details).",
     "positive_examples": [
      "When exactly do you need the money?",
      "By what date do you need the funds?",
@@ -336,7 +360,12 @@
     ],
     "negative_examples": [
      "Customer volunteers this information.",
-     "Learner merely mentions the topic without asking or checking."
+     "Learner merely mentions the topic without asking or checking.",
+     "How soon can you arrange those?",
+     "When can you bring the documents?",
+     "How soon can you share the admission details?",
+     "ये डॉक्यूमेंट्स आप कब तक अरेंज कर सकते हैं?",
+     "ती कागदपत्रं तुम्ही कधीपर्यंत आणू शकाल?"
     ]
    },
    {
@@ -380,7 +409,9 @@
     ],
     "negative_examples": [
      "Customer volunteers this information.",
-     "Learner merely mentions the topic without asking or checking."
+     "Learner merely mentions the topic without asking or checking.",
+     "Will you be able to manage both loans?",
+     "Can you repay this new loan along with the current one?"
     ]
    },
    {
@@ -390,7 +421,9 @@
      "What's a comfortable EMI for you?",
      "How much could you comfortably repay every month?",
      "What monthly payment would work for your budget?",
-     "What EMI can you manage each month?"
+     "What EMI can you manage each month?",
+     "Will you be able to manage this EMI along with your current one?",
+     "Can you afford both loans together?"
     ],
     "negative_examples": [
      "Customer volunteers this information.",
@@ -489,10 +522,21 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "loan_amount",
-     "cue_low_emi"
+     "loan_amount"
     ],
-    "response_text": "I need about ₹4 lakh. But I don't want a very high EMI."
+    "response_text": "I need about ₹4 lakh."
+   },
+   {
+    "id": "respond_student_details",
+    "priority": 100,
+    "intent_ids": [
+     "student_details"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "student_details"
+    ],
+    "response_text": "Her name is Priya. She has got admission for B.Com at a college in Pune."
    },
    {
     "id": "respond_timing",
@@ -526,10 +570,9 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "monthly_income",
-     "cue_other_emi"
+     "monthly_income"
     ],
-    "response_text": "I earn about ₹55,000 a month. I already have another EMI, though."
+    "response_text": "I earn about ₹55,000 a month."
    },
    {
     "id": "respond_existing_commitments",
@@ -539,7 +582,6 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "cue_other_emi",
      "existing_emi",
      "previous_loan"
     ],
@@ -553,10 +595,9 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "cue_low_emi",
      "comfortable_emi"
     ],
-    "response_text": "Around ₹10,000 to ₹12,000 a month more would be comfortable. I don't want a very high EMI."
+    "response_text": "Around ₹10,000 to ₹12,000 a month more would be comfortable."
    },
    {
     "id": "respond_preferred_tenure",
@@ -578,10 +619,9 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "previous_loan",
-     "cue_extra_charges"
+     "previous_loan"
     ],
-    "response_text": "Yes, I took a vehicle loan before. My previous loan had extra charges."
+    "response_text": "Yes, I took a vehicle loan before."
    },
    {
     "id": "respond_priorities",
@@ -630,7 +670,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1313,7 +1353,7 @@
   }
  },
  "prompts": {
-  "roleplay": "roleplay_v1",
+  "roleplay": "roleplay_v2",
   "evaluator": "evaluator_v2",
   "coach": "coach_v2"
  },
@@ -1469,25 +1509,27 @@
      "acknowledgement_text": "अच्छा। आगे बताइए।",
      "rule_responses": {
       "respond_loan_purpose": "यह मेरी बेटी के कॉलेज एडमिशन के लिए है। उसकी फ़ीस भरनी है।",
-      "respond_loan_amount": "मुझे लगभग ₹4 लाख चाहिए। लेकिन मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "respond_loan_amount": "मुझे लगभग ₹4 लाख चाहिए।",
+      "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के एक कॉलेज में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
       "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
-      "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ। वैसे मेरी एक EMI पहले से चल रही है।",
+      "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ।",
       "respond_existing_commitments": "हाँ, मैं अपने वाहन लोन के लिए हर महीने ₹8,000 भरता हूँ।",
-      "respond_repayment_comfort": "हर महीने लगभग ₹10,000 से ₹12,000 और ठीक रहेगा। मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "respond_repayment_comfort": "हर महीने लगभग ₹10,000 से ₹12,000 और ठीक रहेगा।",
       "respond_preferred_tenure": "मैंने अभी तय नहीं किया है। जितने में EMI आराम से भरी जा सके।",
-      "respond_prior_borrowing": "हाँ, मैंने पहले वाहन लोन लिया था। उस लोन में कुछ अतिरिक्त चार्ज लगे थे।",
+      "respond_prior_borrowing": "हाँ, मैंने पहले वाहन लोन लिया था।",
       "respond_priorities": "मेरे लिए सबसे ज़रूरी है ऐसी EMI जो मैं हर महीने भर सकूँ। प्रोसेस जल्दी हो जाए तो वह भी अच्छा रहेगा।",
       "respond_concerns": "पिछली बार कुछ अतिरिक्त चार्ज देखकर मैं हैरान रह गया था। इस बार मुझे कोई छुपा हुआ चार्ज नहीं चाहिए।",
       "respond_premature_pitch": "उससे पहले मैं पक्का करना चाहता हूँ कि EMI मेरे बस में होगी।"
      },
      "cue_responses": {
-      "low_emi": "और हाँ, मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
+      "low_emi": "लेकिन मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।",
       "other_emi": "और मेरी एक EMI पहले से चल रही है।",
       "extra_charges": "और हाँ, पिछले लोन में कुछ अतिरिक्त चार्ज लगे थे।"
      },
      "intent_examples": {
       "loan_purpose": "आपको लोन किस लिए चाहिए?",
+      "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
       "timing": "आपको पैसे ठीक कब तक चाहिए?",
       "employment": "आप क्या काम करते हैं?",
@@ -1513,25 +1555,27 @@
      "acknowledgement_text": "बरं. पुढे सांगा.",
      "rule_responses": {
       "respond_loan_purpose": "माझ्या मुलीच्या कॉलेज प्रवेशासाठी. तिची फी भरायची आहे.",
-      "respond_loan_amount": "मला साधारण ₹4 लाख हवे आहेत. पण EMI खूप जास्त नको.",
+      "respond_loan_amount": "मला साधारण ₹4 लाख हवे आहेत.",
+      "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या एका कॉलेजमध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
       "respond_employment": "मी पगारदार नोकरी करतो.",
-      "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो. तसं माझा एक EMI आधीच चालू आहे.",
+      "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो.",
       "respond_existing_commitments": "हो, मी माझ्या वाहन कर्जासाठी दर महिन्याला ₹8,000 भरतो.",
-      "respond_repayment_comfort": "दर महिन्याला साधारण ₹10,000 ते ₹12,000 अजून जमतील. EMI खूप जास्त नको.",
+      "respond_repayment_comfort": "दर महिन्याला साधारण ₹10,000 ते ₹12,000 अजून जमतील.",
       "respond_preferred_tenure": "मी अजून ठरवलं नाही. ज्यात EMI आरामात भरता येईल तेवढं.",
-      "respond_prior_borrowing": "हो, मी आधी वाहन कर्ज घेतलं होतं. त्या कर्जात काही जादा चार्जेस लागले होते.",
+      "respond_prior_borrowing": "हो, मी आधी वाहन कर्ज घेतलं होतं.",
       "respond_priorities": "माझ्यासाठी सगळ्यात महत्त्वाचं म्हणजे दर महिन्याला भरता येईल असा EMI. प्रोसेस लवकर झाली तर तेही बरं.",
       "respond_concerns": "मागच्या वेळी काही जादा चार्जेस पाहून मला धक्काच बसला होता. या वेळी कोणतेही लपवलेले चार्जेस नकोत.",
       "respond_premature_pitch": "त्याआधी मला खात्री करायची आहे की EMI मला परवडेल."
      },
      "cue_responses": {
-      "low_emi": "आणि हो, EMI खूप जास्त नको.",
+      "low_emi": "पण EMI खूप जास्त नको.",
       "other_emi": "आणि माझा एक EMI आधीच चालू आहे.",
       "extra_charges": "आणि हो, मागच्या कर्जात काही जादा चार्जेस लागले होते."
      },
      "intent_examples": {
       "loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?",
+      "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",
       "timing": "तुम्हाला पैसे नेमके कधीपर्यंत हवे आहेत?",
       "employment": "तुम्ही काय काम करता?",
@@ -1551,11 +1595,17 @@
    "volunteered_cues": [
     {
      "id": "low_emi",
-     "text": "Also, I don't want a very high EMI.",
+     "text": "But I don't want a very high EMI.",
      "reveal_fact_ids": [
       "cue_low_emi"
      ],
-     "after_learner_turns": 3
+     "after_learner_turns": 3,
+     "with_intents": [
+      "loan_amount"
+     ],
+     "unless_fact_ids": [
+      "comfortable_emi"
+     ]
     },
     {
      "id": "other_emi",
@@ -1563,7 +1613,13 @@
      "reveal_fact_ids": [
       "cue_other_emi"
      ],
-     "after_learner_turns": 5
+     "after_learner_turns": 5,
+     "with_intents": [
+      "income"
+     ],
+     "unless_fact_ids": [
+      "existing_emi"
+     ]
     },
     {
      "id": "extra_charges",
@@ -1571,7 +1627,13 @@
      "reveal_fact_ids": [
       "cue_extra_charges"
      ],
-     "after_learner_turns": 7
+     "after_learner_turns": 7,
+     "with_intents": [
+      "prior_borrowing"
+     ],
+     "unless_fact_ids": [
+      "concern_charges"
+     ]
     }
    ],
    "cue_follow_ups": [

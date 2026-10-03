@@ -35,17 +35,21 @@ export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, d
 /**
  * A due cue the customer has not yet said is appended to the reply (spec: the customer reveals
  * cues the learner should pick up). One per turn, only when the reply is not a clarification,
- * and only if none of its facts is already out or being released this turn.
+ * and only if none of its facts (nor any of its `unless_fact_ids`) is already out or being
+ * released this turn. The plan kind is left as it was: an acknowledgement still answers the
+ * learner's message before the cue.
  */
 function volunteerCue(bundle: ScenarioBundle, plan: DisclosurePlan, disclosed: Set<string>, learnerTurnIndex: number): DisclosurePlan {
   if (plan.kind === 'clarify') return plan;
   const out = new Set([...disclosed, ...plan.released_fact_ids]);
-  const cue = runtimeOf(bundle).volunteered_cues.find((c) => learnerTurnIndex >= c.after_learner_turns && c.reveal_fact_ids.every((f) => !out.has(f)));
+  const answered = new Set(plan.matched_rule_ids.flatMap((id) => bundle.conversation.rules.find((r) => r.id === id)?.intent_ids ?? []));
+  const open = runtimeOf(bundle).volunteered_cues.filter((c) => c.reveal_fact_ids.every((f) => !out.has(f)) && !(c.unless_fact_ids ?? []).some((f) => out.has(f)));
+  // A cue tied to what was just answered belongs here; otherwise the first one that is due.
+  const cue = open.find((c) => (c.with_intents ?? []).some((i) => answered.has(i))) ?? open.find((c) => learnerTurnIndex >= c.after_learner_turns);
   if (!cue) return plan;
   plan.parts.push({ kind: 'volunteer', cue_id: cue.id, text: cue.text, fact_ids: [...cue.reveal_fact_ids] });
   plan.released_fact_ids = [...plan.released_fact_ids, ...cue.reveal_fact_ids];
   plan.allowed_fact_ids = Array.from(new Set([...plan.allowed_fact_ids, ...cue.reveal_fact_ids]));
-  if (plan.kind === 'acknowledge') plan.kind = 'answer';
   return plan;
 }
 

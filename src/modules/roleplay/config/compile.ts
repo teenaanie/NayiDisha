@@ -155,10 +155,13 @@ export function compile(input: unknown, options: CompileOptions = {}): CompileRe
     if (r.concern_id) ref(`${p}/concern_id`, 'concern', r.concern_id, concerns);
   });
   if (b.conversation.max_new_facts_per_turn < 1) err('/conversation/max_new_facts_per_turn', 'Must be at least 1.');
-  // Disclosure reachability: every known on-intent fact must be revealable by some rule.
+  // Disclosure reachability: every known on-intent fact must be revealable by some rule
+  // or by a cue the customer volunteers.
+  const cues = ((b.extensions as { nd_runtime?: { volunteered_cues?: { reveal_fact_ids?: unknown }[] } } | undefined)?.nd_runtime?.volunteered_cues ?? [])
+    .flatMap((c) => (Array.isArray(c.reveal_fact_ids) ? c.reveal_fact_ids : []));
   b.facts.forEach((f, i) => {
     if (f.knowledge !== 'known' || f.visibility !== 'on_intent') return;
-    if (!b.conversation.rules.some((r) => r.reveal_fact_ids.includes(f.id))) err(`/facts/${i}`, `Known fact "${f.id}" can never be disclosed: no rule reveals it.`);
+    if (!b.conversation.rules.some((r) => r.reveal_fact_ids.includes(f.id)) && !cues.includes(f.id)) err(`/facts/${i}`, `Known fact "${f.id}" can never be disclosed: no rule or volunteered cue reveals it.`);
   });
   // Every intent a question can hit must lead somewhere: a rule, or an unknown fact that falls back to unknown_response.
   for (const it of b.conversation.intents) {

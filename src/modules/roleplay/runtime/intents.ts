@@ -16,7 +16,7 @@ import { sentences, isQuestion, coverage, contentWords, type Sentence } from './
  * its output is filtered to configured IDs the same way.
  */
 
-export const CLASSIFIER_VERSION = 'lexical-1.1.0';
+export const CLASSIFIER_VERSION = 'lexical-1.2.0';
 export const ACCEPT = 0.6;
 export const PARTIAL = 0.34;
 
@@ -33,8 +33,10 @@ const DESCRIPTION_NOISE = /\b(detect|learner|question|about|premature|conditione
 
 function examplesOf(intent: Intent): string[] {
   // The description names the topic ("... a learner question about fee deadline.");
-  // its topic words are an extra example, never the only one when examples exist.
-  const topic = intent.description.replace(DESCRIPTION_NOISE, ' ');
+  // its topic words are an extra example, never the only one when examples exist. A bracketed
+  // aside says what the intent is NOT ("not when the customer can provide documents"); its
+  // words must not become evidence for it.
+  const topic = intent.description.replace(/\([^)]*\)/g, ' ').replace(DESCRIPTION_NOISE, ' ');
   return [...intent.positive_examples, topic];
 }
 

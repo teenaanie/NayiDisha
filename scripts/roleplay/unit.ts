@@ -11,7 +11,7 @@ import { openingFactIds, discoveryComplete } from '../../src/modules/roleplay/ru
 import { classify } from '../../src/modules/roleplay/runtime/intents';
 import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
 import type { Language } from '../../src/modules/roleplay/runtime/language';
-import { validateRoleplayOutput } from '../../src/modules/roleplay/runtime/generate';
+import { validateRoleplayOutput, repairText, withoutRepeats } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
@@ -406,7 +406,7 @@ export async function unitTests(): Promise<Check[]> {
     ok('PS01', 'v3 compiles with no errors or warnings', v3c.ok && v3c.warnings.length === 0, [...v3c.errors, ...v3c.warnings].map((e) => `${e.path} ${e.message}`).join('; '));
     const p = v3c.bundle as ScenarioBundle;
     ok('PS02', 'v3 opens with the "money soon" cue and discloses only that', p.conversation.opening_text === 'Hello. I need a loan, and I need the money quite soon. Can you help me?' && JSON.stringify(openingFactIds(p)) === '["cue_soon"]');
-    const tpl = loadPrompt('roleplay_v1');
+    const tpl = loadPrompt(p.prompts.roleplay);
     const conv3 = (language: Language = 'en') => {
       const turns: TranscriptTurn[] = [{ id: 'p0', sequence: 0, speaker: 'customer', text: p.conversation.opening_text, origin: 'opening' }];
       const disclosed = new Set(openingFactIds(p)); const asked = new Set<string>();
@@ -422,10 +422,12 @@ export async function unitTests(): Promise<Check[]> {
       ['What do you need the loan for?', "It is for my daughter's college admission. Her fees have to be paid."],
       ['How much loan do you need?', "I need about ₹4 lakh. But I don't want a very high EMI."],
       ['When exactly do you need the money?', 'Within 30 days. The fees have to be paid by then.'],
-      ['What is your monthly income?', 'I earn about ₹55,000 a month. I already have another EMI, though.'],
+      ['What is your monthly income?', 'I earn about ₹55,000 a month. And I already have another EMI.'],
       ['Do you have any other EMIs?', 'Yes, I pay ₹8,000 a month for my vehicle loan.'],
-      ["What's a comfortable EMI for you?", "Around ₹10,000 to ₹12,000 a month more would be comfortable. I don't want a very high EMI."],
-      ['Have you taken a loan before?', 'Yes, I took a vehicle loan before. My previous loan had extra charges.'],
+      ["What's a comfortable EMI for you?", 'Around ₹10,000 to ₹12,000 a month more would be comfortable.'],
+      ['Have you taken a loan before?', 'Yes, I took a vehicle loan before. Also, my previous loan had extra charges.'],
+      ["What is your daughter's name?", 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
+      ['Which college has she got admission in?', 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
       ['What matters most to you in this loan?', 'Most important for me is an EMI I can manage every month. Quick processing would also help.'],
       ['Do you have any concerns about taking a loan?', "Last time I was surprised by some additional charges. I don't want any hidden charges this time."],
       ['What loan tenure do you prefer?', "I haven't decided. Whatever keeps the EMI comfortable."],
@@ -444,15 +446,36 @@ export async function unitTests(): Promise<Check[]> {
     await vc.say('What do you need the loan for?'); await vc.say('When exactly do you need the money?');
     const t3 = await vc.say('What matters most to you in this loan?');
     const t4 = await vc.say('What loan tenure do you prefer?');
-    ok('PS05', 'The customer volunteers a due cue once, after the answer', t3.reply.text.endsWith("Also, I don't want a very high EMI.") && t3.reply.disclosed_fact_ids.includes('cue_low_emi') && !t4.reply.text.includes("don't want a very high EMI"), `${t3.reply.text} | ${t4.reply.text}`);
+    ok('PS05', 'The customer volunteers a due cue once, after the answer', t3.reply.text.endsWith("But I don't want a very high EMI.") && t3.reply.disclosed_fact_ids.includes('cue_low_emi') && !t4.reply.text.includes("don't want a very high EMI"), `${t3.reply.text} | ${t4.reply.text}`);
     const vh = conv3('hi');
     await vh.say('What do you need the loan for?'); await vh.say('When exactly do you need the money?');
     const h3 = await vh.say('What matters most to you in this loan?');
-    ok('PS05', 'A volunteered cue is spoken in the session language', h3.reply.text.endsWith('और हाँ, मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।'), h3.reply.text);
+    ok('PS05', 'A volunteered cue is spoken in the session language', h3.reply.text.endsWith('लेकिन मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।'), h3.reply.text);
     const va = conv3();
     await va.say('How much loan do you need?'); await va.say('When exactly do you need the money?');
     const a3 = await va.say('What do you need the loan for?');
     ok('PS05', 'A cue already said by an answer is not volunteered again', !a3.reply.text.includes("don't want a very high EMI"), a3.reply.text);
+
+    // Customer replies after the first live test (3 Oct 2026).
+    const sa = conv3();
+    const s1 = await sa.say('How much loan do you need?');
+    const s2 = await sa.say("What's a comfortable EMI for you?");
+    ok('PS19', 'The "not a high EMI" line is said once: with the amount, not again with the comfortable EMI', (s1.reply.text.match(/very high EMI/g) ?? []).length === 1 && !s2.reply.text.includes('very high EMI'), `${s1.reply.text} | ${s2.reply.text}`);
+    const sb = conv3();
+    await sb.say("What's a comfortable EMI for you?"); await sb.say('What do you need the loan for?');
+    const sb3 = await sb.say('When exactly do you need the money?');
+    ok('PS19', 'A cue is not volunteered once the learner has already covered its topic', !sb3.reply.text.includes('very high EMI') && !sb3.plan.released_fact_ids.includes('cue_low_emi'), sb3.reply.text);
+    const sv = conv3();
+    for (const q of ['What do you need the loan for?', 'When exactly do you need the money?', 'What matters most to you in this loan?', 'What loan tenure do you prefer?']) await sv.say(q);
+    const sc5 = await sv.say('Is the loan only for tuition, or for hostel costs too?');
+    ok('PS20', 'A question the facts do not cover is still answered before a due cue', sc5.plan.kind === 'acknowledge' && sc5.reply.text.startsWith('I see. Please go on.') && sc5.reply.text.endsWith('And I already have another EMI.') && sc5.reply.attempts.length === 1, sc5.reply.text);
+    const hs = await conv3('hi').say("What is your daughter's name?");
+    const ms = await conv3('mr').say("What is your daughter's name?");
+    ok('PS21', "The daughter's details are answered in the session language", hs.reply.text.includes('प्रिया') && ms.reply.text.includes('प्रिया') && hs.reply.text !== ms.reply.text, `${hs.reply.text} | ${ms.reply.text}`);
+    ok('PS22', 'A JSON tab escape inside "don\'t" is repaired; other control characters become spaces', repairText('I don\t have that detail.') === 'I don\u2019t have that detail.' && repairText('Yes.\nI can.') === 'Yes. I can.', repairText('I don\t have that detail.'));
+    ok('PS22', 'A generated sentence restating a line of the same reply is dropped; a new one is kept',
+      withoutRepeats("I need a loan of ₹4 lakh. It is for my daughter's admission fees.", ['I need about ₹4 lakh.']) === "It is for my daughter's admission fees." && withoutRepeats('I need a loan of ₹4 lakh.', ['I need about ₹4 lakh.']) === '',
+      withoutRepeats("I need a loan of ₹4 lakh. It is for my daughter's admission fees.", ['I need about ₹4 lakh.']));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
     const sc = (xs: number[], risks: string[] = []) => scoreAssessment(p.rubric, p.scoring, p.rubric.dimensions.map((d, i) => ({ dimension_id: d.id, score: xs[i] })), { confirmedRiskRuleIds: risks });

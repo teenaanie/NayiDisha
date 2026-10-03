@@ -5,6 +5,7 @@ import { runtimeOf } from '../config/runtime-extension';
 import { completeWithRetry, type CompletionResult } from '../providers';
 import { renderFact, numbersIn, type DisclosurePlan } from './disclosure';
 import { localized, type Language } from './language';
+import { sentences, coverage } from './text';
 
 /**
  * Customer turn generation (spec §10, §15).
@@ -42,6 +43,7 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
   try { parsed = JSON.parse(raw); } catch { return { ok: false, reason: 'invalid_json' }; }
   if (!checkShape(parsed)) return { ok: false, reason: 'schema' };
   const c = parsed as unknown as RoleplayCandidate;
+  c.text = repairText(c.text);
   const allowed = new Set(allowedIds);
   if (c.used_fact_ids.some((id) => !allowed.has(id))) return { ok: false, reason: 'unauthorised_fact' };
   if (LEAK.test(c.text)) return { ok: false, reason: 'prompt_leakage' };
@@ -79,6 +81,34 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
   return { ok: true, candidate: c };
 }
 
+/**
+ * A model that writes "don\t" for "don't" produces a JSON tab escape: "I don\t have" became
+ * "I don<TAB> have" on screen (live run, 3 Oct 2026). A tab after a letter is that "'t";
+ * any other control character is whitespace.
+ */
+export function repairText(text: string): string {
+  return text.replace(/(\p{L})\t(?=\s)/gu, '$1\u2019t').replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/ {2,}/g, ' ').trim();
+}
+
+/**
+ * Generated sentences that only restate a line this same reply already says verbatim are
+ * dropped: asked "how much and what is it for?", the reply was the amount fixture followed by
+ * the model's retelling of the same amount (live run, 3 Oct 2026).
+ */
+export function withoutRepeats(generated: string, said: string[]): string {
+  if (!said.length) return generated;
+  const saidText = said.join(' ');
+  const saidNumbers = new Set(numbersIn(saidText));
+  const repeats = (t: string) => {
+    const c = coverage(t, saidText).score;
+    // The same figure in other words ("a loan of ₹4 lakh" after "about ₹4 lakh") is a repeat too.
+    const figures = numbersIn(t);
+    return c >= 0.8 || (figures.length > 0 && figures.every((n) => saidNumbers.has(n)) && c >= 0.5);
+  };
+  const kept = sentences(generated).filter((s) => !repeats(s.text)).map((s) => s.text);
+  return kept.join(' ');
+}
+
 export interface GenerateInput {
   bundle: ScenarioBundle;
   plan: DisclosurePlan;
@@ -108,11 +138,14 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   let generated: string | null = null;
   let generatedFacts: string[] = [];
   let degraded = false;
+  let onlyRepeats = false;
   if (needsModel) {
     const facts = new Map(bundle.facts.map((f) => [f.id, f]));
     // The cue is appended verbatim after the answer; the model must not say it too.
     const modelAllowed = plan.allowed_fact_ids.filter((id) => !volunteeredFacts.includes(id));
     const allowedFacts = modelAllowed.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
+    // What the rest of this reply says verbatim, so the model neither repeats nor contradicts it.
+    const saidThisTurn = plan.parts.flatMap((p) => (p.kind === 'fixture' ? [L.ruleResponse(p.rule_id, p.text)] : p.kind === 'volunteer' ? [L.cueResponse(p.cue_id, p.text)] : p.kind === 'unknown' ? [L.unknown_response] : []));
     const data = {
       persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: [bundle.persona.speaking_style, L.reply_instruction].filter(Boolean).join(' ') },
       allowed_facts_json: allowedFacts,
@@ -122,13 +155,23 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
       // Not in the template text; the mock uses them to know what this turn answers.
       answer_fact_ids: answerFactIds,
       acknowledgement_json: L.acknowledgement_text ?? L.clarification_response,
+      // roleplay_v2: what this part of the reply is for. "answer" states ANSWER_FACTS; "respond"
+      // replies to a message the scenario's facts do not cover, without inventing anything.
+      reply_mode_json: answerFactIds.length ? 'answer' : 'respond',
+      answer_facts_json: allowedFacts.filter((f) => answerFactIds.includes(f.id)).map(({ id, value }) => ({ id, value })),
+      said_this_turn_json: saidThisTurn,
     };
     for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
       try {
         const res = await completeWithRetry({ task: 'roleplay', template: input.template, data, schema: roleplayCandidateSchema, temperature: 0.4, maxTokens: 400, correlation: input.correlation });
         const v = validateRoleplayOutput(bundle, res.text, modelAllowed, input.learnerText, input.history);
         attempts.push({ ok: v.ok, reason: v.ok ? null : v.reason, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
-        if (v.ok) { generated = v.candidate.text; generatedFacts = v.candidate.used_fact_ids; }
+        if (v.ok) {
+          generated = withoutRepeats(v.candidate.text, saidThisTurn) || null;
+          generatedFacts = generated ? v.candidate.used_fact_ids : [];
+          // Everything it said is already in the reply: valid, just nothing to add.
+          if (!generated) { onlyRepeats = true; break; }
+        }
       } catch (e) {
         attempts.push({ ok: false, reason: `provider:${(e as Error).message.slice(0, 120)}`, provider: 'unknown', model: 'unknown', request_id: null, latency_ms: 0, usage: null });
         // Model unavailable (quota, outage, paused breaker): say the authorised facts
@@ -142,7 +185,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
         break;
       }
     }
-    if (generated === null) {
+    if (generated === null && !onlyRepeats) {
       // Two invalid candidates: say nothing unvalidated, release nothing generated.
       const fixtureText = plan.parts.filter((p) => p.kind === 'fixture').map((p) => L.ruleResponse((p as { rule_id: string }).rule_id, (p as { text: string }).text));
       return { text: [...fixtureText, L.clarification_response].join(' '), disclosed_fact_ids: fixtureFacts, method: 'fallback', attempts };
@@ -154,9 +197,10 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   for (const p of plan.parts) {
     if (p.kind === 'fixture') pieces.push(L.ruleResponse(p.rule_id, p.text));
     else if (p.kind === 'unknown') pieces.push(L.unknown_response);
-    else if (!usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
+    else if (p.kind === 'facts' && !usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
   }
-  if (plan.kind === 'acknowledge' && generated) pieces.push(generated);
+  // An acknowledgement answers the learner's message first; a due cue follows it.
+  if (plan.kind === 'acknowledge' && generated && !usedGenerated) pieces.push(generated);
   // A volunteered cue is the customer's own verbatim line, spoken after the answer.
   for (const p of plan.parts) if (p.kind === 'volunteer') pieces.push(L.cueResponse(p.cue_id, p.text));
   const hasFixture = plan.parts.some((p) => p.kind === 'fixture' || p.kind === 'volunteer');
