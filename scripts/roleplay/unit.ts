@@ -7,11 +7,11 @@ import { compile, parseStrictJson, digestOf } from '../../src/modules/roleplay/c
 import { computeDerivations } from '../../src/modules/roleplay/config/patch';
 import { scoreAssessment, ScoringError, qParse, cmp, q } from '../../src/modules/roleplay/scoring';
 import { respond } from '../../src/modules/roleplay/runtime/engine';
-import { openingFactIds, discoveryComplete } from '../../src/modules/roleplay/runtime/disclosure';
+import { openingFactIds, discoveryComplete, resolveDisclosure } from '../../src/modules/roleplay/runtime/disclosure';
 import { classify } from '../../src/modules/roleplay/runtime/intents';
 import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
 import type { Language } from '../../src/modules/roleplay/runtime/language';
-import { validateRoleplayOutput, repairText, withoutRepeats } from '../../src/modules/roleplay/runtime/generate';
+import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
@@ -476,6 +476,15 @@ export async function unitTests(): Promise<Check[]> {
     ok('PS22', 'A generated sentence restating a line of the same reply is dropped; a new one is kept',
       withoutRepeats("I need a loan of ₹4 lakh. It is for my daughter's admission fees.", ['I need about ₹4 lakh.']) === "It is for my daughter's admission fees." && withoutRepeats('I need a loan of ₹4 lakh.', ['I need about ₹4 lakh.']) === '',
       withoutRepeats("I need a loan of ₹4 lakh. It is for my daughter's admission fees.", ['I need about ₹4 lakh.']));
+
+    // A sub-question no fixed answer covers still gets a reply (3 Oct 2026).
+    const q23 = 'How much is that EMI and which bank gave you the loan?';
+    const cls23 = { ...classify(p, q23, { discoveryComplete: false }), uncovered_question: 'which bank gave the loan?' };
+    const plan23 = resolveDisclosure(p, cls23, new Set(['cue_soon', 'cue_other_emi']));
+    const r23 = await generateCustomerReply({ bundle: p, plan: plan23, history: [], learnerText: q23, template: tpl, correlation: { tenant_id: 't', session_id: 's', operation_id: 'o' } });
+    ok('PS23', 'A leftover sub-question gets a short reply after the fixed answer, releasing nothing', plan23.parts.map((x) => x.kind).join(',') === 'fixture,respond' && r23.text === 'Yes, I pay ₹8,000 a month for my vehicle loan. ' + p.conversation.unknown_response && !r23.disclosed_fact_ids.some((f) => !['existing_emi', 'previous_loan'].includes(f)), `${plan23.parts.map((x) => x.kind).join(',')} | ${r23.text}`);
+    const plain23 = resolveDisclosure(p, classify(p, q23, { discoveryComplete: false }), new Set(['cue_soon']));
+    ok('PS23', 'Without a leftover question the plan is unchanged', !plain23.parts.some((x) => x.kind === 'respond'));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
     const sc = (xs: number[], risks: string[] = []) => scoreAssessment(p.rubric, p.scoring, p.rubric.dimensions.map((d, i) => ({ dimension_id: d.id, score: xs[i] })), { confirmedRiskRuleIds: risks });

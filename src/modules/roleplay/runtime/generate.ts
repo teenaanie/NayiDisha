@@ -133,7 +133,8 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   const volunteeredFacts = plan.parts.flatMap((p) => (p.kind === 'volunteer' ? p.fact_ids : []));
   const fixtureFacts = plan.parts.flatMap((p) => (p.kind === 'fixture' ? factRules.get(p.rule_id)!.reveal_fact_ids.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id)) : []));
   const answerFactIds = plan.parts.flatMap((p) => (p.kind === 'facts' ? p.fact_ids : []));
-  const needsModel = plan.kind === 'acknowledge' || answerFactIds.length > 0;
+  const alsoReplyTo = plan.parts.flatMap((p) => (p.kind === 'respond' ? [p.question] : [])).join(' ');
+  const needsModel = plan.kind === 'acknowledge' || answerFactIds.length > 0 || !!alsoReplyTo;
 
   let generated: string | null = null;
   let generatedFacts: string[] = [];
@@ -160,6 +161,8 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
       reply_mode_json: answerFactIds.length ? 'answer' : 'respond',
       answer_facts_json: allowedFacts.filter((f) => answerFactIds.includes(f.id)).map(({ id, value }) => ({ id, value })),
       said_this_turn_json: saidThisTurn,
+      // roleplay_v3: a part of the learner's message no fact or fixed line covers.
+      also_reply_to_json: alsoReplyTo,
     };
     for (let attempt = 0; attempt < 2 && generated === null; attempt++) {
       try {
@@ -197,7 +200,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   for (const p of plan.parts) {
     if (p.kind === 'fixture') pieces.push(L.ruleResponse(p.rule_id, p.text));
     else if (p.kind === 'unknown') pieces.push(L.unknown_response);
-    else if (p.kind === 'facts' && !usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
+    else if ((p.kind === 'facts' || p.kind === 'respond') && !usedGenerated && generated) { pieces.push(generated); usedGenerated = true; }
   }
   // An acknowledgement answers the learner's message first; a due cue follows it.
   if (plan.kind === 'acknowledge' && generated && !usedGenerated) pieces.push(generated);

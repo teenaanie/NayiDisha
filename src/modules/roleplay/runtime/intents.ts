@@ -27,6 +27,11 @@ export interface Classification {
   low_confidence: boolean;
   asks_anything: boolean;
   classifier_version: string;
+  /**
+   * A part of the message that asks something none of the matched intents covers ("…and which
+   * bank gave you the loan?"), in a few words. Only the model classifier reports it.
+   */
+  uncovered_question?: string | null;
 }
 
 const DESCRIPTION_NOISE = /\b(detect|learner|question|about|premature|conditioned|on|discovery|state)\b/gi;

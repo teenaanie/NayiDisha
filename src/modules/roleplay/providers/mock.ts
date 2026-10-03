@@ -19,7 +19,9 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
       const answer = req.data.answer_fact_ids as string[] | undefined;
       const now = allowed.filter((f) => (answer ? answer.includes(f.id) : f.new_this_turn));
       if (!now.length) {
-        return JSON.stringify({ text: String(req.data.acknowledgement_json ?? req.data.unknown_response_json), used_fact_ids: [], requested_end: false });
+        // A leftover question beside a fixed answer gets the neutral unknown line.
+        const text = req.data.also_reply_to_json ? req.data.unknown_response_json : (req.data.acknowledgement_json ?? req.data.unknown_response_json);
+        return JSON.stringify({ text: String(text), used_fact_ids: [], requested_end: false });
       }
       const sentence = (v: string) => (/[.!?]$/.test(v) ? v : v + '.');
       return JSON.stringify({ text: now.map((f) => sentence(f.value)).join(' '), used_fact_ids: now.map((f) => f.id), requested_end: false });
@@ -29,6 +31,6 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
     case 'coach':
       return JSON.stringify(mockCoach(req.data as never));
     case 'classify':
-      return JSON.stringify({ intents: [], is_question: false });
+      return JSON.stringify({ intents: [], is_question: false, other_question: '' });
   }
 }

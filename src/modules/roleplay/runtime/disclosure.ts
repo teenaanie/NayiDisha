@@ -20,7 +20,8 @@ export interface DisclosurePlan {
   allowed_fact_ids: string[];
   /** Ordered reply parts. Fixture parts are used verbatim; fact parts are generated. */
   parts: ({ kind: 'fixture'; rule_id: string; text: string } | { kind: 'facts'; rule_id: string; fact_ids: string[] } | { kind: 'unknown'; intent_id: string }
-    | { kind: 'volunteer'; cue_id: string; text: string; fact_ids: string[] })[];
+    | { kind: 'volunteer'; cue_id: string; text: string; fact_ids: string[] }
+    | { kind: 'respond'; question: string })[];
   /** Intents recognised but not answered this turn (cap reached); they can be asked again. */
   deferred_intent_ids: string[];
 }
@@ -29,6 +30,9 @@ const byPriority = (a: DisclosureRule, b: DisclosureRule) => b.priority - a.prio
 
 export function resolveDisclosure(bundle: ScenarioBundle, cls: Classification, disclosed: Set<string>, opts: { learnerTurnIndex?: number } = {}): DisclosurePlan {
   const plan = resolveAnswer(bundle, cls, disclosed);
+  // "How much is that EMI and which bank gave you the loan?": the fixed answer covers the EMI;
+  // the bank still gets a short generated reply (which can release no fact), after the answers.
+  if (plan.kind === 'answer' && cls.uncovered_question) plan.parts.push({ kind: 'respond', question: cls.uncovered_question });
   return opts.learnerTurnIndex ? volunteerCue(bundle, plan, disclosed, opts.learnerTurnIndex) : plan;
 }
 

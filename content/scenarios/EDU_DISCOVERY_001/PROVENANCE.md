@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v3.1.0: provenance
+# EDU_DISCOVERY_001 v3.1.1: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -49,5 +49,7 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   being baked into several fixed answers; the roleplay prompt `roleplay_v2` (answers
   what was asked, no repeats within a reply, natural replies to questions the facts do
   not cover); "not timing" examples for "how soon can you arrange those?".
+- **3.1.1 (3 Oct 2026):** prompt `roleplay_v3`; a sub-question no fixed answer covers
+  ("…and which bank gave you the loan?") gets a short reply after the fixed answer.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -670,7 +670,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1353,7 +1353,7 @@
   }
  },
  "prompts": {
-  "roleplay": "roleplay_v2",
+  "roleplay": "roleplay_v3",
   "evaluator": "evaluator_v2",
   "coach": "coach_v2"
  },
