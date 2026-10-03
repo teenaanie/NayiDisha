@@ -37,7 +37,8 @@ export async function respond(input: TurnInput): Promise<TurnOutput> {
   if (modelClassifierAvailable()) {
     try {
       const lastCustomer = [...input.history].reverse().find((t) => t.speaker === 'customer')?.text ?? '';
-      classification = await classifyWithModel(input.bundle, input.learnerText, lastCustomer, done, input.correlation);
+      const previousLearner = [...input.history].reverse().find((t) => t.speaker === 'learner')?.text ?? '';
+      classification = await classifyWithModel(input.bundle, input.learnerText, lastCustomer, done, input.correlation, previousLearner);
     } catch (e) {
       classifierFallback = (e as Error).message.slice(0, 120);
     }

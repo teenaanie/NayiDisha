@@ -303,11 +303,11 @@ export async function integrationTests(): Promise<Check[]> {
     const r1 = await say(kiran, ks, 'when do you need it and how much do you need');
     ok('LIVE', 'A two-part question understood by the model gets both answers', /30 days/.test(r1) && /4 lakh/.test(r1), r1);
     const [an] = await sql<{ intents: { intent_id: string }[]; classifier_version: string }[]>`SELECT a.intents, a.classifier_version FROM rp.turn_analysis a JOIN rp.turn t ON t.id = a.turn_id WHERE t.session_id = ${ks} ORDER BY t.sequence DESC LIMIT 1`;
-    ok('LIVE', 'Only configured intents survive; the classifier version is recorded', an.intents.every((i) => i.intent_id !== 'made_up_intent') && an.classifier_version.startsWith('classifier_v1:'), an.classifier_version);
+    ok('LIVE', 'Only configured intents survive; the classifier version is recorded', an.intents.every((i) => i.intent_id !== 'made_up_intent') && an.classifier_version.startsWith('classifier_v2:'), an.classifier_version);
     // A paraphrase the phrase matcher cannot read, understood by the model as a repayment-comfort question.
     overrideProvider('classify', fakeLive(() => JSON.stringify({ intents: [{ intent_id: 'repayment_comfort', confidence: 0.9 }], is_question: true })));
     const r2 = await say(kiran, ks, 'What sort of monthly outgo would sit easily with your household budget?');
-    ok('LIVE', 'A paraphrase the model understands reaches the right fixture', r2 === 'Around ₹10,000 to ₹12,000 a month more would be comfortable. I don\'t want a very high EMI.', r2);
+    ok('LIVE', 'A paraphrase the model understands reaches the right fixture', r2 === 'Around ₹10,000 to ₹12,000 a month more would be comfortable.', r2);
     // Classifier outage: the phrase matcher takes over and the conversation continues.
     overrideProvider('classify', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 429', false); } });
     const r3 = await say(kiran, ks, 'What do you need the loan for?');

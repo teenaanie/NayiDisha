@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v3.0.0: provenance
+# EDU_DISCOVERY_001 v3.1.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -43,5 +43,11 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   timing (volunteered after the 3rd, 5th and 7th learner message if not yet
   said), discovery gate (three discovery questions before a pitch is in order),
   checks per skill, and all Hindi/Marathi text.
+- **3.1.0 (3 Oct 2026), after the first live tests:** the daughter's details (Priya,
+  B.Com, a college in Pune) so the customer can answer a natural question about her
+  [R]; each cue sentence said once, straight after the answer it belongs to, instead of
+  being baked into several fixed answers; the roleplay prompt `roleplay_v2` (answers
+  what was asked, no repeats within a reply, natural replies to questions the facts do
+  not cover); "not timing" examples for "how soon can you arrange those?".
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
