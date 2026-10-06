@@ -22,7 +22,7 @@ export default async function Reviews() {
     <WhoAmI actor={actor} />
     {!queue.length && <p className="muted">Nothing to review.</p>}
     {details.map(({ q, findings, dims }) => <section className="card mb" key={q.id}>
-      <div className="card-head"><h2>{q.learner} · {q.scenario_id} v{q.scenario_version}</h2><span className="small muted">{fmtDateTime(q.created_at)} · provisional {scoreHeadline({ mode: q.score_mode, final_percent: q.final_percent, raw_total: q.raw_total, raw_max: q.raw_max, band_label: q.band_label })}</span></div>
+      <div className="card-head"><h2>{q.learner} · {q.scenario_id} v{q.scenario_version}{q.kind === 'assessment' ? ' · graded assessment' : ''}</h2><span className="small muted">{fmtDateTime(q.created_at)} · provisional {scoreHeadline({ mode: q.score_mode, final_percent: q.final_percent, raw_total: q.raw_total, raw_max: q.raw_max, band_label: q.band_label })}</span></div>
       <div className="card-body">
         <ul className="small">{(q.review_reasons as unknown[]).filter((r) => typeof r === 'string').map((r, i) => <li key={i}>{String(r)}</li>)}</ul>
         <p><Link href={`/roleplay/s/${q.session_id}/report`}>Open transcript and evidence</Link></p>

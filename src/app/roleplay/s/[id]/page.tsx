@@ -17,7 +17,7 @@ export default async function PracticeSession({ params }: { params: Promise<{ id
   const brief = publicBrief(row.scenario_version_id, await loadBundle(row.tenant_id, row.scenario_version_id, row.bundle_hash));
   void getBrief;
   return <main className="page">
-    <div className="page-head"><div className="nd-section-kicker">{brief.product} · {brief.skill}{session.is_preview ? ' · PREVIEW (test session, not counted)' : ''}</div><h1>{brief.title}</h1></div>
+    <div className="page-head"><div className="nd-section-kicker">{brief.product} · {brief.skill}{session.is_preview ? ' · PREVIEW (test session, not counted)' : ''}{session.kind === 'assessment' ? ' · GRADED ASSESSMENT' : ''}</div><h1>{brief.title}</h1></div>
     <WhoAmI actor={actor} />
     <PracticeClient initial={JSON.parse(JSON.stringify(session))} brief={{ ...brief, learner_brief: session.learner_brief ?? brief.learner_brief }} />
   </main>;

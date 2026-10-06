@@ -40,7 +40,7 @@ export async function managerAnalytics(actor: Actor, q: AnalyticsQuery) {
   const sessions = await sql<{ id: string; learner_id: string; scenario_id: string; rubric_version: string; scoring_version: string; state: string; mode: string; parent_session_id: string | null; comparable: boolean | null; started_at: Date }[]>`
     SELECT id, learner_id, scenario_id, rubric_version, scoring_version, state, COALESCE(retry_scope->>'mode','full') AS mode, parent_session_id,
            (retry_scope->>'comparable')::boolean AS comparable, started_at
-      FROM rp.session WHERE tenant_id = ${actor.tenant_id} AND learner_id = ANY(${ids}) AND NOT is_preview
+      FROM rp.session WHERE tenant_id = ${actor.tenant_id} AND learner_id = ANY(${ids}) AND NOT is_preview AND kind = 'practice'
        AND started_at >= ${from} AND started_at < ${to} ${q.scenario_id ? sql`AND scenario_id = ${q.scenario_id}` : sql``}`;
   const facts = await sql<{ run_id: string; session_id: string; learner_id: string; scenario_id: string; rubric_version: string; scoring_version: string; mode: string; raw_total: number | null; raw_max: number | null; final_percent: string | null; band_id: string | null; dimension_scores: Record<string, number>; check_results: Record<string, string>; confirmed_risk: boolean; pending_review: boolean; parent_session_id: string | null; completed_at: Date }[]>`
     SELECT DISTINCT ON (session_id) * FROM rp.analytics_fact

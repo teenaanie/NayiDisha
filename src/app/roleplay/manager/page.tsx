@@ -1,4 +1,6 @@
-import { managedTeams, managerAnalytics } from '@/modules/roleplay/service';
+import Link from 'next/link';
+import { managedTeams, managerAnalytics, listTeamAssessments } from '@/modules/roleplay/service';
+import { RetakeButton } from './retake-button';
 import { withActor, WhoAmI, SignInFirst, Denied } from '../shared';
 import { Pill } from '../../ui';
 export const dynamic = 'force-dynamic';
@@ -11,10 +13,30 @@ export default async function Manager({ searchParams }: { searchParams: Promise<
   const { team } = await searchParams;
   const teamId = team ?? teams[0]?.id;
   const data = teamId ? await managerAnalytics(actor, { team_id: teamId }) : null;
+  const graded = await listTeamAssessments(actor);
+  // The retake button belongs on each learner's latest attempt per scenario, once all allowed attempts are used.
+  const latest = new Set<string>(); const seen = new Set<string>();
+  for (const a of graded) { const k = `${a.learner_id}|${a.scenario_id}`; if (!seen.has(k)) { seen.add(k); latest.add(a.session_id); } }
+  const STATE: Record<string, string> = { active: 'in progress', completed: 'scoring', evaluating: 'scoring', reported: 'scored', review_required: 'under review', evaluation_failed: 'scoring failed', abandoned: 'abandoned' };
   return <main className="page">
     <div className="page-head"><h1>Team analytics</h1><p>Only teams you manage. Results are grouped by scenario, rubric version and scoring version, and never mixed. One valid full assessment counts per session (first valid). Focused practice is reported separately. Groups under {data?.min_cohort ?? 5} learners are hidden to protect individuals. Readiness is advisory and never an automatic employment decision.</p></div>
     <WhoAmI actor={actor} />
     <nav className="btnrow mb" aria-label="Teams">{teams.map((t) => <a key={t.id} className={'btn' + (t.id === teamId ? ' btn-primary' : '')} href={`/roleplay/manager?team=${t.id}`}>{t.name}</a>)}</nav>
+    <section className="card mb"><div className="card-head"><h2>Graded assessments</h2><span className="small muted">Score only for the learner; open one to see the transcript and evidence. One attempt per scenario unless you allow a retake.</span></div><div className="card-body tight">
+      {!graded.length ? <p className="muted" style={{ padding: '10px 14px' }}>No graded assessments yet.</p> : <div className="tblwrap"><table>
+        <thead><tr><th>Learner</th><th>Scenario</th><th>Taken</th><th className="num">Score</th><th>Status</th><th className="num">Attempts</th><th /></tr></thead>
+        <tbody>{graded.map((a) => <tr key={a.session_id}>
+          <td>{a.learner}</td>
+          <td>{a.title} <span className="small muted">v{a.scenario_version}</span></td>
+          <td>{new Date(a.started_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}</td>
+          <td className="num">{a.final_percent != null ? <Link href={`/roleplay/s/${a.session_id}/report`}>{Math.round(Number(a.final_percent))}/100 · {a.band_label}</Link> : '—'}</td>
+          <td><Pill tone={a.state === 'reported' ? 'ok' : a.state === 'review_required' ? 'warn' : a.state === 'evaluation_failed' ? 'bad' : 'mute'}>{STATE[a.state] ?? a.state}</Pill></td>
+          <td className="num">{a.attempts_used} of {a.attempts_allowed}</td>
+          <td>{latest.has(a.session_id) && a.attempts_used >= a.attempts_allowed && !['active', 'completed', 'evaluating'].includes(a.state) && <RetakeButton learnerId={a.learner_id} scenarioId={a.scenario_id} learner={a.learner} />}</td>
+        </tr>)}</tbody>
+      </table></div>}
+    </div></section>
+    <h2>Practice analytics</h2>
     {!data?.groups.length && <p className="muted">No practice in this window.</p>}
     {data?.groups.map((g) => <section className="card mb" key={`${g.scenario_id}${g.rubric_version}${g.scoring_version}`}>
       <div className="card-head"><h2>{g.scenario_id}</h2><span className="small muted">{g.rubric_version} · {g.scoring_version}</span></div>

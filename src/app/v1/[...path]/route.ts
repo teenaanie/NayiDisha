@@ -21,6 +21,7 @@ type Handler = (a: Actor, m: string[], req: Request, body: any, url: URL) => Pro
 const routes: [string, RegExp, Handler][] = [
   ['GET', /^scenarios$/, async (a, _m, _r, _b, url) => ({ body: { items: await rp.publicScenarios(a, { product: url.searchParams.get('product') ?? undefined, skill: url.searchParams.get('skill') ?? undefined }) } })],
   ['GET', /^scenarios\/([^/]+)\/brief$/, async (a, m, _r, _b, url) => ({ body: await rp.getBrief(a, m[1], url.searchParams.get('version') ?? undefined) })],
+  ['GET', /^scenarios\/([^/]+)\/assessment$/, async (a, m) => ({ body: await rp.assessmentStatus(a, m[1]) })],
   ['GET', /^sessions$/, async (a) => ({ body: { items: await rp.listMySessions(a) } })],
   ['POST', /^sessions$/, async (a, _m, req, body) => {
     const r = await idempotent(a, 'POST /sessions', req.headers.get('idempotency-key'), body, async () => ({ status: 201, body: await rp.startSession(a, body ?? {}) }));
@@ -50,6 +51,8 @@ const routes: [string, RegExp, Handler][] = [
     return { body: await rp.transcribe(a, m[1], audio) };
   }],
   ['POST', /^sessions\/([^/]+)\/speech$/, async (a, m, _r, body) => ({ body: await rp.speak(a, m[1], String(body?.turn_id ?? '')) })],
+  ['GET', /^manager\/assessments$/, async (a) => ({ body: { items: await rp.listTeamAssessments(a) } })],
+  ['POST', /^manager\/assessments\/retakes$/, async (a, _m, _r, body) => ({ status: 201, body: await rp.grantRetake(a, body ?? {}) })],
   ['GET', /^manager\/teams$/, async (a) => ({ body: { items: await rp.managedTeams(a) } })],
   ['GET', /^manager\/analytics$/, async (a, _m, _r, _b, url) => ({ body: await rp.managerAnalytics(a, { team_id: url.searchParams.get('team_id') ?? '', from: url.searchParams.get('from') ?? undefined, to: url.searchParams.get('to') ?? undefined, scenario_id: url.searchParams.get('scenario_id') ?? undefined }) })],
   ['GET', /^admin\/scenarios$/, async (a) => ({ body: { drafts: await rp.listDrafts(a), versions: await rp.listVersions(a) } })],
