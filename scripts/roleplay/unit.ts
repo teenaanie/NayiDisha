@@ -11,6 +11,7 @@ import { openingFactIds, discoveryComplete, resolveDisclosure } from '../../src/
 import { classify } from '../../src/modules/roleplay/runtime/intents';
 import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
 import type { Language } from '../../src/modules/roleplay/runtime/language';
+import { billedOutputTokens } from '../../src/modules/ai-usage';
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
@@ -503,6 +504,8 @@ export async function unitTests(): Promise<Check[]> {
     const after = validateRoleplayOutput(p, json('As I said, it is for her college fees.', ['purpose']), ['cue_soon', 'purpose'], 'Tell me again?', opening);
     ok('PS25', 'A purpose word is fine once the learner said it or the purpose is out', echoed.ok && after.ok, `${echoed.ok ? 'ok' : echoed.reason} | ${after.ok ? 'ok' : after.reason}`);
     ok('PS25', '"son" matches whole words only; Devanagari terms match as text', hasTerm("my son's fees", 'son') && !hasTerm('for that reason', 'son') && hasTerm('मेरे बेटे की फ़ीस', 'बेटे'), '');
+    ok('§23', 'Gemini thinking tokens count as billed output (total − prompt); OpenAI-style totals are unchanged',
+      billedOutputTokens({ prompt_tokens: 3, completion_tokens: 2, total_tokens: 26 }) === 23 && billedOutputTokens({ prompt_tokens: 10, completion_tokens: 40, total_tokens: 50 }) === 40 && billedOutputTokens({ completion_tokens: 7 }) === 7, '');
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.

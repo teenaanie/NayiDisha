@@ -12,7 +12,7 @@
  *         local vLLM). Selected by env; nothing here names a vendor.
  */
 import { mockComplete } from './mock';
-import { recordUsage, openaiTokens } from '@/modules/ai-usage';
+import { recordUsage, openaiTokens, billedOutputTokens } from '@/modules/ai-usage';
 
 export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify' | 'train';
 
@@ -143,7 +143,7 @@ class OpenAICompatibleProvider implements ModelProvider {
       text: String(body?.choices?.[0]?.message?.content ?? ''),
       provider: this.id, model: this.model,
       request_id: body?.id ?? res.headers.get('x-request-id'),
-      usage: body?.usage ? { input_tokens: body.usage.prompt_tokens ?? 0, output_tokens: body.usage.completion_tokens ?? 0 } : null,
+      usage: body?.usage ? { input_tokens: body.usage.prompt_tokens ?? 0, output_tokens: billedOutputTokens(body.usage) } : null,
       latency_ms: Date.now() - started,
     };
   }
