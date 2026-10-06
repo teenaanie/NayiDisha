@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.2.0';
+export const RULE_VERSION = 'rules-1.3.0';
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -73,6 +73,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
   const risk: RiskCandidate[] = [];
   const asked = new Set<string>();
   const askedByTurn: RuleEvidence['asked_by_turn'] = [];
+  const askedInPrefix = new Set<string>();   // intents asked in turns copied from the first attempt
   const observed = new Map<string, Span[]>();   // check_id -> spans
   const questionHits = new Map<string, { intent_id: string; span: Span }[]>();   // learner turn -> asked intents
 
@@ -98,6 +99,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
       }
     }
     intents.forEach((i) => asked.add(i));
+    if (excluded.has(t.origin)) intents.forEach((i) => askedInPrefix.add(i));
     askedByTurn.push({ turn_id: t.id, intents });
 
     // ---- risk candidates ---------------------------------------------------
@@ -208,7 +210,12 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
       evidence.push({
         id: safeId(`ev_${c.id}`), category: c.category, check_id: c.id, status: 'not_observed',
         learner_spans: [], context_spans: [], searched_turn_ids: assessableIds,
-        explanation: `No learner turn ${c.credit_requires === 'learner_question' ? 'asked' : 'showed'}: ${c.description.toLowerCase()}.`,
+        // In a focused retry the turns copied from the first attempt are not scored again; saying
+        // "no learner turn asked" about something asked there misled learners (training agent,
+        // 7 Oct 2026).
+        explanation: !excluded.size ? `No learner turn asked: ${c.description.toLowerCase()}.`
+          : c.accepted_intents.some((i) => askedInPrefix.has(i)) ? `Asked in the first attempt, before the retry point; this retry scores only what is asked after it: ${c.description.toLowerCase()}.`
+          : `Not asked after the retry point: ${c.description.toLowerCase()}.`,
         method: 'rule', confidence: 0.8, rule_version: RULE_VERSION,
       });
     }

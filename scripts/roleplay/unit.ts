@@ -521,6 +521,26 @@ export async function unitTests(): Promise<Check[]> {
       ok('PS27', 'How long in the job is its own topic, earns the employment check, and is not the loan tenure', dur.includes('employment_duration') && !dur.includes('preferred_tenure') && ten.includes('preferred_tenure') && !ten.includes('employment_duration') && ev?.status === 'observed',
         `${dur.join('+')} | ${ten.join('+')} | employment ${ev?.status}`);
     }
+    {
+      const cases: [string, string][] = [
+        ['In T6, you asked about the loan amount.', 'You asked about the loan amount.'],
+        ['In turns like T3 and T5, try to break down multi-part questions.', 'Try to break down multi-part questions.'],
+        ['Good start. In T4 you asked about income.', 'Good start. You asked about income.'],
+        ['T5 में, आपने ग्राहक से उनकी बेटी का नाम पूछा।', 'आपने ग्राहक से उनकी बेटी का नाम पूछा।'],
+        ['T3 आणि T5 मध्ये, तुम्ही उत्पन्न विचारले.', 'तुम्ही उत्पन्न विचारले.'],
+        // Already broken by the old cleaner, as stored in reports.
+        ['In turns like and, try to break down multi-part questions into single, clear questions.', 'Try to break down multi-part questions into single, clear questions.'],
+        ["In, instead of ending the discovery, ask about the customer's employment.", "Instead of ending the discovery, ask about the customer's employment."],
+        ['में, आपने ग्राहक से उनकी बेटी का नाम पूछा।', 'आपने ग्राहक से उनकी बेटी का नाम पूछा।'],
+        ['In this conversation, you asked well.', 'In this conversation, you asked well.'],
+      ];
+      const bad = cases.filter(([i, o]) => stripTurnAliases(i) !== o).map(([i]) => `${i} → ${stripTurnAliases(i)}`);
+      ok('PS28', 'A turn reference opening a sentence is removed as a phrase ("In T6, you…" → "You…"), in all three languages, and old broken text is repaired', !bad.length, bad.join(' | '));
+      const T = (rows: [string, 'customer' | 'learner', 'live' | 'opening' | 'retry_prefix'][]) => rows.map(([text, speaker, origin], i) => ({ id: `f${i}`, sequence: i, speaker, text, origin }));
+      const focused = extractRuleEvidence(p, T([[p.conversation.opening_text, 'customer', 'opening'], ['How much loan do you need?', 'learner', 'retry_prefix'], ['About 4 lakh.', 'customer', 'retry_prefix'], ['When exactly do you need the money?', 'learner', 'live']]) as never, { excludeOrigins: ['retry_prefix'] }).evidence;
+      const amt = focused.find((e) => e.check_id === 'loan_amount'); const inc = focused.find((e) => e.check_id === 'income');
+      ok('PS29', 'A focused retry says an area was asked in the first attempt, not that it was never asked', !!amt && /^Asked in the first attempt/.test(amt.explanation) && !!inc && /^Not asked after the retry point/.test(inc.explanation), `${amt?.explanation} | ${inc?.explanation}`);
+    }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.

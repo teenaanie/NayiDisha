@@ -219,11 +219,30 @@ function evaluationGuideFor(bundle: ScenarioBundle, rule: RuleEvidence, out: (id
   };
 }
 
-/** Remove turn-alias citations ("(T6)", "(T0, T4)", "in T3") from text shown to people. */
+const ALIAS_LIST = String.raw`T\d+(?:\s*(?:,|and|&|or|-|–|और|आणि|व)\s*T\d+)*`;
+const TURN_WORDS = String.raw`(?:(?:the\s+)?turns?\s+(?:like\s+|such\s+as\s+)?)?`;
+const capital = (lead: string, next?: string) => lead + (next ? next.toUpperCase() : '');
+
+/**
+ * Remove turn-alias citations ("(T6)", "in T3", "In T6, you asked…") from text shown to people.
+ * A sentence that opens with the reference loses the whole phrase, not just the label: deleting
+ * "T6" alone left "In , you asked…" and "In turns like and, try…" in reports (training agent,
+ * 7 Oct 2026). Hindi and Marathi open with "T5 में," / "T5 मध्ये,". Text already broken that way
+ * is repaired too, so stored reports read correctly.
+ */
 export function stripTurnAliases(text: string): string {
-  return text
+  const t = text
+    .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:in|at|during|from)\s+${TURN_WORDS}${ALIAS_LIST}\s*,?\s*([a-z])?`, 'gi'), (_, lead: string, next?: string) => capital(lead, next))
+    .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:टर्न\s*)?${ALIAS_LIST}\s*(?:में|मध्ये|मधे|वर)\s*,?\s*`, 'g'), '$1')
     .replace(/\s*\((?:turns?\s+)?T\d+(?:\s*(?:,|and|&|-|–)\s*T\d+)*\)/gi, '')
-    .replace(/\s+(?:in|at|from)\s+(?:turns?\s+)?T\d+\b/gi, '')
-    .replace(/\bT\d+\b/g, '')
-    .replace(/\s+([.,;:!?])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    .replace(new RegExp(String.raw`\s+(?:in|at|from|during)\s+${TURN_WORDS}${ALIAS_LIST}\b`, 'gi'), '')
+    .replace(/\bT\d+\b/g, '');
+  return repairDanglingTurnRefs(t).replace(/\s+([.,;:!?।])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+}
+
+/** "In , you asked" / "In turns like and, try" / "में, आपने": what deleting the label alone left behind. */
+export function repairDanglingTurnRefs(text: string): string {
+  return text
+    .replace(/(^|[.!?।]\s+)(?:in|at|during|from)\s*(?:(?:the\s+)?turns?\s*(?:like|such\s+as)?\s*)?(?:(?:and|or|&)\s*)*,\s*([a-z])?/gi, (_, lead: string, next?: string) => capital(lead, next))
+    .replace(/(^|[.!?।]\s+)(?:में|मध्ये|मधे)\s*,\s*/g, '$1');
 }

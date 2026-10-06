@@ -257,21 +257,23 @@ export async function getReport(actor: Actor, sessionId: string) {
       session_id: s.id, state: run.status, mode: run.mode, scenario: { id: bundle.scenario.id, version: s.scenario_version, title: bundle.scenario.title },
       pinned: { bundle_hash: s.bundle_hash, rubric_version: s.rubric_version, scoring_version: s.scoring_version, transcript_hash: s.transcript_hash },
       comparable: s.retry_scope?.comparable ?? true,
-      report: rep?.content ?? null, report_status: rep?.status ?? null,
+      // Stored text is cleaned again on the way out: reports written before rules 1.2 / the
+      // turn-reference fix read "In , you asked…" (training agent, 7 Oct 2026).
+      report: rep?.content ? cleanFindings(rep.content) : null, report_status: rep?.status ?? null,
       dimensions: [...dims].sort((a, b) => dimOrder.indexOf(a.dimension_id) - dimOrder.indexOf(b.dimension_id)).map((d) => {
         const def = bundle.rubric.dimensions.find((x) => x.id === d.dimension_id)!;
         const skill = runtimeOf(bundle).evaluation_guide?.skills.find((k) => k.dimension_id === d.dimension_id);
         return {
-          ...d, name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score), anchors: def.anchors,
+          ...d, rationale: stripTurnAliases(String(d.rationale ?? '')), name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score), anchors: def.anchors,
           // Report columns from the owner's format; absent for older scenarios.
           measures: skill?.measures ?? null,
           weight: bundle.scoring.mode === 'weighted_percent' ? bundle.scoring.weights[d.dimension_id] ?? null : null,
-          coaching: run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching ?? null,
+          coaching: ((c) => (c ? stripTurnAliases(c) : null))(run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching),
         };
       }),
       scoring: { mode: bundle.scoring.mode, bands: bundle.scoring.bands },
       level_labels: runtimeOf(bundle).evaluation_guide?.level_labels ?? null,
-      evidence, risk_findings: risks.map((r) => ({ ...r, description: bundle.risk_policy.rules.find((x) => x.id === r.rule_id)?.description })),
+      evidence: evidence.map((e) => ({ ...e, explanation: stripTurnAliases(String(e.explanation ?? '')) })), risk_findings: risks.map((r) => ({ ...r, description: bundle.risk_policy.rules.find((x) => x.id === r.rule_id)?.description })),
       checks: bundle.rubric.checks.map((c) => ({ id: c.id, description: c.description, category: c.category })),
       transcript: turns,
       review_reasons: run.review_reasons,
@@ -382,7 +384,7 @@ export async function startRetry(actor: Actor, sessionId: string, input: RetryIn
 export { idempotent };
 
 /** Coach text can echo the evaluator's turn aliases ("(T6)"); learners never see those. */
-function cleanFindings(c: CoachingCandidate): CoachingCandidate {
+function cleanFindings<C extends CoachingCandidate>(c: C): C {
   const clean = <F extends { text: string } | null>(f: F): F => (f ? { ...f, text: stripTurnAliases(f.text) } : f);
   return {
     ...c,
