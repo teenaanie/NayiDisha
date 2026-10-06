@@ -442,13 +442,16 @@ export async function integrationTests(): Promise<Check[]> {
     // A scripted agent: one exact quote, one invented quote, and one tester-note finding.
     const calls: { sessions: number; merge: boolean }[] = [];
     overrideProvider('train', { id: 'fake_live', model: 'fake-pro', live: true, complete: async (req) => {
-      const d = req.data as { sessions_json?: { ref: string; transcript: { turn: number; text: string }[] }[]; batches_json?: { summary: string; suggestions: unknown[] }[] };
+      const d = req.data as { sessions_json?: { ref: string; transcript: { turn: number; text: string }[]; assessment: { skills?: { rationale: string }[] } }[]; batches_json?: { summary: string; suggestions: unknown[] }[] };
+      const rationale = d.sessions_json?.find((x) => x.assessment.skills?.[0]?.rationale)?.assessment.skills?.[0].rationale ?? '';
+      const rref = d.sessions_json?.find((x) => x.assessment.skills?.[0]?.rationale)?.ref ?? 'S1';
       calls.push({ sessions: d.sessions_json?.length ?? 0, merge: !!d.batches_json });
       const text = d.batches_json
-        ? JSON.stringify({ summary: 'Merged review.', suggestions: d.batches_json.flatMap((b) => b.suggestions).slice(0, 2), tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }] })
-        : JSON.stringify({ summary: `Reviewed ${d.sessions_json!.length} sessions.`, tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }], suggestions: [
-            { area: 'customer_replies', severity: 'high', title: 'Opening line', observation: 'Quoted exactly.', evidence: [{ session_ref: d.sessions_json![0].ref, turn: d.sessions_json![0].transcript[0].turn, quote: Array.from(d.sessions_json![0].transcript[0].text).slice(0, 12).join('') }], proposed_change: 'Keep it.', occurrences: 1, tester_note_indexes: [] },
-            { area: 'assessment', severity: 'medium', title: 'Invented quote', observation: 'Not in the transcript.', evidence: [{ session_ref: d.sessions_json![0].ref, turn: 0, quote: 'this sentence was never said' }], proposed_change: 'Nothing.', occurrences: 1, tester_note_indexes: [] },
+        ? JSON.stringify({ summary: 'Merged review.', assessment_summary: 'Merged assessment review.', suggestions: d.batches_json.flatMap((b) => b.suggestions).slice(0, 3), tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }] })
+        : JSON.stringify({ summary: `Reviewed ${d.sessions_json!.length} sessions.`, assessment_summary: 'Scores mostly follow the evidence.', tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }], suggestions: [
+            { area: 'customer_replies', severity: 'high', title: 'Opening line', observation: 'Quoted exactly.', evidence: [{ session_ref: d.sessions_json![0].ref, from: 'transcript', turn: d.sessions_json![0].transcript[0].turn, quote: Array.from(d.sessions_json![0].transcript[0].text).slice(0, 12).join('') }], proposed_change: 'Keep it.', occurrences: 1, tester_note_indexes: [] },
+            { area: 'assessment', severity: 'medium', title: 'Invented quote', observation: 'Not in the transcript.', evidence: [{ session_ref: d.sessions_json![0].ref, from: 'transcript', turn: 0, quote: 'this sentence was never said' }, { session_ref: d.sessions_json![0].ref, from: 'report', turn: 0, quote: 'a rationale nobody wrote' }], proposed_change: 'Nothing.', occurrences: 1, tester_note_indexes: [] },
+            ...(rationale ? [{ area: 'coaching', severity: 'medium', title: 'Report quote', observation: 'Quoted from the report.', evidence: [{ session_ref: rref, from: 'report', turn: 0, quote: Array.from(rationale).slice(0, 20).join('') }], proposed_change: 'Clarify the rationale.', occurrences: 1, tester_note_indexes: [] }] : []),
             { area: 'scenario_content', severity: 'medium', title: 'From the tester', observation: 'Tester saw it.', evidence: [], proposed_change: 'Add the fee breakup.', occurrences: 1, tester_note_indexes: [0] }] });
       return { text, provider: 'fake_live', model: 'fake-pro', request_id: null, usage: null, latency_ms: 1 };
     } });
@@ -464,7 +467,8 @@ export async function integrationTests(): Promise<Check[]> {
     ok('TRAIN', 'Tester notes are split one per line', JSON.stringify(t1.notes) === JSON.stringify(['The breakup needs more detail.', 'Said son instead of daughter.']), JSON.stringify(t1.notes));
     const titles = t1.suggestions.map((x) => x.title);
     ok('TRAIN', 'A suggestion quoting the transcript is kept; one with an invented quote is dropped; a tester-note one is kept without quotes',
-      titles.includes('Opening line') && !titles.includes('Invented quote') && t1.suggestions.find((x) => x.title === 'From the tester')?.source === 'tester_note' && t1.suggestions[0].severity === 'high',
+      titles.includes('Opening line') && !titles.includes('Invented quote') && t1.suggestions.find((x) => x.title === 'From the tester')?.source === 'tester_note' && t1.suggestions[0].severity === 'high'
+      && titles.includes('Report quote') && t1.suggestions.find((x) => x.title === 'Report quote')!.evidence[0].turn === null,
       titles.join(' | '));
     const ev = t1.suggestions.find((x) => x.title === 'Opening line')!.evidence[0];
     const [turn] = await sql<{ text: string }[]>`SELECT text FROM rp.turn WHERE session_id = ${ev.session_id} AND sequence = ${ev.turn}`;
@@ -474,12 +478,15 @@ export async function integrationTests(): Promise<Check[]> {
     try { await rp.approveTrainingRun(meera, started.id); } catch (e) { early = (e as rp.ApiError).code; }
     ok('TRAIN', 'A run cannot be approved while suggestions are undecided', early === 'SUGGESTIONS_PENDING', early);
     for (const x of t1.suggestions) {
+      if (x.title === 'Report quote') continue;
       if (x.title === 'From the tester') await rp.reviewSuggestion(meera, x.id, { status: 'accepted', edited_change: 'Add a fee breakup: ₹3 lakh tuition, ₹1.2 lakh hostel.', reviewer_note: 'Owner approved the figures.' });
       else await rp.reviewSuggestion(meera, x.id, { status: 'rejected', reviewer_note: 'Works as intended.' });
     }
+    for (const x of t1.suggestions.filter((y) => y.title === 'Report quote')) await rp.reviewSuggestion(meera, x.id, { status: 'rejected' });
+    ok('TRAIN', 'The run keeps a separate assessment and coaching review', (t1.run.result as { assessment_summary?: string }).assessment_summary === (calls.some((c) => c.merge) ? 'Merged assessment review.' : 'Scores mostly follow the evidence.'));
     const brief = await rp.approveTrainingRun(meera, started.id);
     ok('TRAIN', 'Approval writes a build brief with the accepted (edited) change, the tester notes and what was not accepted',
-      /## Changes to build \(1\)/.test(brief) && brief.includes('Add a fee breakup: ₹3 lakh tuition, ₹1.2 lakh hostel.') && brief.includes('Owner approved the figures.') && /Confirmed\. Seen in S1\./.test(brief) && /## Not accepted \(1\)/.test(brief), brief.slice(0, 160));
+      /## Changes to build \(1\)/.test(brief) && brief.includes('Add a fee breakup: ₹3 lakh tuition, ₹1.2 lakh hostel.') && brief.includes('Owner approved the figures.') && /Confirmed\. Seen in S1\./.test(brief) && /## Not accepted \(2\)/.test(brief) && /## Assessment and coaching review/.test(brief) && /### Conversation and scenario/.test(brief), brief.slice(0, 160));
     let locked = '';
     try { await rp.reviewSuggestion(meera, t1.suggestions[0].id, { status: 'pending' }); } catch (e) { locked = (e as rp.ApiError).code; }
     ok('TRAIN', 'An approved run is closed for review', locked === 'RUN_NOT_IN_REVIEW', locked);

@@ -24,18 +24,23 @@ import type { ScenarioBundle } from '../contracts/types';
  * advances while the run page is open (it polls) and from the daily cron.
  */
 
-export const TRAINING_PROMPTS = { review: 'trainer_review_v1', merge: 'trainer_merge_v1' } as const;
+export const TRAINING_PROMPTS = { review: 'trainer_review_v2', merge: 'trainer_merge_v2' } as const;
 export const SESSIONS_PER_STEP = 5;
 export const MAX_SESSIONS_PER_RUN = 40;
 const MAX_STEP_ATTEMPTS = 3;
 const LEASE_SECONDS = 290;
 const ASSESSED = ['reported', 'report_partial', 'review_required', 'evaluation_failed'];
 
-export type Area = 'customer_replies' | 'question_understanding' | 'scenario_content' | 'assessment' | 'coaching' | 'other';
+export type Area = 'customer_replies' | 'question_understanding' | 'scenario_content' | 'assessment' | 'coaching' | 'assessment_framework' | 'other';
 export const AREA_LABELS: Record<Area, string> = {
   customer_replies: 'Customer replies', question_understanding: 'Question understanding', scenario_content: 'Scenario content',
-  assessment: 'Assessment', coaching: 'Coaching', other: 'Other',
+  assessment: 'Scores and evidence', coaching: 'Feedback and coaching', assessment_framework: 'Assessment framework', other: 'Other',
 };
+/** The report's two parts: the practice conversation, and the assessment of it. */
+export const AREA_GROUPS: { title: string; areas: Area[] }[] = [
+  { title: 'Conversation and scenario', areas: ['customer_replies', 'question_understanding', 'scenario_content', 'other'] },
+  { title: 'Assessment, feedback and framework', areas: ['assessment', 'coaching', 'assessment_framework'] },
+];
 const AREAS = Object.keys(AREA_LABELS) as Area[];
 const VERDICTS = ['confirmed', 'partly', 'not_found', 'not_checkable'] as const;
 export const VERDICT_LABELS: Record<(typeof VERDICTS)[number], string> = { confirmed: 'Confirmed', partly: 'Partly confirmed', not_found: 'Not found in these sessions', not_checkable: 'Not checkable from these sessions' };
@@ -43,9 +48,10 @@ export const VERDICT_LABELS: Record<(typeof VERDICTS)[number], string> = { confi
 // ---- the model's answer ------------------------------------------------------------
 
 export const trainingOutputSchema = {
-  type: 'object', additionalProperties: false, required: ['summary', 'suggestions', 'tester_note_findings'],
+  type: 'object', additionalProperties: false, required: ['summary', 'assessment_summary', 'suggestions', 'tester_note_findings'],
   properties: {
     summary: { type: 'string' },
+    assessment_summary: { type: 'string' },
     suggestions: {
       type: 'array', items: {
         type: 'object', additionalProperties: false,
@@ -55,7 +61,7 @@ export const trainingOutputSchema = {
           severity: { type: 'string', enum: ['high', 'medium', 'low'] },
           title: { type: 'string' },
           observation: { type: 'string' },
-          evidence: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['session_ref', 'turn', 'quote'], properties: { session_ref: { type: 'string' }, turn: { type: 'integer' }, quote: { type: 'string' } } } },
+          evidence: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['session_ref', 'from', 'turn', 'quote'], properties: { session_ref: { type: 'string' }, from: { type: 'string', enum: ['transcript', 'report'] }, turn: { type: 'integer' }, quote: { type: 'string' } } } },
           proposed_change: { type: 'string' },
           occurrences: { type: 'integer' },
           tester_note_indexes: { type: 'array', items: { type: 'integer' } },
@@ -73,8 +79,8 @@ export const trainingOutputSchema = {
 const ajv = new Ajv({ allErrors: true, strict: false });
 const checkOutput = ajv.compile(trainingOutputSchema);
 
-export interface RawSuggestion { area: Area; severity: 'high' | 'medium' | 'low'; title: string; observation: string; evidence: { session_ref: string; turn: number; quote: string }[]; proposed_change: string; occurrences: number; tester_note_indexes: number[] }
-export interface TrainingOutput { summary: string; suggestions: RawSuggestion[]; tester_note_findings: { note_index: number; verdict: (typeof VERDICTS)[number]; explanation: string }[] }
+export interface RawSuggestion { area: Area; severity: 'high' | 'medium' | 'low'; title: string; observation: string; evidence: { session_ref: string; from: 'transcript' | 'report'; turn: number; quote: string }[]; proposed_change: string; occurrences: number; tester_note_indexes: number[] }
+export interface TrainingOutput { summary: string; assessment_summary: string; suggestions: RawSuggestion[]; tester_note_findings: { note_index: number; verdict: (typeof VERDICTS)[number]; explanation: string }[] }
 
 // ---- what the agent sees -------------------------------------------------------------
 
@@ -82,6 +88,14 @@ export interface SessionDigest {
   ref: string; session_id: string; language: string; scenario_version: string; retry_of: string | null;
   assessment: Record<string, unknown>; coaching: Record<string, unknown> | null;
   transcript: { turn: number; speaker: 'customer' | 'learner'; text: string; note?: string }[];
+}
+
+/** Every piece of text in the session's report, for checking quotes the agent takes from it. */
+export function reportText(d: Pick<SessionDigest, 'assessment' | 'coaching'>): string {
+  const out: string[] = [];
+  const walk = (v: unknown) => { if (typeof v === 'string') out.push(v); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') Object.values(v).forEach(walk); };
+  walk(d.assessment); walk(d.coaching);
+  return out.join('\n');
 }
 
 const METHOD: Record<string, string> = { fixture: 'fixed', generated: 'generated', mixed: 'mixed', fallback: 'fallback', configured: 'configured' };
@@ -117,26 +131,41 @@ export async function sessionDigests(tenantId: string, sessionIds: string[], ref
       transcript.push({ turn: t.sequence, speaker: t.speaker, text: t.text, ...(t.origin === 'retry_prefix' ? { note: 'copied from the earlier attempt' } : note ? { note } : {}) });
       if (t.speaker === 'learner') lastLearner = t.origin === 'retry_prefix' ? null : t.id;
     }
-    const [run] = await sql<{ id: string; status: string; candidate: { dimension_scores?: { dimension_id: string; score: number; rationale: string; coaching?: string; status: string }[]; risk_flags?: { rule_id: string; status: string }[] } | null; score: { final_percent?: number; band_label?: string; adjustments?: { detail: string }[] } | null; review_reasons: unknown; error: unknown }[]>`
+    type Ev = { id: string; category: string; check_id?: string; status: string; method: string; explanation: string; learner_spans?: { turn_id: string; quote: string }[]; context_spans?: { turn_id: string; quote: string }[] };
+    const [run] = await sql<{ id: string; status: string; candidate: { dimension_scores?: { dimension_id: string; score: number; rationale: string; coaching?: string; status: string; evidence_ids?: string[] }[]; risk_flags?: { rule_id: string; status: string; evidence_ids?: string[] }[]; evidence?: Ev[] } | null; score: { final_percent?: number; base_percent?: number; band_label?: string; adjustments?: { detail: string }[] } | null; review_reasons: unknown; error: unknown }[]>`
       SELECT id, status, candidate, score, review_reasons, error FROM rp.evaluation_run
       WHERE session_id = ${id} AND status <> 'superseded' ORDER BY created_at DESC LIMIT 1`;
     const dimName = new Map(bundle.rubric.dimensions.map((d) => [d.id, d.name]));
+    // The evidence behind the scores: each check's outcome, with the quotes and turns it relied on.
+    const seq = new Map(turns.map((t) => [t.id, t.sequence]));
+    const checkDesc = new Map(bundle.rubric.checks.map((c) => [c.id, c.description]));
+    const quotes = (spans?: { turn_id: string; quote: string }[]) => (spans ?? []).slice(0, 2).map((x) => ({ turn: seq.get(x.turn_id) ?? null, quote: Array.from(x.quote).slice(0, 160).join('') }));
+    const evidence = (run?.candidate?.evidence ?? []).slice(0, 60).map((e) => ({
+      id: e.id, check: e.check_id ? `${e.check_id}: ${checkDesc.get(e.check_id) ?? ''}` : e.category, status: e.status, method: e.method,
+      learner_quotes: quotes(e.learner_spans), ...(e.context_spans?.length ? { context_quotes: quotes(e.context_spans) } : {}), explanation: Array.from(e.explanation ?? '').slice(0, 240).join(''),
+    }));
     const assessment: Record<string, unknown> = run ? {
       status: run.status,
-      ...(run.score?.final_percent !== undefined ? { overall: `${run.score.final_percent}/100 ${run.score.band_label ?? ''}`.trim() } : {}),
+      ...(run.score?.final_percent !== undefined ? { overall: `${run.score.final_percent}/100 ${run.score.band_label ?? ''}`.trim(), before_adjustments: run.score.base_percent ?? null } : {}),
       ...(run.score?.adjustments?.length ? { adjustments: run.score.adjustments.map((a) => a.detail) } : {}),
-      skills: (run.candidate?.dimension_scores ?? []).map((d) => ({ skill: dimName.get(d.dimension_id) ?? d.dimension_id, score: d.score, status: d.status, rationale: d.rationale, coaching: d.coaching ?? null })),
-      risk_flags: (run.candidate?.risk_flags ?? []).map((f) => `${f.rule_id} (${f.status})`),
+      skills: (run.candidate?.dimension_scores ?? []).map((d) => ({ skill: dimName.get(d.dimension_id) ?? d.dimension_id, weight: bundle.scoring.weights?.[d.dimension_id] ?? null, score: d.score, status: d.status, rationale: d.rationale, coaching: d.coaching ?? null, evidence_ids: d.evidence_ids ?? [] })),
+      risk_flags: (run.candidate?.risk_flags ?? []).map((f) => ({ rule: f.rule_id, status: f.status, evidence_ids: f.evidence_ids ?? [] })),
+      evidence,
       ...(run.review_reasons && JSON.stringify(run.review_reasons) !== '[]' ? { review_reasons: run.review_reasons } : {}),
       ...(run.error ? { error: run.error } : {}),
     } : { status: 'none' };
-    const [cr] = run ? await sql<{ content: { strengths?: { text: string }[]; improvement_areas?: { text: string }[]; missed_questions?: { text: string; suggested_question?: string | null }[]; risky_statements?: { text: string }[] } }[]>`
-      SELECT content FROM rp.coaching_report WHERE run_id = ${run.id}` : [];
+    type F = { text: string; suggested_question?: string | null; evidence_ids?: string[] };
+    const [cr] = run ? await sql<{ status: string; content: { strengths?: F[]; improvement_areas?: F[]; missed_questions?: F[]; risky_statements?: F[]; no_risk_statement?: string; retry_plan?: { instruction?: string } | null } }[]>`
+      SELECT status, content FROM rp.coaching_report WHERE run_id = ${run.id}` : [];
+    const item = (f: F) => ({ text: f.text, ...(f.suggested_question ? { suggested_question: f.suggested_question } : {}), evidence_ids: f.evidence_ids ?? [] });
     const coaching = cr ? {
-      what_went_well: (cr.content.strengths ?? []).map((f) => f.text),
-      areas_of_improvement: (cr.content.improvement_areas ?? []).map((f) => f.text),
-      top_missed_questions: (cr.content.missed_questions ?? []).map((f) => f.suggested_question ?? f.text),
-      risky_statements: (cr.content.risky_statements ?? []).map((f) => f.text),
+      status: cr.status,
+      what_went_well: (cr.content.strengths ?? []).map(item),
+      areas_of_improvement: (cr.content.improvement_areas ?? []).map(item),
+      top_missed_questions: (cr.content.missed_questions ?? []).map(item),
+      risky_statements: (cr.content.risky_statements ?? []).map(item),
+      ...(cr.content.no_risk_statement ? { no_risk_statement: cr.content.no_risk_statement } : {}),
+      ...(cr.content.retry_plan?.instruction ? { retry_instruction: cr.content.retry_plan.instruction } : {}),
     } : null;
     digests.push({ ref: `S${refStart + i}`, session_id: id, language: s.language ?? 'en', scenario_version: s.scenario_version, retry_of: s.parent_session_id, assessment, coaching, transcript });
   }
@@ -155,9 +184,21 @@ export function scenarioDigest(b: ScenarioBundle) {
     stock_lines: { unknown: b.conversation.unknown_response, clarification: b.conversation.clarification_response },
     topics: b.conversation.intents.map((i) => ({ id: i.id, description: i.description, example_questions: i.positive_examples, fixed_answer: rules.find((r) => r.intent_ids.includes(i.id))?.response_text ?? null })),
     volunteered_cues: rt.volunteered_cues.map((c) => ({ line: c.text, after_learner_messages: c.after_learner_turns, with_topics: c.with_intents ?? [] })),
-    rubric: b.rubric.dimensions.map((d) => ({ skill: d.name, weight: b.scoring.weights?.[d.id] ?? null, anchors: d.anchors.map((a) => `${a.score}: ${a.description}`), checks: d.check_ids.map((id) => b.rubric.checks.find((c) => c.id === id)?.description ?? id) })),
-    risks: b.risk_policy.rules.map((r) => ({ id: r.id, description: r.description, severity: r.severity })),
-    scoring: { bands: b.scoring.bands.map((x) => `${x.label}: ${x.lower}–${x.upper}`), risk_effect: b.scoring.risk_effect },
+    assessment_framework: {
+      skills: b.rubric.dimensions.map((d) => {
+        const g = rt.evaluation_guide?.skills.find((x) => x.dimension_id === d.id);
+        return { id: d.id, skill: d.name, weight: b.scoring.weights?.[d.id] ?? null, anchors: d.anchors.map((a) => `${a.score}: ${a.description}`),
+          checks: d.check_ids.map((id) => { const c = b.rubric.checks.find((x) => x.id === id); return { id, description: c?.description ?? id, category: c?.category ?? null }; }),
+          ...(g ? { measures: g.measures, look_for: g.look_for, score_guidance: g.score_guidance.map((x) => `${x.score}: ${x.guidance}`) } : {}) };
+      }),
+      ...(rt.evaluation_guide ? {
+        level_labels: rt.evaluation_guide.level_labels, discovery_framework: rt.evaluation_guide.framework, framework_note: rt.evaluation_guide.framework_note,
+        cues_and_expected_follow_ups: rt.evaluation_guide.cues, acceptable_variations: rt.evaluation_guide.variations,
+        exclusions: rt.evaluation_guide.exclusions, principles: rt.evaluation_guide.principles,
+      } : {}),
+      risk_rules: b.risk_policy.rules.map((r) => ({ id: r.id, description: r.description, severity: r.severity, consequence: r.consequence, examples: r.examples })),
+      scoring: { mode: b.scoring.mode, bands: b.scoring.bands.map((x) => `${x.label}: ${x.lower}–${x.upper}`), risk_effect: b.scoring.risk_effect, risk_effect_parameters: b.scoring.risk_effect_parameters ?? null },
+    },
   };
 }
 
@@ -169,7 +210,7 @@ export function parseNotes(text: string | null | undefined): string[] {
 
 const norm = (s: string) => s.normalize('NFC').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim().toLowerCase();
 
-export interface CheckedEvidence { session_id: string; ref: string; turn: number; speaker: string; quote: string }
+export interface CheckedEvidence { session_id: string; ref: string; turn: number | null; speaker: string; quote: string }
 export interface CheckedSuggestion extends Omit<RawSuggestion, 'evidence'> { evidence: CheckedEvidence[]; source: 'agent' | 'tester_note' }
 
 /**
@@ -184,8 +225,15 @@ export function verifyOutput(out: TrainingOutput, digests: SessionDigest[], note
     const evidence: CheckedEvidence[] = [];
     for (const e of s.evidence) {
       const d = byRef.get(e.session_ref.trim());
-      const t = d?.transcript.find((x) => x.turn === e.turn);
-      if (!d || !t || norm(e.quote).length < 3 || !norm(t.text).includes(norm(e.quote))) { droppedEvidence++; continue; }
+      if (!d || norm(e.quote).length < 3) { droppedEvidence++; continue; }
+      if (e.from === 'report') {
+        // A quote from the assessment report (a rationale, a coaching line, a missed question).
+        if (!norm(reportText(d)).includes(norm(e.quote))) { droppedEvidence++; continue; }
+        if (evidence.length < 4) evidence.push({ session_id: d.session_id, ref: d.ref, turn: null, speaker: 'report', quote: e.quote.trim() });
+        continue;
+      }
+      const t = d.transcript.find((x) => x.turn === e.turn);
+      if (!t || !norm(t.text).includes(norm(e.quote))) { droppedEvidence++; continue; }
       if (evidence.length < 4) evidence.push({ session_id: d.session_id, ref: d.ref, turn: t.turn, speaker: t.speaker, quote: e.quote.trim() });
     }
     const notes = Array.from(new Set(s.tester_note_indexes.filter((n) => n >= 0 && n < noteCount)));
@@ -195,7 +243,7 @@ export function verifyOutput(out: TrainingOutput, digests: SessionDigest[], note
   }
   const findings = new Map<number, TrainingOutput['tester_note_findings'][number]>();
   for (const f of out.tester_note_findings) if (f.note_index >= 0 && f.note_index < noteCount && !findings.has(f.note_index)) findings.set(f.note_index, f);
-  return { summary: out.summary.trim(), suggestions, tester_note_findings: [...findings.values()].sort((a, b) => a.note_index - b.note_index), dropped: { evidence: droppedEvidence, suggestions: droppedSuggestions } };
+  return { summary: out.summary.trim(), assessment_summary: (out.assessment_summary ?? '').trim(), suggestions, tester_note_findings: [...findings.values()].sort((a, b) => a.note_index - b.note_index), dropped: { evidence: droppedEvidence, suggestions: droppedSuggestions } };
 }
 
 function parseOutput(text: string): TrainingOutput {
@@ -298,7 +346,7 @@ async function merge(run: RunRow) {
   try {
     const res = await completeWithRetry({
       task: 'train', template: loadPrompt(TRAINING_PROMPTS.merge), schema: trainingOutputSchema as never, temperature: 0.1, maxTokens: 32000,
-      data: { tester_notes_json: notes.map((text, index) => ({ index, text })), batches_json: outputs.map((o) => ({ summary: o.summary, suggestions: o.suggestions.map(asRaw), tester_note_findings: o.tester_note_findings })) },
+      data: { tester_notes_json: notes.map((text, index) => ({ index, text })), batches_json: outputs.map((o) => ({ summary: o.summary, assessment_summary: o.assessment_summary, suggestions: o.suggestions.map(asRaw), tester_note_findings: o.tester_note_findings })) },
       correlation: correlation(run, 'merge'),
     }, undefined, 2);
     return { ...verifyOutput(parseOutput(res.text), digests, notes.length), merged: true };
@@ -306,7 +354,7 @@ async function merge(run: RunRow) {
     // The batches are each valid; listing them unmerged beats losing the run.
     logError('training.merge', e, { tenant_id: run.tenant_id, run_id: run.id });
     return {
-      summary: outputs.map((o) => o.summary).join(' '), suggestions: outputs.flatMap((o) => o.suggestions),
+      summary: outputs.map((o) => o.summary).join(' '), assessment_summary: outputs.map((o) => o.assessment_summary).filter(Boolean).join(' '), suggestions: outputs.flatMap((o) => o.suggestions),
       tester_note_findings: Array.from(new Map(outputs.flatMap((o) => o.tester_note_findings).map((f) => [f.note_index, f])).values()),
       dropped: { evidence: outputs.reduce((n, o) => n + o.dropped.evidence, 0), suggestions: outputs.reduce((n, o) => n + o.dropped.suggestions, 0) }, merged: false,
     };
@@ -318,7 +366,7 @@ const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
 /** Back to exactly the agent's own shape (the merge answer is checked against the same schema). */
 const asRaw = (s: CheckedSuggestion): RawSuggestion => ({
   area: s.area, severity: s.severity, title: s.title, observation: s.observation, proposed_change: s.proposed_change, occurrences: s.occurrences,
-  tester_note_indexes: s.tester_note_indexes, evidence: s.evidence.map((e) => ({ session_ref: e.ref, turn: e.turn, quote: e.quote })),
+  tester_note_indexes: s.tester_note_indexes, evidence: s.evidence.map((e) => ({ session_ref: e.ref, from: e.turn === null ? 'report' as const : 'transcript' as const, turn: e.turn ?? 0, quote: e.quote })),
 });
 
 async function finish(run: RunRow) {
@@ -332,7 +380,7 @@ async function finish(run: RunRow) {
         VALUES (${run.tenant_id}, ${run.id}, ${i + 1}, ${s.source}, ${s.area}, ${s.severity}, ${s.title}, ${s.observation}, ${tx.json(s.evidence as never)}, ${s.proposed_change}, ${s.occurrences}, ${s.tester_note_indexes})`;
     }
     await tx`UPDATE rp.training_run SET status = 'in_review', completed_at = now(), model = ${models.join(', ') || null},
-      result = ${tx.json({ summary: out.summary, tester_note_findings: out.tester_note_findings, dropped: out.dropped, merged: out.merged } as never)}
+      result = ${tx.json({ summary: out.summary, assessment_summary: out.assessment_summary, tester_note_findings: out.tester_note_findings, dropped: out.dropped, merged: out.merged } as never)}
       WHERE id = ${run.id}`;
   });
 }
@@ -483,15 +531,21 @@ export function buildBrief(run: Pick<RunRow, 'id' | 'period_from' | 'period_to' 
   L.push(`- **Reviewed by:** ${run.reviewed_by ?? '—'}${run.approved_at ? ` on ${fmtDate(run.approved_at)}` : ''}`);
   if (run.model) L.push(`- **Analysis model:** ${run.model}`);
   L.push('', '## Summary', '', String(run.result?.summary ?? ''), '');
+  if (run.result?.assessment_summary) L.push('## Assessment and coaching review', '', String(run.result.assessment_summary), '');
   L.push(`## Changes to build (${accepted.length})`, '');
   if (!accepted.length) L.push('No suggestions were accepted.', '');
-  accepted.forEach((s, i) => {
-    L.push(`### ${i + 1}. ${s.title}`, '');
+  let n = 0;
+  for (const group of AREA_GROUPS) {
+    const items = accepted.filter((s) => group.areas.includes(s.area));
+    if (!items.length) continue;
+    L.push(`### ${group.title}`, '');
+  items.forEach((s) => {
+    L.push(`#### ${++n}. ${s.title}`, '');
     L.push(`**Area:** ${AREA_LABELS[s.area]} · **Severity:** ${s.severity} · **Seen:** ${s.occurrences} time${s.occurrences === 1 ? '' : 's'}${s.source === 'tester_note' ? ' · **From tester notes**' : ''}`, '');
     L.push(`**What we saw:** ${s.observation}`, '');
     if (s.evidence.length) {
       L.push('**Evidence:**');
-      for (const e of s.evidence) L.push(`- Session \`${e.session_id.slice(0, 8)}\`, turn ${e.turn} (${e.speaker}): "${e.quote}"`);
+      for (const e of s.evidence) L.push(e.turn === null ? `- Session \`${e.session_id.slice(0, 8)}\`, assessment report: "${e.quote}"` : `- Session \`${e.session_id.slice(0, 8)}\`, turn ${e.turn} (${e.speaker}): "${e.quote}"`);
       L.push('');
     }
     if (s.tester_note_indexes.length) L.push(`**Tester notes:** ${s.tester_note_indexes.map((n) => `"${notes[n] ?? `#${n + 1}`}"`).join('; ')}`, '');
@@ -499,6 +553,7 @@ export function buildBrief(run: Pick<RunRow, 'id' | 'period_from' | 'period_to' 
     if (s.edited_change) L.push(`_Edited by the reviewer. The agent proposed: ${s.proposed_change}_`, '');
     if (s.reviewer_note) L.push(`**Reviewer note:** ${s.reviewer_note}`, '');
   });
+  }
   if (notes.length) {
     L.push('## Tester notes', '');
     notes.forEach((n, i) => {

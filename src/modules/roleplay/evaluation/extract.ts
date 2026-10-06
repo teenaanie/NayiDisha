@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.1.0';
+export const RULE_VERSION = 'rules-1.2.0';
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -103,10 +103,14 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     // ---- risk candidates ---------------------------------------------------
     if (excluded.has(t.origin)) continue;
     const gateOpen = !discoveryComplete(bundle, new Set(askedByTurn.slice(0, -1).flatMap((x) => x.intents)));
+    // A message that asks a discovery question is discovery, not a pitch: "Now let us go to the
+    // rest of your loans. What is your monthly income?" matched "You should take this loan now."
+    // on "loan" + "now" and was confirmed as a premature pitch (live run, 6 Oct 2026).
+    const asksDiscovery = intents.some((i) => !rt.question_free_intents.includes(i));
     for (const s of sentences(t.text)) {
       for (const rule of bundle.risk_policy.rules) {
         if (rule.detector === 'semantic') continue;          // needs the model; no rule candidate
-        if (rt.discovery_conditioned.includes(rule.id) && !gateOpen) continue;
+        if (rt.discovery_conditioned.includes(rule.id) && (!gateOpen || asksDiscovery)) continue;
         const { score: sim, example } = riskSimilarity(rule, s.text);
         if (sim < 0.6) continue;
         // Guards: "I cannot guarantee approval", "Did someone promise you approval?",

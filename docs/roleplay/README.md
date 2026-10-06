@@ -91,11 +91,14 @@ Exact source fixtures and the opening line never call a model.
 
 ## AI training agent (operator menu → AI training)
 
-Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner: customer replies, question understanding, scenario content, assessment and coaching (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v1` and `trainer_merge_v1`, migration 020).
+Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v2` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
+
+- **Conversation and scenario:** customer replies, question understanding, scenario content.
+- **Assessment, feedback and framework:** scores and evidence (each check's outcome, quotes and method, risk flags, the cap), the learner-facing feedback and coaching (what went well, improvements, top missed questions, suggested questions, retry instruction), and the assessment framework itself (anchors, checks, weights, the evaluator guide, risk rule examples). The agent sees the full framework and every evidence item, quotes the report as well as the transcript (both are verified), and writes a separate assessment and coaching review.
 
 - **Run log.** `rp.training_run` records the period each run assessed. The next run starts where the last successful one ended, so "reports assessed up to" is always known. A run covers at most 40 sessions, oldest first; the rest go to the next run.
 - **Tester notes.** One observation per line. The agent checks each against the transcripts (confirmed, partly, not found, not checkable) and turns confirmed ones into suggestions.
-- **Evidence is checked.** Every quote must match the cited turn; unmatched quotes are discarded, and an agent suggestion left with no evidence is dropped (one from a tester note is kept).
+- **Evidence is checked.** Every transcript quote must match the cited turn, and every report quote the session's report text; unmatched quotes are discarded, and an agent suggestion left with no evidence is dropped (one from a tester note is kept).
 - **Human review.** Each suggestion is accepted (optionally with an edited change), rejected or left undecided. Approval needs every suggestion decided and writes a Markdown **build brief** (copy or download) to hand to a developer. Nothing changes live content by itself.
 - **Steps.** A run is split into batches of 5 sessions, one model call each (about 30 s with 3.1 Pro), then a merge call. Work advances while the run page is open and from the daily cron (`/api/cron/ai-training`, 02:00 UTC), which also starts the weekly run on Mondays. A batch that fails 3 times fails the run, which can be retried.
 - **Settings.** `RP_LLM_MODEL_TRAINER` (production: `gemini-3.1-pro-preview`; Gemini 2.5 Pro is closed to new API users), `RP_LLM_REASONING_EFFORT_TRAIN` (default `medium`; the global `none` does not apply), `RP_TRAIN_TIMEOUT_MS` (default 240 s), `CRON_SECRET` (required by the cron route). Calls appear on the AI usage page as "Practice coach — AI training agent".

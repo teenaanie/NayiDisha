@@ -492,7 +492,7 @@ export async function unitTests(): Promise<Check[]> {
 
     // v4.0.0 (6 Oct 2026): fee breakup, own contribution, and no invented "son".
     const v4ids = p.rubric.dimensions.find((d) => d.id === 'questioning_discovery')!.check_ids;
-    ok('PS24', 'v4 scores the cost breakup and own contribution under Questioning & Discovery', p.scenario.version === '4.0.0' && v4ids.includes('cost_breakup') && v4ids.includes('own_contribution'), v4ids.join(','));
+    ok('PS24', 'v4 scores the cost breakup and own contribution under Questioning & Discovery', p.scenario.version.startsWith('4.') && v4ids.includes('cost_breakup') && v4ids.includes('own_contribution'), v4ids.join(','));
     const json = (text: string, ids: string[] = []) => JSON.stringify({ text, used_fact_ids: ids, requested_end: false });
     const opening = [{ id: 'o', sequence: 0, speaker: 'customer' as const, text: p.conversation.opening_text, origin: 'opening' as const }];
     const ask = 'Could you tell me more about your requirement?';
@@ -506,6 +506,13 @@ export async function unitTests(): Promise<Check[]> {
     ok('PS25', '"son" matches whole words only; Devanagari terms match as text', hasTerm("my son's fees", 'son') && !hasTerm('for that reason', 'son') && hasTerm('मेरे बेटे की फ़ीस', 'बेटे'), '');
     ok('§23', 'Gemini thinking tokens count as billed output (total − prompt); OpenAI-style totals are unchanged',
       billedOutputTokens({ prompt_tokens: 3, completion_tokens: 2, total_tokens: 26 }) === 23 && billedOutputTokens({ prompt_tokens: 10, completion_tokens: 40, total_tokens: 50 }) === 40 && billedOutputTokens({ completion_tokens: 7 }) === 7, '');
+    {
+      const T = (texts: string[]) => texts.map((text, i) => ({ id: `r${i}`, sequence: i, speaker: (i % 2 ? 'learner' : 'customer') as 'learner' | 'customer', text, origin: (i ? 'live' : 'opening') as 'live' | 'opening' }));
+      const flagged = (texts: string[]) => extractRuleEvidence(p, T(texts) as never).risk_candidates.map((r) => r.rule_id);
+      const transition = flagged([p.conversation.opening_text, 'What do you need the loan for?', 'For her fees.', 'Okay, that is fine. Now let us go to your rest of the loans. So can you tell me about your monthly income and your current EMI status, so we can find out what is your loan eligibility?']);
+      const pitch = flagged([p.conversation.opening_text, 'You should take this loan now.']);
+      ok('PS26', 'Moving on to discovery questions is not a premature pitch; an early "take this loan now" still is', !transition.includes('premature_pitch') && pitch.includes('premature_pitch'), `${transition.join(',') || 'none'} | ${pitch.join(',') || 'none'}`);
+    }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
