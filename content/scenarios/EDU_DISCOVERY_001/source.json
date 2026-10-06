@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -217,6 +217,18 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
+  },
+  {
+   "id": "employment_duration",
+   "type": "text",
+   "value": "has worked at the same company for about 8 years",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "employment_duration"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation"
   },
   {
    "id": "monthly_income",
@@ -489,6 +501,22 @@
     ]
    },
    {
+    "id": "employment_duration",
+    "description": "Asks how long the customer has been working in the current job or company.",
+    "positive_examples": [
+     "How long have you been working in this company?",
+     "How many years have you been in this job?",
+     "Since when are you working there?",
+     "How long have you been with your employer?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "How long do you need the loan for?",
+     "Over how many years would you like to repay?"
+    ]
+   },
+   {
     "id": "income",
     "description": "Asks about the customer's income or cash flow.",
     "positive_examples": [
@@ -708,6 +736,18 @@
     "response_text": "I am a salaried employee."
    },
    {
+    "id": "respond_employment_duration",
+    "priority": 100,
+    "intent_ids": [
+     "employment_duration"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "employment_duration"
+    ],
+    "response_text": "I have been with the same company for about 8 years."
+   },
+   {
     "id": "respond_income",
     "priority": 100,
     "intent_ids": [
@@ -815,7 +855,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1137,11 +1177,12 @@
    },
    {
     "id": "employment",
-    "description": "Asks about the customer's employment or source of income",
+    "description": "Asks about the customer's employment or source of income (including how long in the current job)",
     "category": "coverage",
     "method": "semantic",
     "accepted_intents": [
-     "employment"
+     "employment",
+     "employment_duration"
     ],
     "credit_requires": "learner_question",
     "expected_fact_ids": [
@@ -1690,6 +1731,7 @@
       "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के एक कॉलेज में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
       "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
+      "respond_employment_duration": "मैं लगभग 8 साल से एक ही कंपनी में काम कर रहा हूँ।",
       "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ।",
       "respond_existing_commitments": "हाँ, मैं अपने वाहन लोन के लिए हर महीने ₹8,000 भरता हूँ।",
       "respond_repayment_comfort": "हर महीने लगभग ₹10,000 से ₹12,000 और ठीक रहेगा।",
@@ -1708,6 +1750,7 @@
       "loan_purpose": "आपको लोन किस लिए चाहिए?",
       "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?",
       "cost_breakup": "इन ₹4 लाख में क्या-क्या शामिल है?",
+      "employment_duration": "आप इस कंपनी में कितने साल से काम कर रहे हैं?",
       "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?",
       "course_start": "क्लासें कब से शुरू हैं?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
@@ -1742,6 +1785,7 @@
       "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या एका कॉलेजमध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
       "respond_employment": "मी पगारदार नोकरी करतो.",
+      "respond_employment_duration": "मी साधारण 8 वर्षांपासून एकाच कंपनीत काम करतोय.",
       "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो.",
       "respond_existing_commitments": "हो, मी माझ्या वाहन कर्जासाठी दर महिन्याला ₹8,000 भरतो.",
       "respond_repayment_comfort": "दर महिन्याला साधारण ₹10,000 ते ₹12,000 अजून जमतील.",
@@ -1760,6 +1804,7 @@
       "loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?",
       "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?",
       "cost_breakup": "या ₹4 लाखांत काय काय येतं?",
+      "employment_duration": "तुम्ही या कंपनीत किती वर्षांपासून काम करताय?",
       "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?",
       "course_start": "वर्ग कधी सुरू होणार आहेत?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",
@@ -2120,6 +2165,14 @@
        "Do you have any other EMIs?",
        "How much do you currently pay each month for other loans?",
        "You mentioned another EMI. How much is it?"
+      ]
+     },
+     {
+      "check_id": "employment",
+      "examples": [
+       "What do you do for a living?",
+       "Are you salaried or self-employed?",
+       "How long have you been working in this company?"
       ]
      },
      {
