@@ -431,6 +431,7 @@ export async function unitTests(): Promise<Check[]> {
       ['Which college has she got admission in?', 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
       ['Can you give me the breakup of the ₹4 lakh?', 'The first year comes to about ₹4.5 lakh: around ₹3 lakh for tuition and admission, about ₹1.2 lakh for hostel and food, and about ₹30,000 for books and other costs.'],
       ['How much can you pay from your side?', 'I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan.'],
+      ['How long have you been working in this company?', 'I have been with the same company for about 8 years.'],
       ['When does the academic year start?', 'Classes start in about a month. That is why the fees have to be paid within 30 days.'],
       ['What matters most to you in this loan?', 'Most important for me is an EMI I can manage every month. Quick processing would also help.'],
       ['Do you have any concerns about taking a loan?', "Last time I was surprised by some additional charges. I don't want any hidden charges this time."],
@@ -512,6 +513,13 @@ export async function unitTests(): Promise<Check[]> {
       const transition = flagged([p.conversation.opening_text, 'What do you need the loan for?', 'For her fees.', 'Okay, that is fine. Now let us go to your rest of the loans. So can you tell me about your monthly income and your current EMI status, so we can find out what is your loan eligibility?']);
       const pitch = flagged([p.conversation.opening_text, 'You should take this loan now.']);
       ok('PS26', 'Moving on to discovery questions is not a premature pitch; an early "take this loan now" still is', !transition.includes('premature_pitch') && pitch.includes('premature_pitch'), `${transition.join(',') || 'none'} | ${pitch.join(',') || 'none'}`);
+    }
+    {
+      const dur = hitsOf('Okay. How long have you been working in this company, sir?');
+      const ten = hitsOf('Over how many years would you like to repay?');
+      const ev = extractRuleEvidence(p, [{ id: 'd0', sequence: 0, speaker: 'customer', text: p.conversation.opening_text, origin: 'opening' }, { id: 'd1', sequence: 1, speaker: 'learner', text: 'How long have you been working in this company?', origin: 'live' }] as never).evidence.find((e) => e.check_id === 'employment');
+      ok('PS27', 'How long in the job is its own topic, earns the employment check, and is not the loan tenure', dur.includes('employment_duration') && !dur.includes('preferred_tenure') && ten.includes('preferred_tenure') && !ten.includes('employment_duration') && ev?.status === 'observed',
+        `${dur.join('+')} | ${ten.join('+')} | employment ${ev?.status}`);
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 

@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.0.1: provenance
+# EDU_DISCOVERY_001 v4.1.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -61,5 +61,9 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
 - **4.0.1 (7 Oct 2026):** `evaluator_v3` confirms a risk flag only for a real instance in
   context; with rules-1.2.0, a message that asks a discovery question no longer yields a
   premature-pitch candidate ("Now let us go to the rest of your loans…" was flagged).
+- **4.1.0 (7 Oct 2026):** "How long have you been working in this company?" got a
+  clarification request (found by the training agent). New fact and topic
+  `employment_duration`: about 8 years with the same company [R]; asking it also earns the
+  employment check, as employment discovery.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
