@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -17,6 +17,8 @@
   "objective_ids": [
    "loan_purpose",
    "loan_amount",
+   "cost_breakup",
+   "own_contribution",
    "timing",
    "income",
    "existing_commitments",
@@ -52,7 +54,7 @@
  },
  "persona": {
   "id": "rajesh_sharma",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "name": "Rajesh Sharma",
   "role": "Salaried father of a student",
   "relationships": {},
@@ -133,6 +135,60 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
+  },
+  {
+   "id": "total_cost",
+   "type": "money",
+   "value": {
+    "amount_minor": 45000000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "cost_breakup"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 6 Oct 2026"
+  },
+  {
+   "id": "cost_breakup",
+   "type": "text",
+   "value": "tuition and admission about ₹3 lakh, hostel and food about ₹1.2 lakh, books and other costs about ₹30,000",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "cost_breakup"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 6 Oct 2026"
+  },
+  {
+   "id": "own_contribution",
+   "type": "money",
+   "value": {
+    "amount_minor": 5000000,
+    "currency": "INR"
+   },
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "own_contribution"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 6 Oct 2026"
+  },
+  {
+   "id": "course_start",
+   "type": "text",
+   "value": "classes start in about a month",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "course_start"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 6 Oct 2026"
   },
   {
    "id": "needed_by",
@@ -308,12 +364,62 @@
   "intents": [
    {
     "id": "loan_purpose",
-    "description": "Asks why the customer needs the money.",
+    "description": "Asks why the customer needs the money, including open questions about the customer's need or situation.",
     "positive_examples": [
      "What do you need the loan for?",
      "What is the purpose of the loan?",
      "Why do you need the money?",
-     "What will you use this money for?"
+     "What will you use this money for?",
+     "Could you tell me more about your requirement?",
+     "May I know about your needs and your situation?",
+     "What brings you here today?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "cost_breakup",
+    "description": "Asks what the amount covers: the total cost and its breakup (tuition, hostel, food, other expenses).",
+    "positive_examples": [
+     "Can you give me the breakup of the ₹4 lakh?",
+     "Is it only for tuition or for other expenses too?",
+     "Does it include hostel and food?",
+     "What is the total cost of the course?",
+     "How much is the college fee?",
+     "What does the amount cover?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "How much can you pay from your side?"
+    ]
+   },
+   {
+    "id": "own_contribution",
+    "description": "Asks how much the customer will pay from own savings or funds.",
+    "positive_examples": [
+     "How much can you pay from your side?",
+     "Will you put in any money yourself?",
+     "Do you have any savings for this?",
+     "How much are you contributing yourself?",
+     "How much are you willing to pay from your own pocket?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "How much can you pay every month?",
+     "What EMI can you manage each month?"
+    ]
+   },
+   {
+    "id": "course_start",
+    "description": "Asks when the course or academic year starts.",
+    "positive_examples": [
+     "When does the academic year start?",
+     "When do classes begin?",
+     "When does the course start?"
     ],
     "negative_examples": [
      "Customer volunteers this information.",
@@ -427,7 +533,9 @@
     ],
     "negative_examples": [
      "Customer volunteers this information.",
-     "Learner merely mentions the topic without asking or checking."
+     "Learner merely mentions the topic without asking or checking.",
+     "How much can you pay from your side?",
+     "How much will you contribute from your savings?"
     ]
    },
    {
@@ -525,6 +633,43 @@
      "loan_amount"
     ],
     "response_text": "I need about ₹4 lakh."
+   },
+   {
+    "id": "respond_cost_breakup",
+    "priority": 100,
+    "intent_ids": [
+     "cost_breakup"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "total_cost",
+     "cost_breakup"
+    ],
+    "response_text": "The first year comes to about ₹4.5 lakh: around ₹3 lakh for tuition and admission, about ₹1.2 lakh for hostel and food, and about ₹30,000 for books and other costs."
+   },
+   {
+    "id": "respond_own_contribution",
+    "priority": 100,
+    "intent_ids": [
+     "own_contribution"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "own_contribution"
+    ],
+    "response_text": "I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan."
+   },
+   {
+    "id": "respond_course_start",
+    "priority": 100,
+    "intent_ids": [
+     "course_start"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "course_start"
+    ],
+    "response_text": "Classes start in about a month. That is why the fees have to be paid within 30 days."
    },
    {
     "id": "respond_student_details",
@@ -670,7 +815,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -714,6 +859,8 @@
     "check_ids": [
      "loan_purpose",
      "loan_amount",
+     "cost_breakup",
+     "own_contribution",
      "timing",
      "income",
      "existing_commitments",
@@ -880,6 +1027,33 @@
     "credit_requires": "learner_question",
     "expected_fact_ids": [
      "loan_amount"
+    ]
+   },
+   {
+    "id": "cost_breakup",
+    "description": "Explores what the amount covers: total cost and its breakup (tuition, hostel, other expenses)",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "cost_breakup"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "total_cost",
+     "cost_breakup"
+    ]
+   },
+   {
+    "id": "own_contribution",
+    "description": "Asks how much the customer will contribute from own funds",
+    "category": "coverage",
+    "method": "semantic",
+    "accepted_intents": [
+     "own_contribution"
+    ],
+    "credit_requires": "learner_question",
+    "expected_fact_ids": [
+     "own_contribution"
     ]
    },
    {
@@ -1510,6 +1684,9 @@
      "rule_responses": {
       "respond_loan_purpose": "यह मेरी बेटी के कॉलेज एडमिशन के लिए है। उसकी फ़ीस भरनी है।",
       "respond_loan_amount": "मुझे लगभग ₹4 लाख चाहिए।",
+      "respond_cost_breakup": "पहले साल का कुल खर्च लगभग ₹4.5 लाख है: लगभग ₹3 लाख ट्यूशन और एडमिशन, लगभग ₹1.2 लाख हॉस्टल और खाना, और लगभग ₹30,000 किताबें और बाकी खर्च।",
+      "respond_own_contribution": "मैं अपनी बचत से लगभग ₹50,000 दे सकता हूँ। बाकी लगभग ₹4 लाख के लिए मुझे लोन चाहिए।",
+      "respond_course_start": "क्लासें लगभग एक महीने में शुरू होंगी। इसीलिए फ़ीस 30 दिनों के अंदर भरनी है।",
       "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के एक कॉलेज में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
       "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
@@ -1530,6 +1707,9 @@
      "intent_examples": {
       "loan_purpose": "आपको लोन किस लिए चाहिए?",
       "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?",
+      "cost_breakup": "इन ₹4 लाख में क्या-क्या शामिल है?",
+      "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?",
+      "course_start": "क्लासें कब से शुरू हैं?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
       "timing": "आपको पैसे ठीक कब तक चाहिए?",
       "employment": "आप क्या काम करते हैं?",
@@ -1556,6 +1736,9 @@
      "rule_responses": {
       "respond_loan_purpose": "माझ्या मुलीच्या कॉलेज प्रवेशासाठी. तिची फी भरायची आहे.",
       "respond_loan_amount": "मला साधारण ₹4 लाख हवे आहेत.",
+      "respond_cost_breakup": "पहिल्या वर्षाचा एकूण खर्च साधारण ₹4.5 लाख आहे: साधारण ₹3 लाख ट्युशन आणि प्रवेश, साधारण ₹1.2 लाख हॉस्टेल आणि जेवण, आणि साधारण ₹30,000 पुस्तकं आणि इतर खर्च.",
+      "respond_own_contribution": "मी माझ्या बचतीतून साधारण ₹50,000 देऊ शकतो. उरलेल्या साधारण ₹4 लाखांसाठी मला कर्ज हवं आहे.",
+      "respond_course_start": "वर्ग साधारण एका महिन्यात सुरू होतील. म्हणूनच फी 30 दिवसांच्या आत भरायची आहे.",
       "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या एका कॉलेजमध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
       "respond_employment": "मी पगारदार नोकरी करतो.",
@@ -1576,6 +1759,9 @@
      "intent_examples": {
       "loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?",
       "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?",
+      "cost_breakup": "या ₹4 लाखांत काय काय येतं?",
+      "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?",
+      "course_start": "वर्ग कधी सुरू होणार आहेत?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",
       "timing": "तुम्हाला पैसे नेमके कधीपर्यंत हवे आहेत?",
       "employment": "तुम्ही काय काम करता?",
@@ -1838,6 +2024,16 @@
       "check_id": "loan_amount"
      },
      {
+      "area": "Cost breakup",
+      "information": "What the amount covers: total cost, tuition, hostel, other expenses",
+      "check_id": "cost_breakup"
+     },
+     {
+      "area": "Own contribution",
+      "information": "How much the customer will pay from own funds",
+      "check_id": "own_contribution"
+     },
+     {
       "area": "Timing",
       "information": "When the funds are required",
       "check_id": "timing"
@@ -1927,6 +2123,22 @@
       ]
      },
      {
+      "check_id": "cost_breakup",
+      "examples": [
+       "Can you give me the breakup of the ₹4 lakh?",
+       "Is it only tuition, or hostel and food too?",
+       "What is the total cost for the year?"
+      ]
+     },
+     {
+      "check_id": "own_contribution",
+      "examples": [
+       "How much can you pay from your side?",
+       "Will you put in some of your own savings?",
+       "How much are you contributing yourself?"
+      ]
+     },
+     {
       "check_id": "timing",
       "examples": [
        "When exactly do you need the money?",
@@ -1954,6 +2166,56 @@
    "reminder_minutes": [
     12,
     15
+   ],
+   "hidden_fact_terms": {
+    "purpose": [
+     "college",
+     "fee",
+     "fees",
+     "admission",
+     "education",
+     "daughter",
+     "student",
+     "course",
+     "studies",
+     "tuition",
+     "कॉलेज",
+     "फ़ीस",
+     "फीस",
+     "एडमिशन",
+     "बेटी",
+     "पढ़ाई",
+     "प्रवेश",
+     "मुलगी",
+     "शिक्षण",
+     "फी"
+    ],
+    "student_details": [
+     "Priya",
+     "B.Com",
+     "Pune",
+     "प्रिया",
+     "पुणे",
+     "पुण्या"
+    ],
+    "cost_breakup": [
+     "hostel",
+     "हॉस्टल",
+     "हॉस्टेल"
+    ],
+    "own_contribution": [
+     "savings",
+     "बचत"
+    ]
+   },
+   "forbidden_terms": [
+    "son",
+    "sons",
+    "बेटा",
+    "बेटे",
+    "मुलगा",
+    "मुलाच्या",
+    "मुलाला"
    ]
   }
  }
