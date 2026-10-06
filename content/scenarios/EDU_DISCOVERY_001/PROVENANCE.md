@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.0.0: provenance
+# EDU_DISCOVERY_001 v4.0.1: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -58,5 +58,8 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   contribution are scored Questioning & Discovery checks (framework areas 3 and 4).
   Open questions about the need count as asking the purpose; topic words and "son" are
   blocked in generated replies [R].
+- **4.0.1 (7 Oct 2026):** `evaluator_v3` confirms a risk flag only for a real instance in
+  context; with rules-1.2.0, a message that asks a discovery question no longer yields a
+  premature-pitch candidate ("Now let us go to the rest of your loans…" was flagged).
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
