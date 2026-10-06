@@ -89,9 +89,18 @@ Exact source fixtures and the opening line never call a model.
 - **Scoring** credits the intents the runtime actually acted on, so paraphrases that the customer understood also count.
 - **Model per task.** `RP_LLM_MODEL_CLASSIFIER` can point the classifier at a cheaper model.
 
+## Graded assessment (score only)
+
+After practising, a learner can take a graded assessment of the same scenario (`rp.session.kind = 'assessment'`, migration 022, `src/modules/roleplay/service/assessment.ts`). Same customer, same evaluator, same scoring; no coaching step.
+
+- **Unlock and attempts.** Available once the learner has a practice report for the scenario. One attempt per scenario; a manager of the learner's team can allow one more ("Allow a retake" on Team analytics → Graded assessments, `rp.assessment_grant`), only after every allowed attempt is used. Every attempt stays on record. No retries, previews or older versions.
+- **Learner sees** only the score sheet: overall score and band, and per skill the weight, the 1–5 score with its level name, and the weighted points (points add up to the score before any cap; "of this section" is score ÷ 5). A serious risky statement caps the score as in practice and shows it at once marked "under review"; a reviewer's decision makes it final (no coaching).
+- **Managers and reviewers** see the score sheet plus risk flags, the skill evidence and the transcript; never coaching.
+- Assessments are listed separately for managers and excluded from practice analytics. The training agent reviews them too, without expecting coaching.
+
 ## AI training agent (operator menu → AI training)
 
-Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v2` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
+Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v3` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
 
 - **Conversation and scenario:** customer replies, question understanding, scenario content.
 - **Assessment, feedback and framework:** scores and evidence (each check's outcome, quotes and method, risk flags, the cap), the learner-facing feedback and coaching (what went well, improvements, top missed questions, suggested questions, retry instruction), and the assessment framework itself (anchors, checks, weights, the evaluator guide, risk rule examples). The agent sees the full framework and every evidence item, quotes the report as well as the transcript (both are verified), and writes a separate assessment and coaching review.

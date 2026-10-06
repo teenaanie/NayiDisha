@@ -4,6 +4,7 @@ import { withActor, WhoAmI, SignInFirst } from '../../../shared';
 import { Pill } from '../../../../ui';
 import { Poll, RetryButtons, RetryAssessment } from './report-client';
 import { scoreHeadline } from '../../../score';
+import { ScoreSheet } from './score-sheet';
 export const dynamic = 'force-dynamic';
 
 type Span = { turn_id: string; start: number; end: number; quote: string };
@@ -27,13 +28,26 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   if (!actor) return <SignInFirst />;
   let r;
   try { r = await getReport(actor, id); } catch (e) { return <main className="page"><h1>Report not available</h1><p>{(e as Error).message}</p><Link href="/roleplay">Back to practice</Link></main>; }
-  if (r.status === 202) return <main className="page"><div className="page-head"><h1>Assessing your conversation…</h1><p>A separate evaluator is reading your transcript. This page updates by itself.</p></div><Poll sessionId={id} /></main>;
+  if (r.status === 202) return <main className="page"><div className="page-head"><h1>Scoring your conversation…</h1><p>A separate evaluator is reading your transcript. This page updates by itself.</p></div><Poll sessionId={id} /></main>;
   const b = r.body as any;
   if (b.state === 'evaluation_failed') {
     const canRetry = actor.roles.some((x) => x === 'reviewer' || x === 'tenant_admin');
     return <main className="page"><div className="page-head"><h1>Your conversation is saved</h1><p>It could not be assessed automatically. No score was produced; {canRetry ? 'you can retry the assessment on the same transcript.' : 'an administrator can retry the assessment on the same transcript.'}</p>
       {canRetry && b.assessment_id && <RetryAssessment assessmentId={b.assessment_id} />}</div><WhoAmI actor={actor} /></main>;
   }
+  // Graded assessment, learner's view: the score sheet only.
+  if (b.kind === 'assessment' && b.view === 'learner') {
+    const sh = b.assessment;
+    return <main className="page">
+      <div className="page-head"><div className="nd-section-kicker">Graded assessment · {b.scenario.title} · v{b.scenario.version}</div>
+        <h1>{sh ? `${sh.final_percent}/100 · ${sh.band_label}` : 'Assessment result'}</h1>
+        <p>This was a graded assessment, so there is no coaching. Your score is the weighted total of the four skills below. You can keep practising this scenario at any time.</p></div>
+      <WhoAmI actor={actor} />
+      <ScoreSheet sheet={sh} underReview={!!b.under_review} />
+      <p><Link href="/roleplay">Back to the practice coach</Link> · <Link href="/roleplay/attempts">All my attempts</Link></p>
+    </main>;
+  }
+  const graded = b.kind === 'assessment';
   const rep = b.report ?? {};
   const evidence = new Map<string, Ev>((b.evidence as Ev[]).map((e) => [e.id, e]));
   const cite = (f: Finding) => f.evidence_ids.flatMap((eid) => evidence.get(eid)?.learner_spans ?? []).slice(0, 2);
@@ -47,11 +61,16 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   const levelName = (n: number) => (b.level_labels?.[String(n)] as string | undefined) ?? '';
   const levelCols = [1, 3, 5].filter((l) => (b.dimensions as any[]).some((d) => d.anchors?.some((a: any) => a.score === l)));
   return <main className="page">
-    <div className="page-head"><div className="nd-section-kicker">{b.scenario.title} · v{b.scenario.version}{b.mode === 'focused' ? ' · focused practice' : ''}</div>
-      <h1>{b.mode === 'focused' ? 'Focused practice results' : score ? scoreHeadline(score) : 'Report'}</h1>
+    <div className="page-head"><div className="nd-section-kicker">{graded ? 'Graded assessment · ' : ''}{b.scenario.title} · v{b.scenario.version}{b.mode === 'focused' ? ' · focused practice' : ''}</div>
+      <h1>{graded ? (b.assessment ? `${b.assessment.final_percent}/100 · ${b.assessment.band_label}` : 'Graded assessment') : b.mode === 'focused' ? 'Focused practice results' : score ? scoreHeadline(score) : 'Report'}</h1>
+      {graded && <p>Graded assessment: the learner sees only the score sheet. The assessor's evidence and the transcript below are for managers and reviewers; no coaching was produced.</p>}
       {score && score.mode === 'weighted_percent' && score.adjustments?.length ? <p>Capped from {score.base_percent}/100 because of a risky statement ({score.adjustments.map((a: any) => a.detail).join('; ')}). A manager will review it.</p> : null}
     </div>
     <WhoAmI actor={actor} />
+    {graded && <ScoreSheet sheet={b.assessment} underReview={!!b.under_review} />}
+    {graded && <section className="card mb"><div className="card-head"><h2>Risk flags</h2></div><div className="card-body">
+      {(b.risk_findings as any[]).length ? <ul>{(b.risk_findings as any[]).map((f) => <li key={f.rule_id}><strong>{f.description ?? f.rule_id}</strong> <Pill tone={f.status === 'confirmed' ? 'bad' : 'warn'}>{f.status}</Pill>{f.reviewer_decision && <Pill>{`reviewer: ${f.reviewer_decision}`}</Pill>}</li>)}</ul> : <p className="muted small">No risk flagged.</p>}
+    </div></section>}
     {b.report_status === 'provisional' && <div className="note warn mb"><strong>Provisional.</strong> A reviewer must confirm part of this assessment before it is final: {(b.review_reasons as unknown[]).filter((x) => typeof x === 'string').join(' ')}</div>}
     {b.report_status === 'partial' && <div className="note warn mb"><strong>Feedback is delayed.</strong> Your verified score and evidence are below; written coaching will be added when the coach is available.</div>}
     {b.comparable === false && <div className="note mb">This attempt used a different scenario version than the one it retries, so its score is not directly comparable.</div>}
@@ -62,17 +81,17 @@ export default async function Report({ params }: { params: Promise<{ id: string 
     </div></section>}
 
     {b.mode === 'full' && skillTable && <section className="card mb"><div className="card-head"><h2>Skill scores</h2><span className="small muted">Each skill scored 1–5 against the rubric; the overall score is weighted and calculated by the server</span></div><div className="card-body tight"><div className="tblwrap"><table>
-      <thead><tr><th>Skill</th><th>What you are measuring</th><th>Weight</th><th>Your score</th><th>Evidence</th><th>Coaching feedback</th></tr></thead>
+      <thead><tr><th>Skill</th><th>What you are measuring</th><th>Weight</th><th>Your score</th><th>Evidence</th>{!graded && <th>Coaching feedback</th>}</tr></thead>
       <tbody>{b.dimensions.map((d: any, i: number) => <tr key={d.dimension_id}>
         <td><strong>{i + 1}. {d.name}</strong></td>
         <td className="small">{d.measures}</td>
         <td>{d.weight != null ? `${d.weight}%` : '—'}</td>
         <td><strong>{d.score}/{d.max_score}</strong>{levelName(d.score) && <div className="small muted">{levelName(d.score)}</div>}</td>
         <td className="small">{d.rationale}</td>
-        <td className="small">{d.coaching ?? '—'}</td>
+        {!graded && <td className="small">{d.coaching ?? '—'}</td>}
       </tr>)}</tbody>
     </table></div>
-      {score && <p className="mt"><strong>Overall: {score.final_percent}/100 · {score.band_label}.</strong> <span className="small muted">Interpretation: {[...(b.scoring?.bands ?? [])].reverse().map((x: any) => `${x.lower === 0 ? `below ${x.upper}` : `${x.lower}–${x.upper_inclusive ? x.upper : x.upper - 1}`} = ${x.label}`).join(', ')}.</span></p>}
+      {score && !graded && <p className="mt"><strong>Overall: {score.final_percent}/100 · {score.band_label}.</strong> <span className="small muted">Interpretation: {[...(b.scoring?.bands ?? [])].reverse().map((x: any) => `${x.lower === 0 ? `below ${x.upper}` : `${x.lower}–${x.upper_inclusive ? x.upper : x.upper - 1}`} = ${x.label}`).join(', ')}.</span></p>}
       <details className="mt"><summary className="small">What each level means</summary><div className="tblwrap"><table>
         <thead><tr><th>Skill</th>{levelCols.map((l) => <th key={l}>{l} – {levelName(l)}</th>)}</tr></thead>
         <tbody>{b.dimensions.map((d: any) => <tr key={d.dimension_id}><td><strong>{d.name}</strong></td>{levelCols.map((l) => <td key={l} className={`small${d.score === l ? ' rp-level-hit' : ''}`}>{d.anchors?.find((a: any) => a.score === l)?.description}</td>)}</tr>)}</tbody>
@@ -87,7 +106,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       </div>)}
     </div></div></section>}
 
-    <div className="grid g2 mb">
+    {!graded && <><div className="grid g2 mb">
       <section className="card"><div className="card-body">
         <FindingList title="What went well" items={rep.strengths} />
         {rep.best_moment && <FindingList title="Best moment" items={[rep.best_moment]} />}
@@ -102,7 +121,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       <FindingList title={skillTable ? 'Top 3 questions that were missed' : 'Questions not asked'} items={rep.missed_questions} />
       {rep.risky_statements?.length ? <FindingList title="Risky statements" items={rep.risky_statements} /> : <p>{rep.no_risk_statement ?? 'No configured risk detected in this transcript.'}</p>}
       <p className="small muted">Product and lending-policy accuracy was not assessed: no reviewed knowledge pack is configured.</p>
-    </div></section>
+    </div></section></>}
 
     {(rep.retry_plans?.full || rep.retry_plans?.focused) && <section className="card mb"><div className="card-head"><h2>Practise again</h2></div><div className="card-body">
       <p>{rep.retry_plan?.instruction}</p>

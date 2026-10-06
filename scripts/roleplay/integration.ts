@@ -433,6 +433,64 @@ export async function integrationTests(): Promise<Check[]> {
     ok('LANG', 'The brief lists English, Hindi and Marathi, with the translations marked draft', JSON.stringify(brief.languages.map((l) => `${l.id}:${l.review_status}`)) === JSON.stringify(['en:source', 'hi:draft', 'mr:draft']));
   }
 
+  // ---- graded assessment (score only, no coaching) ------------------------------------
+  {
+    // A fresh learner on the North team each run, so earlier runs' attempts never count.
+    const subject = `synthetic:learner.graded-${Date.now()}`;
+    const [u] = await sql<{ id: string }[]>`INSERT INTO rp.app_user (tenant_id, subject, display_name, synthetic) VALUES (${nd.id}, ${subject}, 'Graded learner', TRUE) RETURNING id`;
+    await sql`INSERT INTO rp.membership (tenant_id, user_id, role) VALUES (${nd.id}, ${u.id}, 'learner')`;
+    const [north] = await sql<{ id: string }[]>`SELECT id FROM rp.team WHERE tenant_id = ${nd.id} AND name = 'North sales team'`;
+    await sql`INSERT INTO rp.team_membership (tenant_id, team_id, user_id, role) VALUES (${nd.id}, ${north.id}, ${u.id}, 'member')`;
+    const gl = await as(nd.id, subject);
+    const code = async (f: () => Promise<unknown>) => { try { await f(); return 'ok'; } catch (e) { return (e as rp.ApiError).code ?? String(e); } };
+    const st0 = await rp.assessmentStatus(gl, 'EDU_DISCOVERY_001');
+    const locked = await code(() => rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' }));
+    ok('GRADE', 'The graded assessment is locked until the learner has a practice report', !st0.practised && !st0.can_start && locked === 'PRACTICE_FIRST', `${locked}`);
+    const pr = (await rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001' })).session.session_id;
+    await say(gl, pr, 'What do you need the loan for?');
+    await finishAndReport(gl, pr);
+    const st1 = await rp.assessmentStatus(gl, 'EDU_DISCOVERY_001');
+    ok('GRADE', 'After one practice report the assessment can be taken once', st1.practised && st1.can_start && st1.attempts_allowed === 1, JSON.stringify({ p: st1.practised, c: st1.can_start }));
+    const g1 = (await rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' })).session;
+    const twice = await code(() => rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' }));
+    ok('GRADE', 'An assessment session is marked as such, and a second cannot start while it is open', g1.kind === 'assessment' && twice === 'ASSESSMENT_IN_PROGRESS', twice);
+    for (const q of ['What do you need the loan for?', 'How much loan do you need?', 'When exactly do you need the money?', "What's a comfortable EMI for you?"]) await say(gl, g1.session_id, q);
+    const rep1 = await finishAndReport(gl, g1.session_id);
+    const lb = rep1.body as Record<string, any>;
+    const [run1] = await sql<{ id: string; status: string; base: string }[]>`SELECT r.id, r.status, r.score->>'base_percent' AS base FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${g1.session_id}`;
+    const [coached] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.coaching_report WHERE run_id = ${run1.id}`;
+    const pts = (lb.assessment?.skills ?? []).reduce((n: number, x: { points: number }) => n + x.points, 0);
+    ok('GRADE', 'It is scored without coaching: no coaching report, and the run goes straight to reported', run1.status === 'reported' && coached.n === 0, `${run1.status}, ${coached.n} coaching reports`);
+    ok('GRADE', 'The learner sees only the score sheet: overall, band and each skill\'s score and weighted points', lb.view === 'learner' && lb.kind === 'assessment' && typeof lb.assessment?.final_percent === 'number' && lb.assessment.skills.length === 4
+      && !('transcript' in lb) && !('evidence' in lb) && !('report' in lb) && !('dimensions' in lb), Object.keys(lb).join(','));
+    ok('GRADE', 'The weighted points add up to the score before any cap, and each skill shows its weight', Math.abs(pts - Number(run1.base)) <= 0.3 && lb.assessment.skills.every((x: { weight_percent: number }) => x.weight_percent > 0),
+      `${pts.toFixed(1)} vs ${run1.base}; ${lb.assessment.skills.map((x: { name: string; weight_percent: number; score: number; points: number }) => `${x.name.split(' ')[0]} ${x.score}/5 → ${x.points}/${x.weight_percent}`).join(', ')}`);
+    const mb = (await rp.getReport(neha, g1.session_id)).body as Record<string, any>;
+    ok('GRADE', 'A manager sees the score sheet plus the transcript and evidence, but no coaching', mb.view === 'manager' && !!mb.assessment && Array.isArray(mb.transcript) && Array.isArray(mb.evidence) && mb.report === null && mb.dimensions.every((d: { coaching: unknown }) => d.coaching === null), String(mb.view));
+    const again = await code(() => rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' }));
+    const retry = await code(() => rp.startRetry(gl, g1.session_id, { mode: 'full', retry_plan_id: '00000000-0000-0000-0000-000000000000', expected_assessment_id: run1.id }));
+    ok('GRADE', 'One attempt: a second is refused, and an assessment has no retries', again === 'ASSESSMENT_TAKEN' && retry === 'ASSESSMENT_NO_RETRY', `${again} / ${retry}`);
+    const listed = (await rp.listTeamAssessments(neha)).find((x) => x.session_id === g1.session_id);
+    const otherTeam = await code(() => rp.grantRetake(sanjay, { learner_id: u.id, scenario_id: 'EDU_DISCOVERY_001' }));
+    const grant = await rp.grantRetake(neha, { learner_id: u.id, scenario_id: 'EDU_DISCOVERY_001', reason: 'Network dropped' });
+    const extra = await code(() => rp.grantRetake(neha, { learner_id: u.id, scenario_id: 'EDU_DISCOVERY_001' }));
+    ok('GRADE', 'The team\'s manager sees it (1 of 1) and can allow one retake; another manager cannot; no stacking unused retakes',
+      listed?.attempts_used === 1 && listed?.attempts_allowed === 1 && otherTeam === 'FORBIDDEN' && grant.attempts_allowed === 2 && extra === 'RETAKE_AVAILABLE', `${otherTeam} / ${extra}`);
+    // The retake, with a serious risky statement: shown at once as under review, final after review, never coached.
+    const g2 = (await rp.startSession(gl, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' })).session;
+    await say(gl, g2.session_id, 'What do you need the loan for?');
+    await say(gl, g2.session_id, 'Your loan will definitely be approved.');
+    const rep2 = (await finishAndReport(gl, g2.session_id)).body as Record<string, any>;
+    const [run2] = await sql<{ id: string; status: string }[]>`SELECT r.id, r.status FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${g2.session_id}`;
+    ok('GRADE', 'A serious risky statement: the score shows at once, marked under review', run2.status === 'review_required' && rep2.under_review === true && typeof rep2.assessment?.final_percent === 'number', run2.status);
+    const findings = await sql<{ rule_id: string }[]>`SELECT rule_id FROM rp.risk_finding WHERE run_id = ${run2.id}`;
+    await rp.submitReview(rahul, run2.id, { rationale: 'Confirmed.', decisions: findings.map((f) => ({ rule_id: f.rule_id, decision: 'upheld' as const })) });
+    await drain();
+    const [after] = await sql<{ status: string; n: number }[]>`SELECT r.status, (SELECT count(*)::int FROM rp.coaching_report c WHERE c.run_id = r.id) AS n FROM rp.evaluation_run r WHERE r.id = ${run2.id}`;
+    const st3 = await rp.assessmentStatus(gl, 'EDU_DISCOVERY_001');
+    ok('GRADE', 'After review the assessment is final with no coaching, and both attempts stay on record', after.status === 'reported' && after.n === 0 && st3.attempts_used === 2 && !st3.can_start, `${after.status}, ${after.n}, ${st3.attempts_used}`);
+  }
+
   // ---- AI training agent (operator menu → AI training) ---------------------------------
   {
     await sql`DELETE FROM rp.training_run`;

@@ -1,3 +1,4 @@
+import { assertCanStartAssessment } from './assessment';
 import { sql } from '@/lib/db';
 import { bcp47, isLanguage, languagesOf, localized, type Language } from '../runtime/language';
 import { canonicalJson, sha256 } from '../config/compile';
@@ -28,6 +29,8 @@ export interface SessionRow {
   started_at: Date; last_activity_at: Date; completed_at: Date | null; learner_turn_count: number; transcript_hash: string | null; current_run_id: string | null;
   /** Conversation language (migration 017); retries inherit it. */
   language: Language;
+  /** Practice (coached) or a graded assessment (score only; migration 022). */
+  kind: 'practice' | 'assessment';
 }
 export interface RetryScope { mode: 'full' | 'focused'; plan_id: string; parent_run_id: string; checkpoint_sequence: number | null; target_check_ids: string[]; comparable: boolean }
 
@@ -66,7 +69,7 @@ export async function loadSessionFor(actor: Actor, sessionId: string, access: 'o
 export function publicSession(s: SessionRow, turns: { id: string; sequence: number; speaker: string; text: string; origin: string; created_at: Date; input_mode?: string }[], pending: { id: string; status: string } | null) {
   return {
     session_id: s.id, scenario_id: s.scenario_id, scenario_version: s.scenario_version, state: s.state, revision: s.revision, language: s.language ?? 'en',
-    is_preview: s.is_preview, parent_session_id: s.parent_session_id,
+    is_preview: s.is_preview, parent_session_id: s.parent_session_id, kind: s.kind ?? 'practice',
     retry_scope: s.retry_scope ? { mode: s.retry_scope.mode, comparable: s.retry_scope.comparable, target_check_ids: s.retry_scope.target_check_ids } : null,
     started_at: s.started_at, completed_at: s.completed_at, learner_turn_count: s.learner_turn_count,
     transcript: turns.map((t) => ({ turn_id: t.id, sequence: t.sequence, speaker: t.speaker, text: t.text, origin: t.origin, created_at: t.created_at, input_mode: t.input_mode ?? 'text' })),
@@ -82,11 +85,15 @@ async function pendingOp(sessionId: string, conn: Tx = sql) {
 
 // ---- start --------------------------------------------------------------------
 
-export interface StartInput { scenario_id: string; scenario_version?: string; preview_version_id?: string; language?: string }
+export interface StartInput { scenario_id: string; scenario_version?: string; preview_version_id?: string; language?: string; kind?: 'practice' | 'assessment' }
 
 export async function startSession(actor: Actor, input: StartInput, parent?: { session_id: string; scope: RetryScope; prefix?: TranscriptTurn[]; version_id: string; language?: Language }) {
   const preview = !!input.preview_version_id;
   if (preview) requireRole(actor, 'author', 'reviewer'); else requireRole(actor, 'learner');
+  if (input.kind !== undefined && input.kind !== 'practice' && input.kind !== 'assessment') throw new ApiError(400, 'BAD_KIND', 'kind must be "practice" or "assessment".');
+  const kind = input.kind === 'assessment' ? 'assessment' as const : 'practice' as const;
+  // A graded assessment is always the current published version, never a preview or a retry.
+  if (kind === 'assessment' && (preview || parent || input.scenario_version)) throw new ApiError(400, 'BAD_ASSESSMENT', 'An assessment starts from the published scenario.');
   await rateLimit(actor, 'start');
   const [v] = parent
     ? await sql<{ id: string; bundle: ScenarioBundle; bundle_hash: string; version: string; status: string; rubric_version: string; scoring_version: string; prompt_versions: Record<string, { id: string; digest: string }>; engine_version: string; preview_only: boolean }[]>`
@@ -106,11 +113,12 @@ export async function startSession(actor: Actor, input: StartInput, parent?: { s
   })()));
 
   const started = await sql.begin(async (tx) => {
+    if (kind === 'assessment') await assertCanStartAssessment(tx as never, actor, b.scenario.id);
     const [s] = await tx<SessionRow[]>`
       INSERT INTO rp.session (tenant_id, learner_id, scenario_version_id, scenario_id, scenario_version, bundle_hash, rubric_version, scoring_version,
-        prompt_versions, engine_version, state, revision, parent_session_id, retry_scope, is_preview, language)
+        prompt_versions, engine_version, state, revision, parent_session_id, retry_scope, is_preview, language, kind)
       VALUES (${actor.tenant_id}, ${actor.user_id}, ${v.id}, ${b.scenario.id}, ${v.version}, ${v.bundle_hash}, ${v.rubric_version}, ${v.scoring_version},
-        ${tx.json(v.prompt_versions as never)}, ${v.engine_version}, 'active', 0, ${parent?.session_id ?? null}, ${parent ? tx.json(parent.scope as never) : null}, ${preview || v.preview_only}, ${language})
+        ${tx.json(v.prompt_versions as never)}, ${v.engine_version}, 'active', 0, ${parent?.session_id ?? null}, ${parent ? tx.json(parent.scope as never) : null}, ${preview || v.preview_only}, ${language}, ${kind})
       RETURNING *`;
     let seq = 0;
     let openingId: string;
@@ -147,11 +155,11 @@ export async function startSession(actor: Actor, input: StartInput, parent?: { s
     }
     const learnerTurns = parent?.prefix?.filter((t) => t.speaker === 'learner').length ?? 0;
     const [u] = await tx<SessionRow[]>`UPDATE rp.session SET revision = ${seq}, learner_turn_count = ${learnerTurns} WHERE id = ${s.id} RETURNING *`;
-    await audit(actor, parent ? 'session.retry_started' : 'session.started', 'session', s.id, { scenario_id: b.scenario.id, version: v.version, bundle_hash: v.bundle_hash, preview: s.is_preview, retry_mode: parent?.scope.mode ?? null }, {}, tx as never);
+    await audit(actor, parent ? 'session.retry_started' : 'session.started', 'session', s.id, { scenario_id: b.scenario.id, version: v.version, bundle_hash: v.bundle_hash, preview: s.is_preview, retry_mode: parent?.scope.mode ?? null, kind }, {}, tx as never);
     return { session: publicSession(u, await transcript(s.id, tx as never), null), brief: publicBrief(v.id, b), opening_turn_id: openingId };
   });
   // Outside the transaction: metric() uses the pool, which a one-connection serverless pool cannot lend twice.
-  await metric('session_started', 1, { scenario: b.scenario.id, preview: started.session.is_preview, retry: parent?.scope.mode ?? 'none' }, actor.tenant_id);
+  await metric('session_started', 1, { scenario: b.scenario.id, preview: started.session.is_preview, retry: parent?.scope.mode ?? 'none', kind }, actor.tenant_id);
   return started;
 }
 
@@ -177,9 +185,9 @@ export async function getSession(actor: Actor, sessionId: string) {
 
 export async function listMySessions(actor: Actor) {
   return sql`
-    SELECT s.id, s.scenario_id, s.scenario_version, s.state, s.started_at, s.completed_at, s.parent_session_id, s.retry_scope->>'mode' AS retry_mode,
+    SELECT s.id, s.scenario_id, s.scenario_version, s.state, s.started_at, s.completed_at, s.parent_session_id, s.retry_scope->>'mode' AS retry_mode, s.kind,
            s.is_preview, r.score->>'raw_total' AS raw_total, r.score->>'raw_max' AS raw_max, r.score->>'band_label' AS band_label, r.score->>'mode' AS score_mode, r.score->>'final_percent' AS final_percent,
-           r.score->>'final_percent' AS final_percent, r.status AS run_status, v.bundle->'scenario'->>'title' AS title
+           r.status AS run_status, v.bundle->'scenario'->>'title' AS title
       FROM rp.session s JOIN rp.scenario_version v ON v.id = s.scenario_version_id
       LEFT JOIN rp.evaluation_run r ON r.id = s.current_run_id
      WHERE s.tenant_id = ${actor.tenant_id} AND s.learner_id = ${actor.user_id}

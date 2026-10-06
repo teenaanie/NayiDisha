@@ -1,3 +1,4 @@
+import { assessmentScore, type AssessmentScore } from './assessment';
 import { sql } from '@/lib/db';
 import type { Language } from '../runtime/language';
 import { runtimeOf } from '../config/runtime-extension';
@@ -93,8 +94,11 @@ async function storeAssessment(runId: string, s: SessionRow, bundle: ScenarioBun
                VALUES (${runId}, ${f.rule_id}, ${s.tenant_id}, ${tx.json(f.evidence_ids as never)}, ${f.status}, ${ruleIds.has(f.rule_id) ? 'both' : 'model'}, ${r.severity}, ${r.consequence}) ON CONFLICT DO NOTHING`;
     }
     const review = result.review_reasons.length > 0;
-    const next = review ? 'review_required' : 'coaching';
+    // A graded assessment has no coaching: it is reported as soon as it is scored (or held for review).
+    const graded = s.kind === 'assessment';
+    const next = review ? 'review_required' : graded ? 'reported' : 'coaching';
     await tx`UPDATE rp.evaluation_run SET status = ${next}, outputs = ${tx.json(outputs as never)}, candidate = ${tx.json(c as never)},
+                    completed_at = CASE WHEN ${graded} THEN now() ELSE completed_at END,
                     review_reasons = ${tx.json(result.review_reasons as never)}, score = ${result.score ? tx.json(result.score as never) : null},
                     focused_results = ${result.focused ? tx.json(result.focused as never) : null},
                     provider = ${result.outputs.at(-1)?.provider ?? null}, model = ${result.outputs.at(-1)?.model ?? null}
@@ -102,7 +106,7 @@ async function storeAssessment(runId: string, s: SessionRow, bundle: ScenarioBun
     await tx`UPDATE rp.session SET state = ${next}, revision = revision + 1 WHERE id = ${s.id} AND current_run_id = ${runId}`;
     await tx`UPDATE rp.operation SET status = 'succeeded', updated_at = now() WHERE id = ${operationId}`;
     // A provisional report is produced even while review is pending, labelled as such (spec §19).
-    await enqueue(tx, s.tenant_id, 'coach', `coach:${runId}:${review ? 'provisional' : 'final'}`, { run_id: runId });
+    if (!graded) await enqueue(tx, s.tenant_id, 'coach', `coach:${runId}:${review ? 'provisional' : 'final'}`, { run_id: runId });
   });
 }
 
@@ -244,6 +248,21 @@ export async function getReport(actor: Actor, sessionId: string) {
   if (processing) return { status: 202 as const, body: { session_id: s.id, state: run.status, message: 'Your conversation is being assessed.' } };
   if (run.status === 'evaluation_failed') return { status: 200 as const, body: { session_id: s.id, state: run.status, assessment_id: run.id, error: run.error, report: null } };
   const bundle = await loadBundle(s.tenant_id, s.scenario_version_id, s.bundle_hash);
+  // A graded assessment: the learner gets the score sheet only; managers and reviewers also get
+  // the full assessment (transcript, evidence, rationale), never coaching.
+  const graded = s.kind === 'assessment';
+  let sheet: AssessmentScore | null = null;
+  if (graded) {
+    const scored = await sql<{ dimension_id: string; score: number; status: string }[]>`SELECT dimension_id, score, status FROM rp.dimension_score WHERE run_id = ${run.id}`;
+    sheet = run.score ? assessmentScore(bundle, run.score, scored) : null;
+    if (s.learner_id === actor.user_id) {
+      return { status: 200 as const, body: {
+        session_id: s.id, state: run.status, kind: 'assessment' as const, view: 'learner' as const,
+        scenario: { id: bundle.scenario.id, version: s.scenario_version, title: bundle.scenario.title },
+        assessment: sheet, under_review: run.status === 'review_required', level_labels: runtimeOf(bundle).evaluation_guide?.level_labels ?? null,
+      } };
+    }
+  }
   const [dims, evidence, risks, turns] = await Promise.all([
     sql`SELECT dimension_id, score, anchor_score, evidence_ids, rationale, status FROM rp.dimension_score WHERE run_id = ${run.id} ORDER BY dimension_id`,
     sql`SELECT id, check_id, category, status, learner_spans, context_spans, explanation, method, confidence FROM rp.evidence WHERE run_id = ${run.id}`,
@@ -255,6 +274,7 @@ export async function getReport(actor: Actor, sessionId: string) {
     status: 200 as const,
     body: {
       session_id: s.id, state: run.status, mode: run.mode, scenario: { id: bundle.scenario.id, version: s.scenario_version, title: bundle.scenario.title },
+      kind: s.kind ?? 'practice', ...(graded ? { view: 'manager' as const, assessment: sheet, under_review: run.status === 'review_required' } : {}),
       pinned: { bundle_hash: s.bundle_hash, rubric_version: s.rubric_version, scoring_version: s.scoring_version, transcript_hash: s.transcript_hash },
       comparable: s.retry_scope?.comparable ?? true,
       // Stored text is cleaned again on the way out: reports written before rules 1.2 / the
@@ -268,7 +288,7 @@ export async function getReport(actor: Actor, sessionId: string) {
           // Report columns from the owner's format; absent for older scenarios.
           measures: skill?.measures ?? null,
           weight: bundle.scoring.mode === 'weighted_percent' ? bundle.scoring.weights[d.dimension_id] ?? null : null,
-          coaching: ((c) => (c ? stripTurnAliases(c) : null))(run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching),
+          coaching: graded ? null : ((c) => (c ? stripTurnAliases(c) : null))(run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching),
         };
       }),
       scoring: { mode: bundle.scoring.mode, bands: bundle.scoring.bands },
@@ -293,7 +313,7 @@ export async function listReviewQueue(actor: Actor) {
   requireRole(actor, 'reviewer');
   return sql`
     SELECT r.id, r.session_id, r.review_reasons, r.score->>'raw_total' AS raw_total, r.score->>'raw_max' AS raw_max, r.score->>'band_label' AS band_label, r.score->>'mode' AS score_mode, r.score->>'final_percent' AS final_percent, r.created_at,
-           s.scenario_id, s.scenario_version, u.display_name AS learner
+           s.scenario_id, s.scenario_version, s.kind, u.display_name AS learner
       FROM rp.evaluation_run r JOIN rp.session s ON s.id = r.session_id JOIN rp.app_user u ON u.id = s.learner_id
      WHERE r.tenant_id = ${actor.tenant_id} AND r.status = 'review_required' ORDER BY r.created_at`;
 }
@@ -327,14 +347,17 @@ export async function submitReview(actor: Actor, runId: string, input: ReviewInp
     for (const o of input.dimension_overrides ?? []) {
       await tx`UPDATE rp.dimension_score SET score = ${o.score}, anchor_score = ${o.score}, rationale = ${`Reviewer override: ${o.reason}`} WHERE run_id = ${runId} AND dimension_id = ${o.dimension_id}`;
     }
-    await tx`UPDATE rp.evaluation_run SET status = 'coaching', score = ${tx.json(revised as never)},
+    // A graded assessment is final once reviewed; practice goes on to coaching.
+    const graded = s.kind === 'assessment';
+    const after = graded ? 'reported' : 'coaching';
+    await tx`UPDATE rp.evaluation_run SET status = ${after}, score = ${tx.json(revised as never)}, completed_at = CASE WHEN ${graded} THEN now() ELSE completed_at END,
                     review_reasons = review_reasons || ${tx.json([{ resolved_by: actor.user_id, rationale: input.rationale, original_score: run.score, decisions: input.decisions, overrides: input.dimension_overrides ?? [] }] as never)}
               WHERE id = ${runId}`;
-    await tx`UPDATE rp.session SET state = 'coaching', revision = revision + 1 WHERE id = ${s.id} AND current_run_id = ${runId}`;
-    await enqueue(tx, s.tenant_id, 'coach', `coach:${runId}:final:${Date.now()}`, { run_id: runId });
+    await tx`UPDATE rp.session SET state = ${after}, revision = revision + 1 WHERE id = ${s.id} AND current_run_id = ${runId}`;
+    if (!graded) await enqueue(tx, s.tenant_id, 'coach', `coach:${runId}:final:${Date.now()}`, { run_id: runId });
     await audit(actor, 'evaluation.reviewed', 'evaluation_run', runId, { decisions: input.decisions, overrides: input.dimension_overrides ?? [], rationale: input.rationale, original: run.score?.raw_total, revised: revised.raw_total }, {}, tx as never);
   });
-  return { run_id: runId, status: 'coaching', score: revised };
+  return { run_id: runId, status: s.kind === 'assessment' ? 'reported' : 'coaching', score: revised };
 }
 
 /** Authorised re-run of a failed assessment on the same snapshot (spec §19). */
@@ -361,6 +384,7 @@ export interface RetryInput { mode: 'full' | 'focused'; retry_plan_id: string; e
 
 export async function startRetry(actor: Actor, sessionId: string, input: RetryInput) {
   const parent = await loadSessionFor(actor, sessionId);
+  if (parent.kind === 'assessment') throw conflict('ASSESSMENT_NO_RETRY', 'A graded assessment cannot be retried; your manager can allow a retake.');
   if (!['reported', 'report_partial'].includes(parent.state)) throw conflict('NO_ASSESSMENT', 'A retry needs a completed report.');
   if (parent.current_run_id !== input.expected_assessment_id) throw conflict('STALE_ASSESSMENT', 'The report changed; reload it before retrying.', { current_assessment_id: parent.current_run_id });
   const [plan] = await sql<{ id: string; mode: string; checkpoint_sequence: number | null; target_check_ids: string[]; run_id: string }[]>`

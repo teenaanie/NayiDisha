@@ -24,7 +24,7 @@ import type { ScenarioBundle } from '../contracts/types';
  * advances while the run page is open (it polls) and from the daily cron.
  */
 
-export const TRAINING_PROMPTS = { review: 'trainer_review_v2', merge: 'trainer_merge_v2' } as const;
+export const TRAINING_PROMPTS = { review: 'trainer_review_v3', merge: 'trainer_merge_v2' } as const;
 export const SESSIONS_PER_STEP = 5;
 export const MAX_SESSIONS_PER_RUN = 40;
 const MAX_STEP_ATTEMPTS = 3;
@@ -85,7 +85,7 @@ export interface TrainingOutput { summary: string; assessment_summary: string; s
 // ---- what the agent sees -------------------------------------------------------------
 
 export interface SessionDigest {
-  ref: string; session_id: string; language: string; scenario_version: string; retry_of: string | null;
+  ref: string; session_id: string; language: string; scenario_version: string; retry_of: string | null; kind: 'practice' | 'assessment';
   assessment: Record<string, unknown>; coaching: Record<string, unknown> | null;
   transcript: { turn: number; speaker: 'customer' | 'learner'; text: string; note?: string }[];
 }
@@ -113,8 +113,8 @@ export async function sessionDigests(tenantId: string, sessionIds: string[], ref
   const bundles = new Map<string, ScenarioBundle>();
   const digests: SessionDigest[] = [];
   for (const [i, id] of sessionIds.entries()) {
-    const [s] = await sql<{ id: string; language: string | null; scenario_version_id: string; bundle_hash: string; scenario_version: string; parent_session_id: string | null }[]>`
-      SELECT s.id, s.language, s.scenario_version_id, sv.bundle_hash, sv.version AS scenario_version, s.parent_session_id
+    const [s] = await sql<{ id: string; language: string | null; scenario_version_id: string; bundle_hash: string; scenario_version: string; parent_session_id: string | null; kind: 'practice' | 'assessment' }[]>`
+      SELECT s.id, s.language, s.scenario_version_id, sv.bundle_hash, sv.version AS scenario_version, s.parent_session_id, s.kind
       FROM rp.session s JOIN rp.scenario_version sv ON sv.id = s.scenario_version_id WHERE s.id = ${id} AND s.tenant_id = ${tenantId}`;
     if (!s) continue;
     if (!bundles.has(s.scenario_version)) bundles.set(s.scenario_version, await loadBundle(tenantId, s.scenario_version_id, s.bundle_hash));
@@ -167,7 +167,8 @@ export async function sessionDigests(tenantId: string, sessionIds: string[], ref
       ...(cr.content.no_risk_statement ? { no_risk_statement: cr.content.no_risk_statement } : {}),
       ...(cr.content.retry_plan?.instruction ? { retry_instruction: cr.content.retry_plan.instruction } : {}),
     } : null;
-    digests.push({ ref: `S${refStart + i}`, session_id: id, language: s.language ?? 'en', scenario_version: s.scenario_version, retry_of: s.parent_session_id, assessment, coaching, transcript });
+    // A graded assessment has no coaching report by design; the agent should not report that as missing.
+    digests.push({ ref: `S${refStart + i}`, session_id: id, language: s.language ?? 'en', scenario_version: s.scenario_version, retry_of: s.parent_session_id, kind: s.kind ?? 'practice', assessment, coaching, transcript });
   }
   return { digests, bundles };
 }
