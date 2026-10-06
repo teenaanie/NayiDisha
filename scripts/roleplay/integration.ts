@@ -27,6 +27,8 @@ export async function integrationTests(): Promise<Check[]> {
   const host = new URL(process.env.DATABASE_URL ?? 'postgres://127.0.0.1').hostname;
   if (!['127.0.0.1', 'localhost'].includes(host)) throw new Error(`Integration tests mutate data; refusing to run against ${host}. Point DATABASE_URL at a local database.`);
 
+  // Sessions from earlier runs of this suite may remain in the database; the training checks look only at this run's.
+  const [{ suiteStart }] = await sql<{ suiteStart: Date }[]>`SELECT now() AS "suiteStart"`;
   await seedRoleplay(() => {});
   const [nd] = await sql<{ id: string }[]>`SELECT id FROM rp.tenant WHERE slug = 'nayidisha'`;
   const [acme] = await sql<{ id: string }[]>`SELECT id FROM rp.tenant WHERE slug = 'acme-training'`;
@@ -429,6 +431,82 @@ export async function integrationTests(): Promise<Check[]> {
     ok('LANG', 'A retry keeps the parent\'s language', hrs.language === 'hi' && /^नमस्ते/.test(hr.session.transcript[0].text), hrs.language);
     const brief = await rp.getBrief(asha, 'EDU_DISCOVERY_001');
     ok('LANG', 'The brief lists English, Hindi and Marathi, with the translations marked draft', JSON.stringify(brief.languages.map((l) => `${l.id}:${l.review_status}`)) === JSON.stringify(['en:source', 'hi:draft', 'mr:draft']));
+  }
+
+  // ---- AI training agent (operator menu → AI training) ---------------------------------
+  {
+    await sql`DELETE FROM rp.training_run`;
+    let denied = '';
+    try { await rp.listTrainingRuns(asha); } catch (e) { denied = (e as rp.ApiError).code; }
+    ok('TRAIN', 'Only authors and tenant admins can use the training agent', denied === 'FORBIDDEN', denied);
+    // A scripted agent: one exact quote, one invented quote, and one tester-note finding.
+    const calls: { sessions: number; merge: boolean }[] = [];
+    overrideProvider('train', { id: 'fake_live', model: 'fake-pro', live: true, complete: async (req) => {
+      const d = req.data as { sessions_json?: { ref: string; transcript: { turn: number; text: string }[] }[]; batches_json?: { summary: string; suggestions: unknown[] }[] };
+      calls.push({ sessions: d.sessions_json?.length ?? 0, merge: !!d.batches_json });
+      const text = d.batches_json
+        ? JSON.stringify({ summary: 'Merged review.', suggestions: d.batches_json.flatMap((b) => b.suggestions).slice(0, 2), tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }] })
+        : JSON.stringify({ summary: `Reviewed ${d.sessions_json!.length} sessions.`, tester_note_findings: [{ note_index: 0, verdict: 'confirmed', explanation: 'Seen in S1.' }], suggestions: [
+            { area: 'customer_replies', severity: 'high', title: 'Opening line', observation: 'Quoted exactly.', evidence: [{ session_ref: d.sessions_json![0].ref, turn: d.sessions_json![0].transcript[0].turn, quote: Array.from(d.sessions_json![0].transcript[0].text).slice(0, 12).join('') }], proposed_change: 'Keep it.', occurrences: 1, tester_note_indexes: [] },
+            { area: 'assessment', severity: 'medium', title: 'Invented quote', observation: 'Not in the transcript.', evidence: [{ session_ref: d.sessions_json![0].ref, turn: 0, quote: 'this sentence was never said' }], proposed_change: 'Nothing.', occurrences: 1, tester_note_indexes: [] },
+            { area: 'scenario_content', severity: 'medium', title: 'From the tester', observation: 'Tester saw it.', evidence: [], proposed_change: 'Add the fee breakup.', occurrences: 1, tester_note_indexes: [0] }] });
+      return { text, provider: 'fake_live', model: 'fake-pro', request_id: null, usage: null, latency_ms: 1 };
+    } });
+    const started = await rp.startTrainingRun(meera, nd.id, { trigger: 'manual', from: suiteStart, notes: '- The breakup needs more detail.\n\n- Said son instead of daughter.' });
+    let busy = '';
+    try { await rp.startTrainingRun(meera, nd.id, { trigger: 'manual' }); } catch (e) { busy = (e as rp.ApiError).code; }
+    ok('TRAIN', 'Only one run at a time per tenant', busy === 'TRAINING_RUN_ACTIVE', busy);
+    const units = await rp.advanceTrainingRuns({ runId: started.id, budgetMs: 60000 });
+    const t1 = await rp.getTrainingRun(meera, started.id);
+    const steps = Math.ceil(started.sessions / rp.SESSIONS_PER_STEP);
+    ok('TRAIN', 'A run reviews the assessed sessions in batches, then merges them', started.sessions > 0 && t1.run.status === 'in_review' && calls.filter((c) => !c.merge).length === steps && calls.some((c) => c.merge) === (steps > 1) && units === steps + 1,
+      `${started.sessions} sessions, ${steps} steps, ${units} units, ${calls.length} calls, ${t1.run.status}`);
+    ok('TRAIN', 'Tester notes are split one per line', JSON.stringify(t1.notes) === JSON.stringify(['The breakup needs more detail.', 'Said son instead of daughter.']), JSON.stringify(t1.notes));
+    const titles = t1.suggestions.map((x) => x.title);
+    ok('TRAIN', 'A suggestion quoting the transcript is kept; one with an invented quote is dropped; a tester-note one is kept without quotes',
+      titles.includes('Opening line') && !titles.includes('Invented quote') && t1.suggestions.find((x) => x.title === 'From the tester')?.source === 'tester_note' && t1.suggestions[0].severity === 'high',
+      titles.join(' | '));
+    const ev = t1.suggestions.find((x) => x.title === 'Opening line')!.evidence[0];
+    const [turn] = await sql<{ text: string }[]>`SELECT text FROM rp.turn WHERE session_id = ${ev.session_id} AND sequence = ${ev.turn}`;
+    ok('TRAIN', 'Kept evidence points at a real session turn that contains the quote', !!turn && turn.text.includes(ev.quote), ev.quote);
+    ok('TRAIN', 'Each tester note gets a finding', (t1.run.result as { tester_note_findings: { verdict: string }[] }).tester_note_findings[0]?.verdict === 'confirmed');
+    let early = '';
+    try { await rp.approveTrainingRun(meera, started.id); } catch (e) { early = (e as rp.ApiError).code; }
+    ok('TRAIN', 'A run cannot be approved while suggestions are undecided', early === 'SUGGESTIONS_PENDING', early);
+    for (const x of t1.suggestions) {
+      if (x.title === 'From the tester') await rp.reviewSuggestion(meera, x.id, { status: 'accepted', edited_change: 'Add a fee breakup: ₹3 lakh tuition, ₹1.2 lakh hostel.', reviewer_note: 'Owner approved the figures.' });
+      else await rp.reviewSuggestion(meera, x.id, { status: 'rejected', reviewer_note: 'Works as intended.' });
+    }
+    const brief = await rp.approveTrainingRun(meera, started.id);
+    ok('TRAIN', 'Approval writes a build brief with the accepted (edited) change, the tester notes and what was not accepted',
+      /## Changes to build \(1\)/.test(brief) && brief.includes('Add a fee breakup: ₹3 lakh tuition, ₹1.2 lakh hostel.') && brief.includes('Owner approved the figures.') && /Confirmed\. Seen in S1\./.test(brief) && /## Not accepted \(1\)/.test(brief), brief.slice(0, 160));
+    let locked = '';
+    try { await rp.reviewSuggestion(meera, t1.suggestions[0].id, { status: 'pending' }); } catch (e) { locked = (e as rp.ApiError).code; }
+    ok('TRAIN', 'An approved run is closed for review', locked === 'RUN_NOT_IN_REVIEW', locked);
+    const { runs, watermark } = await rp.listTrainingRuns(meera);
+    ok('TRAIN', 'The run log records the period assessed; the next run starts where it ended', runs.length === 1 && !!watermark && +watermark === +t1.run.period_to, `${watermark?.toISOString()}`);
+    const second = await rp.startTrainingRun(meera, nd.id, { trigger: 'manual' });
+    const t2 = await rp.getTrainingRun(meera, second.id);
+    ok('TRAIN', 'With nothing new assessed, a run is logged straight away with nothing to review', second.sessions === 0 && t2.run.status === 'in_review' && +t2.run.period_from === +watermark!, `${t2.run.status}, ${second.sessions} sessions`);
+    // The Monday schedule starts one weekly run per tenant with sessions, and not twice in a week.
+    await sql`DELETE FROM rp.training_run WHERE id = ${second.id}`;
+    const monday = new Date('2026-10-12T02:00:00Z');
+    const w1 = await rp.trainingCronTick(monday, 60000);
+    const w2 = await rp.trainingCronTick(new Date(+monday + 3600000), 60000);
+    const tue = await rp.trainingCronTick(new Date('2026-10-13T02:00:00Z'), 1000);
+    ok('TRAIN', 'The Monday schedule starts a weekly run once; other days only advance work', w1.started.length >= 1 && w2.started.length === 0 && tue.started.length === 0, `${w1.started.length}/${w2.started.length}/${tue.started.length}`);
+    // A failing agent: three attempts, then the run fails and can be retried.
+    overrideProvider('train', { id: 'down', model: 'down', live: true, complete: async () => { throw new ProviderError('HTTP 500', false); } });
+    await sql`DELETE FROM rp.training_run`;
+    const f = await rp.startTrainingRun(meera, nd.id, { trigger: 'manual' });
+    await rp.advanceTrainingRuns({ runId: f.id, budgetMs: 60000 });
+    const tf = await rp.getTrainingRun(meera, f.id);
+    ok('TRAIN', 'A step that keeps failing fails the run with a reason (no partial review)', tf.run.status === 'failed' && /could not be reviewed after 3 attempts/.test(tf.run.error ?? ''), tf.run.error ?? '');
+    overrideProvider('train', null);
+    await rp.retryTrainingRun(meera, f.id);
+    await rp.advanceTrainingRuns({ runId: f.id, budgetMs: 60000 });
+    ok('TRAIN', 'A failed run can be retried (here with the offline reviewer)', (await rp.getTrainingRun(meera, f.id)).run.status === 'in_review');
+    await sql`DELETE FROM rp.training_run`;
   }
 
   // ---- audit and metrics ------------------------------------------------------------

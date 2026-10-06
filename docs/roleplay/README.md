@@ -89,6 +89,17 @@ Exact source fixtures and the opening line never call a model.
 - **Scoring** credits the intents the runtime actually acted on, so paraphrases that the customer understood also count.
 - **Model per task.** `RP_LLM_MODEL_CLASSIFIER` can point the classifier at a cheaper model.
 
+## AI training agent (operator menu → AI training)
+
+Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner: customer replies, question understanding, scenario content, assessment and coaching (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v1` and `trainer_merge_v1`, migration 020).
+
+- **Run log.** `rp.training_run` records the period each run assessed. The next run starts where the last successful one ended, so "reports assessed up to" is always known. A run covers at most 40 sessions, oldest first; the rest go to the next run.
+- **Tester notes.** One observation per line. The agent checks each against the transcripts (confirmed, partly, not found, not checkable) and turns confirmed ones into suggestions.
+- **Evidence is checked.** Every quote must match the cited turn; unmatched quotes are discarded, and an agent suggestion left with no evidence is dropped (one from a tester note is kept).
+- **Human review.** Each suggestion is accepted (optionally with an edited change), rejected or left undecided. Approval needs every suggestion decided and writes a Markdown **build brief** (copy or download) to hand to a developer. Nothing changes live content by itself.
+- **Steps.** A run is split into batches of 5 sessions, one model call each (about 30 s with 3.1 Pro), then a merge call. Work advances while the run page is open and from the daily cron (`/api/cron/ai-training`, 02:00 UTC), which also starts the weekly run on Mondays. A batch that fails 3 times fails the run, which can be retried.
+- **Settings.** `RP_LLM_MODEL_TRAINER` (production: `gemini-3.1-pro-preview`; Gemini 2.5 Pro is closed to new API users), `RP_LLM_REASONING_EFFORT_TRAIN` (default `medium`; the global `none` does not apply), `RP_TRAIN_TIMEOUT_MS` (default 240 s), `CRON_SECRET` (required by the cron route). Calls appear on the AI usage page as "Practice coach — AI training agent".
+
 ## Conversation languages
 
 A scenario can offer Hindi and Marathi alongside its source language (`extensions.nd_runtime.translations`, see AUTHORING.md). The learner chooses on the start card; the brief switches with the choice, and the whole session stays in that language, including retries (`rp.session.language`, migration 018).
