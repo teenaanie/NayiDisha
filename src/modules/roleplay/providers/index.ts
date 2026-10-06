@@ -12,9 +12,9 @@
  *         local vLLM). Selected by env; nothing here names a vendor.
  */
 import { mockComplete } from './mock';
-import { recordUsage, openaiTokens } from '@/modules/ai-usage';
+import { recordUsage, openaiTokens, billedOutputTokens } from '@/modules/ai-usage';
 
-export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify';
+export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify' | 'train';
 
 export interface CompletionRequest {
   task: Task;
@@ -112,7 +112,9 @@ class OpenAICompatibleProvider implements ModelProvider {
           // Reasoning models spend output tokens thinking; turn it down where the provider allows.
           // A per-task override (e.g. RP_LLM_REASONING_EFFORT_EVALUATE=low) lets the assessment think while replies stay fast.
           ...((): { reasoning_effort?: string } => {
-            const effort = process.env[`RP_LLM_REASONING_EFFORT_${req.task.toUpperCase()}`] ?? process.env.RP_LLM_REASONING_EFFORT;
+            // The training agent reviews many sessions and should think; a deployment-wide "none"
+            // (for fast replies) does not apply to it, and Gemini 2.5 Pro cannot turn thinking off.
+            const effort = process.env[`RP_LLM_REASONING_EFFORT_${req.task.toUpperCase()}`] ?? (req.task === 'train' ? 'medium' : process.env.RP_LLM_REASONING_EFFORT);
             return effort ? { reasoning_effort: effort } : {};
           })(),
           response_format: req.schema
@@ -123,6 +125,7 @@ class OpenAICompatibleProvider implements ModelProvider {
         // A customer reply must be quick; an assessment of a whole transcript may not be.
         signal: AbortSignal.timeout(req.task === 'roleplay' || req.task === 'classify'
           ? Number(process.env.RP_PROVIDER_TIMEOUT_MS ?? 30000)
+          : req.task === 'train' ? Number(process.env.RP_TRAIN_TIMEOUT_MS ?? 240000)
           : Number(process.env.RP_EVAL_TIMEOUT_MS ?? 120000)),
       });
     } catch (e) {
@@ -140,7 +143,7 @@ class OpenAICompatibleProvider implements ModelProvider {
       text: String(body?.choices?.[0]?.message?.content ?? ''),
       provider: this.id, model: this.model,
       request_id: body?.id ?? res.headers.get('x-request-id'),
-      usage: body?.usage ? { input_tokens: body.usage.prompt_tokens ?? 0, output_tokens: body.usage.completion_tokens ?? 0 } : null,
+      usage: body?.usage ? { input_tokens: body.usage.prompt_tokens ?? 0, output_tokens: billedOutputTokens(body.usage) } : null,
       latency_ms: Date.now() - started,
     };
   }
@@ -159,7 +162,8 @@ export function providerFor(task: Task): ModelProvider {
     const key = process.env.RP_LLM_API_KEY || (process.env.RP_LLM_API_KEY_FROM ? process.env[process.env.RP_LLM_API_KEY_FROM] : undefined);
     // Separate models per task are optional; on quota-limited tiers they also spread usage across buckets.
     const model = (task === 'evaluate' || task === 'coach') ? (process.env.RP_LLM_MODEL_EVALUATOR ?? process.env.RP_LLM_MODEL)
-      : task === 'classify' ? (process.env.RP_LLM_MODEL_CLASSIFIER ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
+      : task === 'classify' ? (process.env.RP_LLM_MODEL_CLASSIFIER ?? process.env.RP_LLM_MODEL)
+      : task === 'train' ? (process.env.RP_LLM_MODEL_TRAINER ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
     if (!base || !key || !model) throw new Error('RP_PROVIDER=openai_compatible needs RP_LLM_BASE_URL, RP_LLM_MODEL and a key (RP_LLM_API_KEY, or RP_LLM_API_KEY_FROM naming the variable that holds it).');
     return new OpenAICompatibleProvider(base, key, model);
   }

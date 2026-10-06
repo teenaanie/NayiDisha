@@ -30,6 +30,22 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
       return JSON.stringify(mockJudge(req.data as never));
     case 'coach':
       return JSON.stringify(mockCoach(req.data as never));
+    case 'train': {
+      // Merge: concatenate the batches. Review: flag customer replies that fell back or had a
+      // draft rejected, quoting them exactly; tester notes are recorded as not checkable.
+      const notes = (req.data.tester_notes_json ?? []) as { index: number }[];
+      const findings = notes.map((n) => ({ note_index: n.index, verdict: 'not_checkable', explanation: 'The offline reviewer does not check notes.' }));
+      if (req.data.batches_json) {
+        const batches = req.data.batches_json as { summary: string; suggestions: unknown[] }[];
+        return JSON.stringify({ summary: batches.map((b) => b.summary).join(' '), suggestions: batches.flatMap((b) => b.suggestions), tester_note_findings: findings });
+      }
+      const sessions = (req.data.sessions_json ?? []) as { ref: string; transcript: { turn: number; speaker: string; text: string; note?: string }[] }[];
+      const suggestions = sessions.flatMap((s) => s.transcript.filter((t) => t.speaker === 'customer' && /reply=fallback|rejected=/.test(t.note ?? '')).map((t) => ({
+        area: 'customer_replies', severity: 'medium', title: `Customer reply needed a fallback in ${s.ref}`, observation: `The AI customer's draft was rejected: ${t.note}.`,
+        evidence: [{ session_ref: s.ref, turn: t.turn, quote: Array.from(t.text).slice(0, 24).join('') }], proposed_change: 'Review the rejected draft reason and adjust the customer instructions or facts.', occurrences: 1, tester_note_indexes: [],
+      })));
+      return JSON.stringify({ summary: `Offline review of ${sessions.length} session${sessions.length === 1 ? '' : 's'}.`, suggestions, tester_note_findings: findings });
+    }
     case 'classify':
       return JSON.stringify({ intents: [], is_question: false, other_question: '' });
   }

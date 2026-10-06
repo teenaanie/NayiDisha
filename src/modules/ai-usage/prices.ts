@@ -36,6 +36,10 @@ const DEFAULTS: Record<string, Price> = {
   'claude-haiku-4-5': { input: 1, output: 5 },
   'gemini-2.5-flash-lite': { input: 0.1, output: 0.4 },
   'gemini-2.5-flash': { input: 0.3, output: 2.5 },
+  // Prompts up to 200k tokens (training runs stay below that per call). Gemini 2.5 Pro is closed
+  // to new API users; the training agent uses 3.1 Pro (preview), priced like Gemini 3 Pro.
+  'gemini-2.5-pro': { input: 1.25, output: 10 },
+  'gemini-3.1-pro-preview': { input: 2, output: 12 },
 };
 
 /** Rupees per dollar, for showing costs in ₹ and converting rupee prices. */

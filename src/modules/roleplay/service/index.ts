@@ -10,5 +10,6 @@ export * from './registry';
 export * from './analytics';
 export { drain, runOne } from './jobs';
 export { purgeExpired } from './retention';
+export * from './training';
 export { LIMITS } from './guards';
 export { voiceCapabilities, setVoiceConsent, hasVoiceConsent, transcribe, speak } from './voice';

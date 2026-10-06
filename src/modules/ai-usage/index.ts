@@ -52,7 +52,19 @@ export function geminiTokens(body: any): Tokens {
 export function openaiTokens(body: any): Tokens {
   const u = body?.usage ?? {};
   const cached = u.prompt_tokens_details?.cached_tokens ?? 0;
-  return { inputTokens: (u.prompt_tokens ?? 0) - cached, cachedTokens: cached, outputTokens: u.completion_tokens ?? 0 };
+  return { inputTokens: (u.prompt_tokens ?? 0) - cached, cachedTokens: cached, outputTokens: billedOutputTokens(u) };
+}
+
+/**
+ * Output tokens as billed. Gemini's OpenAI-compatible endpoint leaves thinking out of
+ * completion_tokens but counts it in total_tokens, and bills it at the output rate (a reply
+ * of 2 tokens reported total 26 with prompt 3). OpenAI already includes reasoning in
+ * completion_tokens, so the larger of the two is right for both.
+ */
+export function billedOutputTokens(u: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }): number {
+  const completion = u.completion_tokens ?? 0;
+  const rest = (u.total_tokens ?? 0) - (u.prompt_tokens ?? 0);
+  return Math.max(completion, rest);
 }
 
 /** Length of a PCM WAV from its header; null for other formats (webm, ogg). */
