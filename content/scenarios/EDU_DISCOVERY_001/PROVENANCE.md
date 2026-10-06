@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v3.1.1: provenance
+# EDU_DISCOVERY_001 v4.0.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -51,5 +51,12 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   not cover); "not timing" examples for "how soon can you arrange those?".
 - **3.1.1 (3 Oct 2026):** prompt `roleplay_v3`; a sub-question no fixed answer covers
   ("…and which bank gave you the loan?") gets a short reply after the fixed answer.
+- **4.0.0 (owner decisions, 6 Oct 2026), from the testers' observations:** cost
+  breakup (first year about ₹4.5 lakh: ₹3 lakh tuition and admission, ₹1.2 lakh hostel
+  and food, ₹30,000 books and other), own contribution ₹50,000 from savings (loan ₹4
+  lakh), classes start in about a month. Exploring the breakup and asking about the own
+  contribution are scored Questioning & Discovery checks (framework areas 3 and 4).
+  Open questions about the need count as asking the purpose; topic words and "son" are
+  blocked in generated replies [R].
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

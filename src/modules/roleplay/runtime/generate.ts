@@ -70,6 +70,18 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
     }
   }
 
+  // Topic words of facts not yet out ("college", "fees" before the purpose was asked), unless the
+  // learner said them first, and words that contradict the profile. A free reply to "tell me
+  // about your requirement" invented "my son's college fees" (live runs, 4–6 Oct 2026).
+  const rt = runtimeOf(bundle);
+  const learnerSaid = [learnerText, ...history.filter((t) => t.speaker === 'learner').map((t) => t.text)].join(' ');
+  for (const [factId, terms] of Object.entries(rt.hidden_fact_terms)) {
+    if (allowed.has(factId)) continue;
+    const t = terms.find((w) => hasTerm(c.text, w) && !hasTerm(learnerSaid, w));
+    if (t) return { ok: false, reason: `hidden_fact:${factId}` };
+  }
+  if (rt.forbidden_terms.some((w) => hasTerm(c.text, w))) return { ok: false, reason: 'forbidden_term' };
+
   // Named entities: a capitalised word mid-sentence that appears nowhere in the permitted context.
   const known = new Set((context.match(/\b[A-Z][\p{L}]+/gu) ?? []));
   for (const s of c.text.split(/(?<=[.!?])\s+/)) {
@@ -107,6 +119,12 @@ export function withoutRepeats(generated: string, said: string[]): string {
   };
   const kept = sentences(generated).filter((s) => !repeats(s.text)).map((s) => s.text);
   return kept.join(' ');
+}
+
+/** Whole-word match for Latin-script words ("son" is not in "reason"); substring otherwise. */
+export function hasTerm(text: string, term: string): boolean {
+  if (/^[\p{Script=Latin}\d .'-]+$/u.test(term)) return new RegExp(`(?<![\\p{L}])${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}])`, 'iu').test(text);
+  return text.includes(term);
 }
 
 export interface GenerateInput {

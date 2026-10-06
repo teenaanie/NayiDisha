@@ -11,7 +11,7 @@ import { openingFactIds, discoveryComplete, resolveDisclosure } from '../../src/
 import { classify } from '../../src/modules/roleplay/runtime/intents';
 import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
 import type { Language } from '../../src/modules/roleplay/runtime/language';
-import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply } from '../../src/modules/roleplay/runtime/generate';
+import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
@@ -428,6 +428,9 @@ export async function unitTests(): Promise<Check[]> {
       ['Have you taken a loan before?', 'Yes, I took a vehicle loan before. Also, my previous loan had extra charges.'],
       ["What is your daughter's name?", 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
       ['Which college has she got admission in?', 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
+      ['Can you give me the breakup of the ₹4 lakh?', 'The first year comes to about ₹4.5 lakh: around ₹3 lakh for tuition and admission, about ₹1.2 lakh for hostel and food, and about ₹30,000 for books and other costs.'],
+      ['How much can you pay from your side?', 'I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan.'],
+      ['When does the academic year start?', 'Classes start in about a month. That is why the fees have to be paid within 30 days.'],
       ['What matters most to you in this loan?', 'Most important for me is an EMI I can manage every month. Quick processing would also help.'],
       ['Do you have any concerns about taking a loan?', "Last time I was surprised by some additional charges. I don't want any hidden charges this time."],
       ['What loan tenure do you prefer?', "I haven't decided. Whatever keeps the EMI comfortable."],
@@ -467,7 +470,7 @@ export async function unitTests(): Promise<Check[]> {
     ok('PS19', 'A cue is not volunteered once the learner has already covered its topic', !sb3.reply.text.includes('very high EMI') && !sb3.plan.released_fact_ids.includes('cue_low_emi'), sb3.reply.text);
     const sv = conv3();
     for (const q of ['What do you need the loan for?', 'When exactly do you need the money?', 'What matters most to you in this loan?', 'What loan tenure do you prefer?']) await sv.say(q);
-    const sc5 = await sv.say('Is the loan only for tuition, or for hostel costs too?');
+    const sc5 = await sv.say('Which branch did you visit last time?');
     ok('PS20', 'A question the facts do not cover is still answered before a due cue', sc5.plan.kind === 'acknowledge' && sc5.reply.text.startsWith('I see. Please go on.') && sc5.reply.text.endsWith('And I already have another EMI.') && sc5.reply.attempts.length === 1, sc5.reply.text);
     const hs = await conv3('hi').say("What is your daughter's name?");
     const ms = await conv3('mr').say("What is your daughter's name?");
@@ -485,6 +488,22 @@ export async function unitTests(): Promise<Check[]> {
     ok('PS23', 'A leftover sub-question gets a short reply after the fixed answer, releasing nothing', plan23.parts.map((x) => x.kind).join(',') === 'fixture,respond' && r23.text === 'Yes, I pay ₹8,000 a month for my vehicle loan. ' + p.conversation.unknown_response && !r23.disclosed_fact_ids.some((f) => !['existing_emi', 'previous_loan'].includes(f)), `${plan23.parts.map((x) => x.kind).join(',')} | ${r23.text}`);
     const plain23 = resolveDisclosure(p, classify(p, q23, { discoveryComplete: false }), new Set(['cue_soon']));
     ok('PS23', 'Without a leftover question the plan is unchanged', !plain23.parts.some((x) => x.kind === 'respond'));
+
+    // v4.0.0 (6 Oct 2026): fee breakup, own contribution, and no invented "son".
+    const v4ids = p.rubric.dimensions.find((d) => d.id === 'questioning_discovery')!.check_ids;
+    ok('PS24', 'v4 scores the cost breakup and own contribution under Questioning & Discovery', p.scenario.version === '4.0.0' && v4ids.includes('cost_breakup') && v4ids.includes('own_contribution'), v4ids.join(','));
+    const json = (text: string, ids: string[] = []) => JSON.stringify({ text, used_fact_ids: ids, requested_end: false });
+    const opening = [{ id: 'o', sequence: 0, speaker: 'customer' as const, text: p.conversation.opening_text, origin: 'opening' as const }];
+    const ask = 'Could you tell me more about your requirement?';
+    const son = validateRoleplayOutput(p, json("Yes, I need a loan for my son's college fees."), ['cue_soon'], ask, opening);
+    const topic = validateRoleplayOutput(p, json('Yes, I need a loan for the college fees.'), ['cue_soon'], ask, opening);
+    const fine = validateRoleplayOutput(p, json('Yes, I need the money soon.'), ['cue_soon'], ask, opening);
+    ok('PS25', 'A free reply may not invent a son, nor name the loan purpose before it is out', !son.ok && !topic.ok && fine.ok, `${son.ok ? 'ok' : son.reason} | ${topic.ok ? 'ok' : topic.reason} | ${fine.ok ? 'ok' : fine.reason}`);
+    const echoed = validateRoleplayOutput(p, json('Yes, it is for college.'), ['cue_soon'], 'Is this loan for college?', opening);
+    const after = validateRoleplayOutput(p, json('As I said, it is for her college fees.', ['purpose']), ['cue_soon', 'purpose'], 'Tell me again?', opening);
+    ok('PS25', 'A purpose word is fine once the learner said it or the purpose is out', echoed.ok && after.ok, `${echoed.ok ? 'ok' : echoed.reason} | ${after.ok ? 'ok' : after.reason}`);
+    ok('PS25', '"son" matches whole words only; Devanagari terms match as text', hasTerm("my son's fees", 'son') && !hasTerm('for that reason', 'son') && hasTerm('मेरे बेटे की फ़ीस', 'बेटे'), '');
+    ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
     const sc = (xs: number[], risks: string[] = []) => scoreAssessment(p.rubric, p.scoring, p.rubric.dimensions.map((d, i) => ({ dimension_id: d.id, score: xs[i] })), { confirmedRiskRuleIds: risks });

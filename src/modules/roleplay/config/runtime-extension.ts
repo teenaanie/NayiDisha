@@ -64,6 +64,14 @@ export interface RuntimeExtension {
   evaluation_guide: EvaluationGuide | null;
   /** Practice reminders, in minutes; default the scenario's target range. */
   reminder_minutes: number[] | null;
+  /**
+   * Words that would reveal a fact before it is out. A generated reply may not use them while
+   * the fact is not authorised, unless the learner said the word first. Exact values are
+   * already checked; this catches the topic ("my son's college fees" before anyone asked).
+   */
+  hidden_fact_terms: Record<string, string[]>;
+  /** Words a generated reply may never use, because they contradict the profile (e.g. "son"). */
+  forbidden_terms: string[];
 }
 
 export interface EvaluationGuide {
@@ -113,6 +121,7 @@ export const EMPTY_RUNTIME: RuntimeExtension = {
   question_free_intents: [], discovery_gate: null, discovery_conditioned: [], absence_checks: {},
   check_cues: {}, jargon_terms: [], acknowledgement_text: null, derivations: [], translations: {},
   volunteered_cues: [], cue_follow_ups: [], evaluation_guide: null, reminder_minutes: null,
+  hidden_fact_terms: {}, forbidden_terms: [],
 };
 
 export function runtimeOf(b: ScenarioBundle): RuntimeExtension {
@@ -227,6 +236,13 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
     if (!strings(g.exclusions)) err(`${G}/exclusions`, 'Must be a list of rules.');
     if (!strings(g.principles)) err(`${G}/principles`, 'Must be a list of rules.');
   }
+  const factIds = new Set(b.facts.map((f) => f.id));
+  if (typeof x.hidden_fact_terms !== 'object' || x.hidden_fact_terms === null || Array.isArray(x.hidden_fact_terms)) err(`${P}/hidden_fact_terms`, 'Must be an object of fact ID → words.');
+  else for (const [f, terms] of Object.entries(x.hidden_fact_terms)) {
+    if (!factIds.has(f)) err(`${P}/hidden_fact_terms/${f}`, `Unknown fact "${f}".`);
+    if (!strings(terms)) err(`${P}/hidden_fact_terms/${f}`, 'Must be a list of words.');
+  }
+  if (!strings(x.forbidden_terms) && !(Array.isArray(x.forbidden_terms) && !x.forbidden_terms.length)) err(`${P}/forbidden_terms`, 'Must be a list of words.');
   if (x.reminder_minutes !== null && x.reminder_minutes !== undefined) {
     const r = x.reminder_minutes;
     if (!Array.isArray(r) || !r.length || r.some((m, i) => !(Number.isInteger(m) && m > 0 && m <= 120) || (i > 0 && m <= r[i - 1]))) err(`${P}/reminder_minutes`, 'Must be ascending whole minutes between 1 and 120.');

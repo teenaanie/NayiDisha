@@ -109,6 +109,7 @@ A scenario can offer Hindi and Marathi alongside its source language (`extension
 - **Evaluator knowledge base** (`nd_runtime.evaluation_guide`): what each skill measures, what to look for, the owner's 1–5 guidance, the discovery framework (not a checklist), cues and expected follow-ups, acceptable question variations, and the exclusions that stop one behaviour being scored twice. `evaluator_v2` reads it; its answer (contract 1.1) gives every skill a rationale and one coaching suggestion.
 - **Report** (owner's format): a table of Skill · What you are measuring · Weight · Your score · Evidence · Coaching feedback, the overall score and band with the interpretation line, a "What each level means" table, then What went well, Areas of improvement and Top 3 questions that were missed (in the framework's priority order).
 - **Timing:** target 12–15 minutes; reminders at 12 and 15 (`nd_runtime.reminder_minutes`); no forced end.
+- **4.0.0 (6 Oct 2026):** two more scored discovery areas, the cost breakup (₹4.5 lakh: ₹3 lakh tuition and admission, ₹1.2 lakh hostel and food, ₹30,000 books and other) and the customer's own contribution (₹50,000 from savings), plus when classes start. Open questions ("tell me about your requirement") count as asking the purpose. Generated replies may not use a fact's topic words before it is out, nor words that contradict the profile (`nd_runtime.hidden_fact_terms`, `forbidden_terms`), after a free reply invented "my son's college fees".
 
 ## Demo walkthrough (about 10 minutes)
 

@@ -1,4 +1,4 @@
-# Generates content/scenarios/EDU_DISCOVERY_001/source.json (v3) from the owner's
+# Generates content/scenarios/EDU_DISCOVERY_001/source.json (v3, v4) from the owner's
 # "Simulation Prototype" (see PROVENANCE.md). Edit here, then run:
 #   python3 scripts/roleplay/build-edu-v3.py content/scenarios/EDU_DISCOVERY_001/source.json
 # and bump scenario.version: published versions are immutable.
@@ -14,6 +14,10 @@ facts = [
  fact("purpose", "text", "for his daughter's college admission fees", ["loan_purpose"]),
  fact("student_details", "text", "his daughter Priya has got admission for B.Com at a college in Pune", ["student_details"], ref="recommendation"),
  fact("loan_amount", "money", {"amount_minor": 40000000, "currency": "INR"}, ["loan_amount"]),
+ fact("total_cost", "money", {"amount_minor": 45000000, "currency": "INR"}, ["cost_breakup"], ref="owner decision 6 Oct 2026"),
+ fact("cost_breakup", "text", "tuition and admission about ₹3 lakh, hostel and food about ₹1.2 lakh, books and other costs about ₹30,000", ["cost_breakup"], ref="owner decision 6 Oct 2026"),
+ fact("own_contribution", "money", {"amount_minor": 5000000, "currency": "INR"}, ["own_contribution"], ref="owner decision 6 Oct 2026"),
+ fact("course_start", "text", "classes start in about a month", ["course_start"], ref="owner decision 6 Oct 2026"),
  fact("needed_by", "relative_deadline", {"amount": 30, "unit": "days", "relative_to": "scenario_start"}, ["timing"]),
  fact("employment", "text", "salaried employee", ["employment"]),
  fact("monthly_income", "money", {"amount_minor": 5500000, "currency": "INR"}, ["income"]),
@@ -32,7 +36,12 @@ facts = [
 NEG = ["Customer volunteers this information.", "Learner merely mentions the topic without asking or checking."]
 def intent(id, desc, ex, neg=()): return {"id": id, "description": desc, "positive_examples": ex, "negative_examples": NEG + list(neg)}
 intents = [
- intent("loan_purpose", "Asks why the customer needs the money.", ["What do you need the loan for?", "What is the purpose of the loan?", "Why do you need the money?", "What will you use this money for?"]),
+ intent("loan_purpose", "Asks why the customer needs the money, including open questions about the customer's need or situation.", ["What do you need the loan for?", "What is the purpose of the loan?", "Why do you need the money?", "What will you use this money for?", "Could you tell me more about your requirement?", "May I know about your needs and your situation?", "What brings you here today?"]),
+ intent("cost_breakup", "Asks what the amount covers: the total cost and its breakup (tuition, hostel, food, other expenses).", ["Can you give me the breakup of the ₹4 lakh?", "Is it only for tuition or for other expenses too?", "Does it include hostel and food?", "What is the total cost of the course?", "How much is the college fee?", "What does the amount cover?"],
+  ["How much can you pay from your side?"]),
+ intent("own_contribution", "Asks how much the customer will pay from own savings or funds.", ["How much can you pay from your side?", "Will you put in any money yourself?", "Do you have any savings for this?", "How much are you contributing yourself?", "How much are you willing to pay from your own pocket?"],
+  ["How much can you pay every month?", "What EMI can you manage each month?"]),
+ intent("course_start", "Asks when the course or academic year starts.", ["When does the academic year start?", "When do classes begin?", "When does the course start?"]),
  intent("student_details", "Asks about the student: the daughter's name, college or course.", ["What is your daughter's name?", "Which college has she got admission in?", "Which course is she joining?", "Where will she be studying?"]),
  intent("loan_amount", "Asks how much the customer needs.", ["How much loan do you need?", "What amount are you looking for?", "How much money do you require?", "Roughly how much do you need?", "How much do you need?"]),
  intent("timing", "Asks when the funds are required (not when the customer can provide documents or details).", ["When exactly do you need the money?", "By what date do you need the funds?", "How soon do you need it?", "When do the fees have to be paid?"],
@@ -42,7 +51,8 @@ intents = [
  intent("income", "Asks about the customer's income or cash flow.", ["What is your monthly income?", "How much do you earn every month?", "What is your take-home salary?", "Roughly what is your income?"]),
  intent("existing_commitments", "Asks about existing EMIs or financial obligations.", ["Do you have any other EMIs?", "How much is your current EMI?", "Are you repaying any other loan right now?", "What other monthly commitments do you have?", "You mentioned another EMI. How much do you pay for it each month?", "How much do you pay every month for that loan?"],
   ["Will you be able to manage both loans?", "Can you repay this new loan along with the current one?"]),
- intent("repayment_comfort", "Asks what monthly repayment would be comfortable.", ["What's a comfortable EMI for you?", "How much could you comfortably repay every month?", "What monthly payment would work for your budget?", "What EMI can you manage each month?", "Will you be able to manage this EMI along with your current one?", "Can you afford both loans together?"]),
+ intent("repayment_comfort", "Asks what monthly repayment would be comfortable.", ["What's a comfortable EMI for you?", "How much could you comfortably repay every month?", "What monthly payment would work for your budget?", "What EMI can you manage each month?", "Will you be able to manage this EMI along with your current one?", "Can you afford both loans together?"],
+  ["How much can you pay from your side?", "How much will you contribute from your savings?"]),
  intent("preferred_tenure", "Asks how long the customer wants to repay over.", ["Over how many years would you like to repay?", "What loan tenure do you prefer?", "How long would you like the repayment period to be?", "Do you have a repayment period in mind?"]),
  intent("prior_borrowing", "Asks about previous loan experience.", ["Have you taken a loan before?", "Do you have any previous loan experience?", "Have you borrowed from a bank earlier?", "How was your experience with your last loan?"]),
  intent("priorities", "Asks what matters most to the customer in a loan.", ["What matters most to you in this loan?", "What is most important for you: EMI, interest or speed?", "What are you looking for in a loan?", "What would make a loan right for you?"]),
@@ -57,6 +67,9 @@ def rule(id, intents_, reveal, text=None, pr=100):
 rules = [
  rule("respond_loan_purpose", ["loan_purpose"], ["purpose"], "It is for my daughter's college admission. Her fees have to be paid."),
  rule("respond_loan_amount", ["loan_amount"], ["loan_amount"], "I need about ₹4 lakh."),
+ rule("respond_cost_breakup", ["cost_breakup"], ["total_cost", "cost_breakup"], "The first year comes to about ₹4.5 lakh: around ₹3 lakh for tuition and admission, about ₹1.2 lakh for hostel and food, and about ₹30,000 for books and other costs."),
+ rule("respond_own_contribution", ["own_contribution"], ["own_contribution"], "I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan."),
+ rule("respond_course_start", ["course_start"], ["course_start"], "Classes start in about a month. That is why the fees have to be paid within 30 days."),
  rule("respond_student_details", ["student_details"], ["student_details"], "Her name is Priya. She has got admission for B.Com at a college in Pune."),
  rule("respond_timing", ["timing"], ["needed_by"], "Within 30 days. The fees have to be paid by then."),
  rule("respond_employment", ["employment"], ["employment"], "I am a salaried employee."),
@@ -75,6 +88,8 @@ def chk(id, desc, cat="coverage", method="semantic", intents_=None, credit="lear
 cov = [
  chk("loan_purpose", "Asks why the customer needs the money", exp=["purpose"]),
  chk("loan_amount", "Asks the approximate amount required", exp=["loan_amount"]),
+ chk("cost_breakup", "Explores what the amount covers: total cost and its breakup (tuition, hostel, other expenses)", exp=["total_cost", "cost_breakup"]),
+ chk("own_contribution", "Asks how much the customer will contribute from own funds", exp=["own_contribution"]),
  chk("timing", "Asks when the funds are required", exp=["needed_by"]),
  chk("income", "Asks the customer's approximate income or cash flow", exp=["monthly_income"]),
  chk("existing_commitments", "Asks about existing EMIs or important financial obligations", exp=["existing_emi"]),
@@ -171,6 +186,8 @@ guide = {
  "framework": [
   {"area": "Loan purpose", "information": "Why the customer needs the money", "check_id": "loan_purpose"},
   {"area": "Loan amount", "information": "Approximate amount required", "check_id": "loan_amount"},
+  {"area": "Cost breakup", "information": "What the amount covers: total cost, tuition, hostel, other expenses", "check_id": "cost_breakup"},
+  {"area": "Own contribution", "information": "How much the customer will pay from own funds", "check_id": "own_contribution"},
   {"area": "Timing", "information": "When the funds are required", "check_id": "timing"},
   {"area": "Income", "information": "Approximate income or cash flow", "check_id": "income"},
   {"area": "Existing commitments", "information": "Existing EMIs or important financial obligations", "check_id": "existing_commitments"},
@@ -188,6 +205,8 @@ guide = {
  "variations": [
   {"check_id": "repayment_comfort", "examples": ["What's a comfortable EMI for you?", "How much could you comfortably repay every month?", "What monthly payment would work for your budget?"]},
   {"check_id": "existing_commitments", "examples": ["Do you have any other EMIs?", "How much do you currently pay each month for other loans?", "You mentioned another EMI. How much is it?"]},
+  {"check_id": "cost_breakup", "examples": ["Can you give me the breakup of the ₹4 lakh?", "Is it only tuition, or hostel and food too?", "What is the total cost for the year?"]},
+  {"check_id": "own_contribution", "examples": ["How much can you pay from your side?", "Will you put in some of your own savings?", "How much are you contributing yourself?"]},
   {"check_id": "timing", "examples": ["When exactly do you need the money?", "By what date do the fees have to be paid?", "How soon do you need the funds?"]}],
  "exclusions": [
   "Product knowledge should not affect Questioning & Discovery unless the learner asks an irrelevant or misleading question.",
@@ -213,6 +232,9 @@ hi = {"label": "हिन्दी", "review_status": "draft",
  "rule_responses": {
   "respond_loan_purpose": "यह मेरी बेटी के कॉलेज एडमिशन के लिए है। उसकी फ़ीस भरनी है।",
   "respond_loan_amount": "मुझे लगभग ₹4 लाख चाहिए।",
+  "respond_cost_breakup": "पहले साल का कुल खर्च लगभग ₹4.5 लाख है: लगभग ₹3 लाख ट्यूशन और एडमिशन, लगभग ₹1.2 लाख हॉस्टल और खाना, और लगभग ₹30,000 किताबें और बाकी खर्च।",
+  "respond_own_contribution": "मैं अपनी बचत से लगभग ₹50,000 दे सकता हूँ। बाकी लगभग ₹4 लाख के लिए मुझे लोन चाहिए।",
+  "respond_course_start": "क्लासें लगभग एक महीने में शुरू होंगी। इसीलिए फ़ीस 30 दिनों के अंदर भरनी है।",
   "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के एक कॉलेज में B.Com में एडमिशन मिला है।",
   "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
   "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
@@ -225,7 +247,7 @@ hi = {"label": "हिन्दी", "review_status": "draft",
   "respond_concerns": "पिछली बार कुछ अतिरिक्त चार्ज देखकर मैं हैरान रह गया था। इस बार मुझे कोई छुपा हुआ चार्ज नहीं चाहिए।",
   "respond_premature_pitch": "उससे पहले मैं पक्का करना चाहता हूँ कि EMI मेरे बस में होगी।"},
  "cue_responses": {"low_emi": "लेकिन मैं नहीं चाहता कि EMI बहुत ज़्यादा हो।", "other_emi": "और मेरी एक EMI पहले से चल रही है।", "extra_charges": "और हाँ, पिछले लोन में कुछ अतिरिक्त चार्ज लगे थे।"},
- "intent_examples": {"loan_purpose": "आपको लोन किस लिए चाहिए?", "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?", "loan_amount": "आपको कितने लोन की ज़रूरत है?", "timing": "आपको पैसे ठीक कब तक चाहिए?", "employment": "आप क्या काम करते हैं?", "income": "आपकी महीने की आमदनी कितनी है?", "existing_commitments": "क्या आपकी कोई और EMI चल रही है?", "repayment_comfort": "हर महीने कितनी EMI आप आराम से भर सकते हैं?", "preferred_tenure": "आप कितने सालों में लोन चुकाना चाहेंगे?", "prior_borrowing": "क्या आपने पहले कभी लोन लिया है?", "priorities": "इस लोन में आपके लिए सबसे ज़रूरी क्या है?", "concerns": "लोन को लेकर आपकी कोई चिंता है?"},
+ "intent_examples": {"loan_purpose": "आपको लोन किस लिए चाहिए?", "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?", "cost_breakup": "इन ₹4 लाख में क्या-क्या शामिल है?", "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?", "course_start": "क्लासें कब से शुरू हैं?", "loan_amount": "आपको कितने लोन की ज़रूरत है?", "timing": "आपको पैसे ठीक कब तक चाहिए?", "employment": "आप क्या काम करते हैं?", "income": "आपकी महीने की आमदनी कितनी है?", "existing_commitments": "क्या आपकी कोई और EMI चल रही है?", "repayment_comfort": "हर महीने कितनी EMI आप आराम से भर सकते हैं?", "preferred_tenure": "आप कितने सालों में लोन चुकाना चाहेंगे?", "prior_borrowing": "क्या आपने पहले कभी लोन लिया है?", "priorities": "इस लोन में आपके लिए सबसे ज़रूरी क्या है?", "concerns": "लोन को लेकर आपकी कोई चिंता है?"},
  "retry_lead": "बातचीत का बीच वाला हिस्सा फिर से करें। इस बार कोई भी प्रोडक्ट बताने से पहले वे बातें पूछें जो छूट गई थीं। उदाहरण के लिए:",
  "reply_instruction": "Reply only in Hindi, written in Devanagari script, as a salaried middle-class father would speak. Keep the everyday English banking words people use (EMI, loan, fees). Write amounts with Western digits, for example ₹55,000.",
  "feedback_instruction": "Write every text and suggested_question field in simple Hindi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."}
@@ -238,6 +260,9 @@ mr = {"label": "मराठी", "review_status": "draft",
  "rule_responses": {
   "respond_loan_purpose": "माझ्या मुलीच्या कॉलेज प्रवेशासाठी. तिची फी भरायची आहे.",
   "respond_loan_amount": "मला साधारण ₹4 लाख हवे आहेत.",
+  "respond_cost_breakup": "पहिल्या वर्षाचा एकूण खर्च साधारण ₹4.5 लाख आहे: साधारण ₹3 लाख ट्युशन आणि प्रवेश, साधारण ₹1.2 लाख हॉस्टेल आणि जेवण, आणि साधारण ₹30,000 पुस्तकं आणि इतर खर्च.",
+  "respond_own_contribution": "मी माझ्या बचतीतून साधारण ₹50,000 देऊ शकतो. उरलेल्या साधारण ₹4 लाखांसाठी मला कर्ज हवं आहे.",
+  "respond_course_start": "वर्ग साधारण एका महिन्यात सुरू होतील. म्हणूनच फी 30 दिवसांच्या आत भरायची आहे.",
   "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या एका कॉलेजमध्ये B.Com ला प्रवेश मिळाला आहे.",
   "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
   "respond_employment": "मी पगारदार नोकरी करतो.",
@@ -250,7 +275,7 @@ mr = {"label": "मराठी", "review_status": "draft",
   "respond_concerns": "मागच्या वेळी काही जादा चार्जेस पाहून मला धक्काच बसला होता. या वेळी कोणतेही लपवलेले चार्जेस नकोत.",
   "respond_premature_pitch": "त्याआधी मला खात्री करायची आहे की EMI मला परवडेल."},
  "cue_responses": {"low_emi": "पण EMI खूप जास्त नको.", "other_emi": "आणि माझा एक EMI आधीच चालू आहे.", "extra_charges": "आणि हो, मागच्या कर्जात काही जादा चार्जेस लागले होते."},
- "intent_examples": {"loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?", "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?", "loan_amount": "तुम्हाला किती कर्ज लागेल?", "timing": "तुम्हाला पैसे नेमके कधीपर्यंत हवे आहेत?", "employment": "तुम्ही काय काम करता?", "income": "तुमचं मासिक उत्पन्न किती आहे?", "existing_commitments": "तुमचा दुसरा कोणता EMI चालू आहे का?", "repayment_comfort": "दर महिन्याला किती EMI तुम्हाला आरामात भरता येईल?", "preferred_tenure": "किती वर्षांत कर्ज फेडायला आवडेल?", "prior_borrowing": "तुम्ही आधी कधी कर्ज घेतलं आहे का?", "priorities": "या कर्जात तुमच्यासाठी सगळ्यात महत्त्वाचं काय आहे?", "concerns": "कर्जाबद्दल तुम्हाला काही काळजी आहे का?"},
+ "intent_examples": {"loan_purpose": "तुम्हाला कर्ज कशासाठी हवं आहे?", "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?", "cost_breakup": "या ₹4 लाखांत काय काय येतं?", "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?", "course_start": "वर्ग कधी सुरू होणार आहेत?", "loan_amount": "तुम्हाला किती कर्ज लागेल?", "timing": "तुम्हाला पैसे नेमके कधीपर्यंत हवे आहेत?", "employment": "तुम्ही काय काम करता?", "income": "तुमचं मासिक उत्पन्न किती आहे?", "existing_commitments": "तुमचा दुसरा कोणता EMI चालू आहे का?", "repayment_comfort": "दर महिन्याला किती EMI तुम्हाला आरामात भरता येईल?", "preferred_tenure": "किती वर्षांत कर्ज फेडायला आवडेल?", "prior_borrowing": "तुम्ही आधी कधी कर्ज घेतलं आहे का?", "priorities": "या कर्जात तुमच्यासाठी सगळ्यात महत्त्वाचं काय आहे?", "concerns": "कर्जाबद्दल तुम्हाला काही काळजी आहे का?"},
  "retry_lead": "संभाषणाचा मधला भाग पुन्हा करा. या वेळी कोणतंही प्रॉडक्ट सांगण्याआधी जे विचारायचं राहिलं ते विचारा. उदाहरणार्थ:",
  "reply_instruction": "Reply only in Marathi, written in Devanagari script, as a salaried middle-class father from Maharashtra would speak. Keep the everyday English banking words people use (EMI, loan, fees). Write amounts with Western digits, for example ₹55,000.",
  "feedback_instruction": "Write every text and suggested_question field in simple Marathi, in Devanagari script. Keep common English banking words (EMI, loan). Quoted learner words must stay exactly as the learner wrote them."}
@@ -286,23 +311,29 @@ runtime = {
   {"check_id": "follows_up_charges_cue", "cue_fact_ids": ["cue_extra_charges"], "follow_up_intents": ["concerns"]}],
  "evaluation_guide": guide,
  "reminder_minutes": [12, 15],
+ "hidden_fact_terms": {
+  "purpose": ["college", "fee", "fees", "admission", "education", "daughter", "student", "course", "studies", "tuition", "कॉलेज", "फ़ीस", "फीस", "एडमिशन", "बेटी", "पढ़ाई", "प्रवेश", "मुलगी", "शिक्षण", "फी"],
+  "student_details": ["Priya", "B.Com", "Pune", "प्रिया", "पुणे", "पुण्या"],
+  "cost_breakup": ["hostel", "हॉस्टल", "हॉस्टेल"],
+  "own_contribution": ["savings", "बचत"]},
+ "forbidden_terms": ["son", "sons", "बेटा", "बेटे", "मुलगा", "मुलाच्या", "मुलाला"],
 }
 
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "3.1.1", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.0.0", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
   "success_criteria": ["Understand the customer's need, priorities and concerns through relevant, well-sequenced questions.", "Listen for the customer's cues and follow them up.", "Keep the conversation focused, summarise and confirm understanding.", "Communicate simply and clearly, and avoid misleading statements."]},
- "persona": {"id": "rajesh_sharma", "version": "3.1.0", "name": "Rajesh Sharma", "role": "Salaried father of a student", "relationships": {}, "initial_emotion": "Polite but cautious",
+ "persona": {"id": "rajesh_sharma", "version": "4.0.0", "name": "Rajesh Sharma", "role": "Salaried father of a student", "relationships": {}, "initial_emotion": "Polite but cautious",
   "speaking_style": "Brief natural answers; respond to the actual question without coaching.",
   "concerns": [{"id": "affordable_emi", "text": "Keeping the monthly repayment affordable", "fact_refs": ["cue_low_emi", "comfortable_emi"]}, {"id": "hidden_charges", "text": "Hidden or additional charges, after his last loan", "fact_refs": ["concern_charges"]}],
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's name or fees", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "3.1.1", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "4.0.0", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],
