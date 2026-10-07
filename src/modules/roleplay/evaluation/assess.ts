@@ -154,6 +154,7 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   }
   accepted ??= slipFallback;
   if (!accepted) return { status: 'failed', reason: 'Evaluator output failed validation twice.', rule, outputs };
+  accepted = applyRuleViolations(bundle, accepted, rule);
 
   if (focused) accepted = removeFirstAttemptSlips(bundle, settleFocused(accepted, new Set(carried), prefixTurns), carried);
   const review = reconcile(bundle, accepted, rule);
@@ -204,6 +205,27 @@ export function firstAttemptSlips(bundle: ScenarioBundle, c: EvaluationCandidate
     }
   }
   return Array.from(new Set(out));
+}
+
+/**
+ * A violation the rules found themselves (several questions in one message) stands: the model's
+ * evidence for that check takes the rule's status, quotes and explanation (keeping its ID, so the
+ * skill's references still hold), or the rule's item is added to the skill that owns the check.
+ */
+export function applyRuleViolations(bundle: ScenarioBundle, c: EvaluationCandidate, rule: RuleEvidence): EvaluationCandidate {
+  const absence = runtimeOf(bundle).absence_checks;
+  const found = rule.evidence.filter((e) => e.method === 'rule' && e.status === 'contradicted' && e.check_id && absence[e.check_id]?.multiple_questions);
+  if (!found.length) return c;
+  let evidence = [...c.evidence];
+  let dims = c.dimension_scores;
+  for (const r of found) {
+    const mine = evidence.find((e) => e.check_id === r.check_id);
+    if (mine) { evidence = evidence.map((e) => (e === mine ? { ...r, id: mine.id } : e)); continue; }
+    evidence.push(r);
+    const owner = bundle.rubric.dimensions.find((d) => d.check_ids.includes(r.check_id!))?.id;
+    dims = dims.map((d) => (d.dimension_id === owner ? { ...d, evidence_ids: [...d.evidence_ids, r.id] } : d));
+  }
+  return { ...c, evidence, dimension_scores: dims };
 }
 
 /**

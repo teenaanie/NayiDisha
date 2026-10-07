@@ -1,6 +1,6 @@
 import type { ScenarioBundle, TranscriptTurn, Evidence, Span, RiskRule } from '../contracts/types';
 import { runtimeOf } from '../config/runtime-extension';
-import { classify, CLASSIFIER_VERSION } from '../runtime/intents';
+import { classify, clauses, CLASSIFIER_VERSION } from '../runtime/intents';
 import { discoveryComplete } from '../runtime/disclosure';
 import { localized, type Language } from '../runtime/language';
 import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothetical, coverage, cpSlice, cpIndexOf, cpLength, type Sentence } from '../runtime/text';
@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.4.0';
+export const RULE_VERSION = 'rules-1.5.0';
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -226,6 +226,27 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
       });
     }
   }
+  // ---- several questions in one message ("…is it? What is your source of income?") ----------
+  // The model noted this in its rationale but recorded the check as met (7 Oct 2026); a rule
+  // decides it instead. A short tag ("right?", "okay?") is not a question of its own.
+  for (const [checkId, spec] of Object.entries(rt.absence_checks)) {
+    if (!spec.multiple_questions) continue;
+    const spans: Span[] = [];
+    for (const t of assessable) {
+      const asks = sentences(t.text).filter((s) => isQuestion(s.text)).flatMap((s) => clauses(s)).filter((c) => c.text.trim().split(/\s+/).length > 3);
+      if (asks.length < 2) continue;
+      const start = asks[0].start, end = asks[asks.length - 1].end;
+      spans.push({ turn_id: t.id, start, end, quote: cpSlice(t.text, start, end) });
+      if (spans.length === 3) break;
+    }
+    if (!spans.length) continue;
+    const check = bundle.rubric.checks.find((c) => c.id === checkId);
+    evidence.push({
+      id: safeId(`multi_q_${checkId}`), category: check?.category ?? 'conversation', check_id: checkId, status: 'contradicted', learner_spans: spans, context_spans: [], searched_turn_ids: [],
+      explanation: `Asked more than one question in a single message (${spans.length} message${spans.length === 1 ? '' : 's'}).`, method: 'rule', confidence: 0.9, rule_version: RULE_VERSION,
+    });
+  }
+
   for (const j of jargon) {
     const t = turns.find((x) => x.id === j.turn_id)!;
     const at = cpIndexOf(t.text.toLowerCase(), j.term.toLowerCase());
