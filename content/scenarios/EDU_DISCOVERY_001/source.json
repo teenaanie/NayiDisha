@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -445,7 +445,9 @@
      "What is your daughter's name?",
      "Which college has she got admission in?",
      "Which course is she joining?",
-     "Where will she be studying?"
+     "Where will she be studying?",
+     "What course is your child going to do?",
+     "Tell me about the course she is doing."
     ],
     "negative_examples": [
      "Customer volunteers this information.",
@@ -855,7 +857,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1568,8 +1570,8 @@
   }
  },
  "prompts": {
-  "roleplay": "roleplay_v3",
-  "evaluator": "evaluator_v3",
+  "roleplay": "roleplay_v4",
+  "evaluator": "evaluator_v4",
   "coach": "coach_v2"
  },
  "retry": {
@@ -2061,67 +2063,128 @@
      {
       "area": "Loan purpose",
       "information": "Why the customer needs the money",
-      "check_id": "loan_purpose"
+      "check_id": "loan_purpose",
+      "phrases": [
+       "loan purpose",
+       "purpose of the loan"
+      ]
      },
      {
       "area": "Loan amount",
       "information": "Approximate amount required",
-      "check_id": "loan_amount"
+      "check_id": "loan_amount",
+      "phrases": [
+       "loan amount",
+       "amount required",
+       "amount needed"
+      ]
      },
      {
       "area": "Cost breakup",
       "information": "What the amount covers: total cost, tuition, hostel, other expenses",
-      "check_id": "cost_breakup"
+      "check_id": "cost_breakup",
+      "phrases": [
+       "breakup",
+       "break-up",
+       "cost break"
+      ]
      },
      {
       "area": "Own contribution",
       "information": "How much the customer will pay from own funds",
-      "check_id": "own_contribution"
+      "check_id": "own_contribution",
+      "phrases": [
+       "own contribution",
+       "from his side",
+       "from their side"
+      ]
      },
      {
       "area": "Timing",
       "information": "When the funds are required",
-      "check_id": "timing"
+      "check_id": "timing",
+      "phrases": [
+       "timing",
+       "when the funds",
+       "when exactly"
+      ]
      },
      {
       "area": "Income",
       "information": "Approximate income or cash flow",
-      "check_id": "income"
+      "check_id": "income",
+      "phrases": [
+       "income",
+       "salary"
+      ]
      },
      {
       "area": "Existing commitments",
       "information": "Existing EMIs or important financial obligations",
-      "check_id": "existing_commitments"
+      "check_id": "existing_commitments",
+      "phrases": [
+       "existing commitments",
+       "existing EMI",
+       "other EMI",
+       "another EMI",
+       "current EMI"
+      ]
      },
      {
       "area": "Repayment comfort",
       "information": "Approximate affordable monthly repayment",
-      "check_id": "repayment_comfort"
+      "check_id": "repayment_comfort",
+      "phrases": [
+       "repayment comfort",
+       "comfortable EMI",
+       "affordable EMI",
+       "comfortable monthly"
+      ]
      },
      {
       "area": "Customer priorities",
       "information": "EMI, interest cost, speed, loan amount, flexibility, etc.",
-      "check_id": "priorities"
+      "check_id": "priorities",
+      "phrases": [
+       "priorities"
+      ]
      },
      {
       "area": "Concerns",
       "information": "Charges, approval, repayment, documentation, process, etc.",
-      "check_id": "concerns"
+      "check_id": "concerns",
+      "phrases": [
+       "customer's concerns",
+       "his concerns",
+       "their concerns"
+      ]
      },
      {
       "area": "Customer profile",
       "information": "Employment/business/source of income",
-      "check_id": "employment"
+      "check_id": "employment",
+      "phrases": [
+       "employment",
+       "occupation"
+      ]
      },
      {
       "area": "Prior borrowing",
       "information": "Previous loan experience where useful",
-      "check_id": "prior_borrowing"
+      "check_id": "prior_borrowing",
+      "phrases": [
+       "prior borrowing",
+       "previous loan experience",
+       "borrowing history"
+      ]
      },
      {
       "area": "Preferred tenure",
       "information": "Desired repayment period, if relevant",
-      "check_id": "preferred_tenure"
+      "check_id": "preferred_tenure",
+      "phrases": [
+       "tenure"
+      ]
      }
     ],
     "cues": [
@@ -2129,25 +2192,42 @@
       "fact_id": "cue_soon",
       "customer_line": "I need the money quite soon.",
       "expected_follow_up": "Ask when exactly the funds are required",
-      "check_id": "follows_up_timing_cue"
+      "check_id": "follows_up_timing_cue",
+      "phrases": [
+       "money quite soon",
+       "needs the money soon",
+       "when exactly"
+      ]
      },
      {
       "fact_id": "cue_other_emi",
       "customer_line": "I already have another EMI.",
       "expected_follow_up": "Ask about the amount or current monthly commitments",
-      "check_id": "follows_up_other_emi_cue"
+      "check_id": "follows_up_other_emi_cue",
+      "phrases": [
+       "another EMI",
+       "other EMI"
+      ]
      },
      {
       "fact_id": "cue_low_emi",
       "customer_line": "I don't want a very high EMI.",
       "expected_follow_up": "Explore what monthly repayment would be comfortable",
-      "check_id": "follows_up_low_emi_cue"
+      "check_id": "follows_up_low_emi_cue",
+      "phrases": [
+       "very high EMI",
+       "high EMI"
+      ]
      },
      {
       "fact_id": "cue_extra_charges",
       "customer_line": "My previous loan had extra charges.",
       "expected_follow_up": "Ask what happened and what concerns the customer has now",
-      "check_id": "follows_up_charges_cue"
+      "check_id": "follows_up_charges_cue",
+      "phrases": [
+       "extra charges",
+       "additional charges"
+      ]
      }
     ],
     "variations": [
@@ -2269,6 +2349,27 @@
     "मुलगा",
     "मुलाच्या",
     "मुलाला"
+   ],
+   "corrections": [
+    {
+     "id": "daughter_not_son",
+     "learner_terms": [
+      "son",
+      "sons",
+      "बेटा",
+      "बेटे",
+      "बेटे की",
+      "मुलगा",
+      "मुलाच्या",
+      "मुलाला",
+      "मुलाचं"
+     ],
+     "text": {
+      "en": "Actually, it is my daughter, not my son.",
+      "hi": "वैसे, बेटा नहीं, मेरी बेटी है।",
+      "mr": "खरं तर मुलगा नाही, माझी मुलगी आहे."
+     }
+    }
    ]
   }
  }

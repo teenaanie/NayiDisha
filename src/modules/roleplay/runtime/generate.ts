@@ -145,8 +145,12 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   const attempts: GenerationAttempt[] = [];
   // Verbatim lines come from the scenario's translation for the session language (source text otherwise).
   const L = localized(bundle, input.language ?? 'en');
+  // "What course is your son doing?": the customer corrects the learner first, with a fixed line.
+  const corr = rt.corrections.find((c) => c.learner_terms.some((w) => hasTerm(input.learnerText, w)));
+  const correction = corr ? (corr.text[input.language ?? 'en'] ?? corr.text.en) : null;
+  const lead = (text: string) => (correction ? `${correction} ${text}`.trim() : text);
 
-  if (plan.kind === 'clarify') return { text: L.clarification_response, disclosed_fact_ids: [], method: 'configured', attempts };
+  if (plan.kind === 'clarify') return { text: lead(L.clarification_response), disclosed_fact_ids: [], method: 'configured', attempts };
 
   const volunteeredFacts = plan.parts.flatMap((p) => (p.kind === 'volunteer' ? p.fact_ids : []));
   const fixtureFacts = plan.parts.flatMap((p) => (p.kind === 'fixture' ? factRules.get(p.rule_id)!.reveal_fact_ids.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id)) : []));
@@ -164,7 +168,7 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
     const modelAllowed = plan.allowed_fact_ids.filter((id) => !volunteeredFacts.includes(id));
     const allowedFacts = modelAllowed.map((id) => ({ id, value: renderFact(facts.get(id)!) ?? '', new_this_turn: plan.released_fact_ids.includes(id) }));
     // What the rest of this reply says verbatim, so the model neither repeats nor contradicts it.
-    const saidThisTurn = plan.parts.flatMap((p) => (p.kind === 'fixture' ? [L.ruleResponse(p.rule_id, p.text)] : p.kind === 'volunteer' ? [L.cueResponse(p.cue_id, p.text)] : p.kind === 'unknown' ? [L.unknown_response] : []));
+    const saidThisTurn = [...(correction ? [correction] : []), ...plan.parts.flatMap((p) => (p.kind === 'fixture' ? [L.ruleResponse(p.rule_id, p.text)] : p.kind === 'volunteer' ? [L.cueResponse(p.cue_id, p.text)] : p.kind === 'unknown' ? [L.unknown_response] : []))];
     const data = {
       persona_style_json: { name: bundle.persona.name, role: bundle.persona.role, emotion: bundle.persona.initial_emotion, speaking_style: [bundle.persona.speaking_style, L.reply_instruction].filter(Boolean).join(' ') },
       allowed_facts_json: allowedFacts,
@@ -207,9 +211,12 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
       }
     }
     if (generated === null && !onlyRepeats) {
-      // Two invalid candidates: say nothing unvalidated, release nothing generated.
+      // Two invalid candidates: say nothing unvalidated, release nothing generated. When a fixed
+      // answer already answers the question, it stands alone; "Could you explain what you mean?"
+      // after a full answer read as confused (verification, 7 Oct 2026).
       const fixtureText = plan.parts.filter((p) => p.kind === 'fixture').map((p) => L.ruleResponse((p as { rule_id: string }).rule_id, (p as { text: string }).text));
-      return { text: [...fixtureText, L.clarification_response].join(' '), disclosed_fact_ids: fixtureFacts, method: 'fallback', attempts };
+      const cues = plan.parts.flatMap((p) => (p.kind === 'volunteer' ? [L.cueResponse(p.cue_id, p.text)] : []));
+      return { text: lead([...fixtureText, ...(fixtureText.length ? [] : [L.clarification_response]), ...cues].join(' ')), disclosed_fact_ids: [...fixtureFacts, ...(fixtureText.length ? volunteeredFacts : [])], method: 'fallback', attempts };
     }
   }
 
@@ -226,5 +233,5 @@ export async function generateCustomerReply(input: GenerateInput): Promise<Custo
   for (const p of plan.parts) if (p.kind === 'volunteer') pieces.push(L.cueResponse(p.cue_id, p.text));
   const hasFixture = plan.parts.some((p) => p.kind === 'fixture' || p.kind === 'volunteer');
   const method = degraded ? 'fallback' : generated ? (hasFixture ? 'mixed' : 'generated') : hasFixture ? 'fixture' : 'configured';
-  return { text: pieces.join(' '), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...volunteeredFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
+  return { text: lead(pieces.join(' ')), disclosed_fact_ids: Array.from(new Set([...fixtureFacts, ...volunteeredFacts, ...generatedFacts.filter((id) => plan.released_fact_ids.includes(id) || plan.allowed_fact_ids.includes(id))])), method, attempts };
 }

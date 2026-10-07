@@ -72,6 +72,12 @@ export interface RuntimeExtension {
   hidden_fact_terms: Record<string, string[]>;
   /** Words a generated reply may never use, because they contradict the profile (e.g. "son"). */
   forbidden_terms: string[];
+  /**
+   * When the learner uses one of `learner_terms` ("your son"), the customer corrects them with a
+   * fixed line first ("Actually, it's my daughter, not my son."), by language. Generated replies
+   * cannot say the wrong word themselves (forbidden_terms), so without this they could not.
+   */
+  corrections: { id: string; learner_terms: string[]; text: Record<string, string> }[];
 }
 
 export interface EvaluationGuide {
@@ -84,8 +90,9 @@ export interface EvaluationGuide {
   level_labels?: Record<string, string>;
   framework_note: string;
   /** Discovery areas in priority order (also the order of "top missed questions"). */
-  framework: { area: string; information: string; check_id: string }[];
-  cues: { fact_id: string; customer_line: string; expected_follow_up: string; check_id: string }[];
+  /** `phrases`: how an assessor's text names the area, to catch a follow-up calling it missed. */
+  framework: { area: string; information: string; check_id: string; phrases?: string[] }[];
+  cues: { fact_id: string; customer_line: string; expected_follow_up: string; check_id: string; phrases?: string[] }[];
   variations: { check_id: string; examples: string[] }[];
   exclusions: string[];
   principles: string[];
@@ -121,7 +128,7 @@ export const EMPTY_RUNTIME: RuntimeExtension = {
   question_free_intents: [], discovery_gate: null, discovery_conditioned: [], absence_checks: {},
   check_cues: {}, jargon_terms: [], acknowledgement_text: null, derivations: [], translations: {},
   volunteered_cues: [], cue_follow_ups: [], evaluation_guide: null, reminder_minutes: null,
-  hidden_fact_terms: {}, forbidden_terms: [],
+  hidden_fact_terms: {}, forbidden_terms: [], corrections: [],
 };
 
 export function runtimeOf(b: ScenarioBundle): RuntimeExtension {
@@ -243,6 +250,17 @@ export function validateRuntimeExtension(b: ScenarioBundle, err: (p: string, m: 
     if (!strings(terms)) err(`${P}/hidden_fact_terms/${f}`, 'Must be a list of words.');
   }
   if (!strings(x.forbidden_terms) && !(Array.isArray(x.forbidden_terms) && !x.forbidden_terms.length)) err(`${P}/forbidden_terms`, 'Must be a list of words.');
+  if (!Array.isArray(x.corrections)) err(`${P}/corrections`, 'Must be a list.');
+  else {
+    const seen = new Set<string>();
+    x.corrections.forEach((c, i) => {
+      const C = `${P}/corrections/${i}`;
+      if (!text(c?.id) || seen.has(c.id)) err(`${C}/id`, 'Needs a unique id.');
+      seen.add(c?.id);
+      if (!strings(c?.learner_terms) || !c.learner_terms.length) err(`${C}/learner_terms`, 'Needs at least one word.');
+      if (!c?.text || typeof c.text !== 'object' || !text(c.text.en)) err(`${C}/text`, 'Needs at least the English line (text.en).');
+    });
+  }
   if (x.reminder_minutes !== null && x.reminder_minutes !== undefined) {
     const r = x.reminder_minutes;
     if (!Array.isArray(r) || !r.length || r.some((m, i) => !(Number.isInteger(m) && m > 0 && m <= 120) || (i > 0 && m <= r[i - 1]))) err(`${P}/reminder_minutes`, 'Must be ascending whole minutes between 1 and 120.');
