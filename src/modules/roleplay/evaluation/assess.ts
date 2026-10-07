@@ -34,6 +34,12 @@ export interface AssessInput {
   language?: Language;
   /** The pinned evaluator prompt ID; evaluator_v2 and later use contract 1.1 (per-skill coaching). */
   template_id?: string;
+  /**
+   * Focused retry: checks the learner was credited for in the first attempt, with a quote. They
+   * count as covered here even when the part of the conversation that covered them was not
+   * carried into the retry.
+   */
+  first_attempt?: { check_id: string; quote: string | null }[];
 }
 export interface ProviderOutput { attempt: number; text: string; ok: boolean; errors: string[]; /** Mechanical slips the validator normalised (see validate.ts). */ notes?: string[]; provider: string; model: string; request_id: string | null; latency_ms: number; usage: CompletionResult['usage'] }
 export type AssessResult =
@@ -56,9 +62,18 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   const broken = transcriptIntegrity(input.turns);
   if (broken) return { status: 'unscorable', reason: broken, rule: null, outputs };
   const { bundle } = input;
-  const rule = extractRuleEvidence(bundle, input.turns, { excludeOrigins: input.mode === 'focused' ? ['retry_prefix'] : [], recordedIntents: input.recordedIntents, language: input.language });
+  // A focused retry is one conversation: the turns copied from the first attempt earn credit like
+  // the new ones (a follow-up report said "you did not ask the loan amount" although it was asked
+  // there; 7 Oct 2026). Their risks were judged in the first assessment and are not raised again,
+  // and the practice targets are judged on the new turns only (below).
+  const focused = input.mode === 'focused';
+  const targets = new Set(input.target_check_ids);
+  const carried = focused ? Array.from(new Set((input.first_attempt ?? []).map((x) => x.check_id).filter((id) => !targets.has(id)))) : [];
+  const rule = extractRuleEvidence(bundle, input.turns, { riskSkipOrigins: focused ? ['retry_prefix'] : [], coveredElsewhere: carried, recordedIntents: input.recordedIntents, language: input.language });
   const contract = contractVersionFor(input.template_id);
   if (!rule.assessable_learner_turn_ids.length) return { status: 'unscorable', reason: 'No assessable learner turns.', rule, outputs };
+  const prefixTurns = new Set(input.turns.filter((t) => t.origin === 'retry_prefix').map((t) => t.id));
+  if (focused && !input.turns.some((t) => t.speaker === 'learner' && t.origin === 'live')) return { status: 'unscorable', reason: 'The retry has no new learner turns.', rule, outputs };
 
   const rubricVersion = rubricVersionOf(bundle);
   // Turn IDs are UUIDs, and the evaluator copies them into every quote and search list:
@@ -76,6 +91,13 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
       // Translations are for the customer's lines and the coach; the evaluator never needs them (≈20 KB per call).
       runtime: (({ translations, ...rest }) => rest)(runtimeOf(bundle)),
       inapplicable_check_ids: rule.inapplicable_check_ids,
+      ...(focused ? {
+        focused_retry: {
+          note: 'This is a focused retry. Turns with origin retry_prefix were copied from the learner\'s first attempt and are part of this conversation: credit what the learner did there. first_attempt_covered lists checks the learner was already credited for in the first attempt, possibly in turns not copied here: treat them as covered (never as missed, never as a coaching gap), and score each skill on the whole conversation including them. The practice targets are what the learner was asked to improve in the new turns.',
+          practice_target_check_ids: input.target_check_ids,
+          first_attempt_covered: (input.first_attempt ?? []).filter((x) => carried.includes(x.check_id)),
+        },
+      } : {}),
     },
     // The evaluator's knowledge base (owner spec). Unused by evaluator_v1, whose template has no placeholder.
     evaluation_guide_json: evaluationGuideFor(bundle, rule, ids.out),
@@ -119,12 +141,15 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   }
   if (!accepted) return { status: 'failed', reason: 'Evaluator output failed validation twice.', rule, outputs };
 
+  if (focused) accepted = settleFocused(accepted, new Set(carried), prefixTurns);
   const review = reconcile(bundle, accepted, rule);
 
-  if (input.mode === 'focused') {
+  if (focused) {
+    // A practice target counts only if the new turns show it.
     const checks = input.target_check_ids.map((id) => {
       const ev = accepted!.evidence.find((e) => e.check_id === id);
-      return { check_id: id, status: ev?.status ?? 'not_observed', evidence_id: ev?.id ?? null };
+      const fresh = ev?.status === 'observed' && ev.learner_spans.some((sp) => !prefixTurns.has(sp.turn_id));
+      return { check_id: id, status: ev ? (ev.status === 'observed' && !fresh ? 'not_observed' : ev.status) : 'not_observed', evidence_id: ev?.id ?? null };
     });
     return { status: 'scored', candidate: accepted, rule, score: null, focused: { target_check_ids: input.target_check_ids, checks }, review_reasons: review, outputs };
   }
@@ -138,6 +163,25 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     if (e instanceof ScoringError) return { status: 'failed', reason: e.message, rule, outputs };
     throw e;
   }
+}
+
+/**
+ * Focused retry, after validation: a check already covered in the first attempt is never left as
+ * missed (its not_observed / uncertain evidence is dropped), and a risk flag resting only on
+ * copied first-attempt turns is dropped (the first assessment judged it).
+ */
+export function settleFocused(c: EvaluationCandidate, carried: Set<string>, prefixTurns: Set<string>): EvaluationCandidate {
+  const drop = new Set(c.evidence.filter((e) => e.check_id && carried.has(e.check_id) && e.status !== 'observed').map((e) => e.id));
+  const oldRisk = (ids: string[]) => ids.length > 0 && ids.every((id) => {
+    const e = c.evidence.find((x) => x.id === id);
+    return !!e && e.learner_spans.length > 0 && e.learner_spans.every((sp) => prefixTurns.has(sp.turn_id));
+  });
+  return {
+    ...c,
+    evidence: c.evidence.filter((e) => !drop.has(e.id)),
+    dimension_scores: c.dimension_scores.map((d) => ({ ...d, evidence_ids: d.evidence_ids.filter((id) => !drop.has(id)) })),
+    risk_flags: c.risk_flags.filter((f) => !oldRisk(f.evidence_ids)),
+  };
 }
 
 /**

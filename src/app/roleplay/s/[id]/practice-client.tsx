@@ -20,9 +20,16 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
   const end = useRef<HTMLDivElement>(null);
   const finishKey = useRef(newKey());
   const [voiceMeta, setVoiceMeta] = useState<VoiceMeta | null>(null);
+  /** What was in the box (and what of it was spoken) when the microphone was switched on. */
+  const voiceBase = useRef<{ text: string; heard: string }>({ text: '', heard: '' });
   const [askConsent, setAskConsent] = useState(false);
   const voice = useVoice(initial.session_id, initial.voice ?? { recognition: 'browser', speech: 'browser', server_provider: null, language: 'en-IN', notice: '', consent: false },
-    (text, meta) => { setDraft(text); if (meta) setVoiceMeta(meta); });
+    (text, meta) => {
+      // Speaking again adds to what is already in the box; it used to replace it (tester, 7 Oct 2026).
+      const base = voiceBase.current.text;
+      setDraft(base ? `${base} ${text}`.trim() : text);
+      if (meta) setVoiceMeta({ ...meta, asr_text: voiceBase.current.heard ? `${voiceBase.current.heard} ${meta.asr_text}` : meta.asr_text });
+    });
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [s.transcript.length]);
   useEffect(() => { const t = setInterval(() => setMinutes(Math.floor((Date.now() - new Date(initial.started_at).getTime()) / 60000)), 15000); return () => clearInterval(t); }, [initial.started_at]);
 
@@ -119,7 +126,7 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
         <textarea id="rp-msg" value={draft} maxLength={s.limits.max_message_chars} disabled={finishing} onChange={(e) => { setDraft(e.target.value); if (!e.target.value.trim()) setVoiceMeta(null); }}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Ask the customer a question, or use the microphone…" />
         {voice.supported && <button type="button" className="btn" aria-pressed={voice.listening} aria-label={voice.listening ? 'Stop listening' : 'Speak your message'} disabled={finishing || busy || voice.working}
-          onClick={() => { if (!voice.consent) { setAskConsent(true); return; } if (voice.listening) voice.stop(); else voice.start(); }}>{voice.listening ? '■ Stop' : '🎤'}</button>}
+          onClick={() => { if (!voice.consent) { setAskConsent(true); return; } if (voice.listening) voice.stop(); else { voiceBase.current = { text: draft.trim(), heard: voiceMeta?.asr_text ?? '' }; voice.start(); } }}>{voice.listening ? '■ Stop' : '🎤'}</button>}
         <button className="btn btn-primary" disabled={busy || finishing || !draft.trim() || voice.listening || voice.working}>Send</button>
       </form>
       <p className="small muted">{draft.length}/{s.limits.max_message_chars} characters · Enter to send, Shift+Enter for a new line

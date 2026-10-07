@@ -166,8 +166,15 @@ export async function integrationTests(): Promise<Check[]> {
   const tgt = focused.session.retry_scope?.target_check_ids ?? [];
   ok('AT20', 'Focused targets are the learner\'s own missed questions, none already asked', tgt.length === 3 && tgt.every((id) => !askedInParent.has(id)) && JSON.stringify(tgt) !== JSON.stringify(EDU_BUNDLE.retry.focused_target_check_ids), `${tgt.join(',')} (asked: ${[...askedInParent].join(',')})`);
   const [frun] = await sql<{ candidate: { evidence: { check_id?: string; status: string }[] } }[]>`SELECT r.candidate FROM rp.evaluation_run r JOIN rp.session s ON s.current_run_id = r.id WHERE s.id = ${fsid}`;
+  // Changed 7 Oct 2026 (owner): a focused retry is judged with the first attempt, not as if it were never said.
   const prefixOnly = frun.candidate.evidence.find((e) => e.check_id === 'loan_amount');
-  ok('AT20', 'A question asked only in the cloned prefix earns no credit (loan amount)', prefixOnly?.status === 'not_observed', prefixOnly?.status);
+  ok('AT20', 'A question asked in the copied first-attempt turns counts as asked (loan amount)', prefixOnly?.status === 'observed', prefixOnly?.status);
+  const notAgain = [...askedInParent].filter((id) => !tgt.includes(id) && frun.candidate.evidence.some((e) => e.check_id === id && e.status !== 'observed'));
+  ok('AT20', 'Nothing credited in the first attempt is reported as missed in the follow-up', !notAgain.length, notAgain.join(','));
+  const [fcoach] = await sql<{ content: { missed_questions: { evidence_ids: string[] }[] } }[]>`SELECT c.content FROM rp.coaching_report c JOIN rp.session s ON s.current_run_id = c.run_id WHERE s.id = ${fsid}`;
+  const fevCheck = new Map((frun.candidate.evidence as { id?: string; check_id?: string }[]).map((e) => [e.id, e.check_id]));
+  const missedChecks = (fcoach?.content.missed_questions ?? []).flatMap((m) => m.evidence_ids.map((id) => fevCheck.get(id))).filter(Boolean) as string[];
+  ok('AT20', 'The follow-up\'s missed questions never include something asked in the first attempt', missedChecks.every((id) => !askedInParent.has(id)), missedChecks.join(','));
   const full = await rp.startRetry(asha, sid, { mode: 'full', retry_plan_id: plans.full.id, expected_assessment_id: runRow.id });
   ok('§20', 'A full retry starts fresh from the opening, pinned to the parent version', full.session.transcript.length === 1 && full.session.transcript[0].origin === 'opening' && full.session.scenario_version === started.session.scenario_version && full.session.retry_scope?.comparable === true);
 

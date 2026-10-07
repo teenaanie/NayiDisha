@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.3.0';
+export const RULE_VERSION = 'rules-1.4.0';
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -63,7 +63,13 @@ export interface RecordedIntent { intent_id: string; question: boolean; start?: 
  * (from turn_analysis). Using them keeps scoring consistent with what the
  * customer understood; turns without a record fall back to the phrase matcher.
  */
-export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; recordedIntents?: Map<string, RecordedIntent[]>; language?: Language } = {}): RuleEvidence {
+/**
+ * `excludeOrigins`: turns that earn no credit at all. `riskSkipOrigins`: turns that earn credit
+ * but raise no new risk candidate (a focused retry's copied first-attempt turns: their risks were
+ * judged in the first assessment). `coveredElsewhere`: checks already credited in the learner's
+ * first attempt, outside this transcript; a rule never reports them as not asked.
+ */
+export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; riskSkipOrigins?: TranscriptTurn['origin'][]; coveredElsewhere?: string[]; recordedIntents?: Map<string, RecordedIntent[]>; language?: Language } = {}): RuleEvidence {
   const rt = runtimeOf(bundle);
   const excluded = new Set(opts.excludeOrigins ?? []);
   const learner = turns.filter((t) => t.speaker === 'learner');
@@ -103,7 +109,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     askedByTurn.push({ turn_id: t.id, intents });
 
     // ---- risk candidates ---------------------------------------------------
-    if (excluded.has(t.origin)) continue;
+    if (excluded.has(t.origin) || opts.riskSkipOrigins?.includes(t.origin)) continue;
     const gateOpen = !discoveryComplete(bundle, new Set(askedByTurn.slice(0, -1).flatMap((x) => x.intents)));
     // A message that asks a discovery question is discovery, not a pitch: "Now let us go to the
     // rest of your loans. What is your monthly income?" matched "You should take this loan now."
@@ -202,7 +208,7 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
         explanation: c.credit_requires === 'learner_question' ? `Learner asked: ${c.description.toLowerCase()}.` : `Learner showed: ${c.description.toLowerCase()}.`,
         method: c.credit_requires === 'learner_question' ? 'semantic' : 'rule', confidence: 0.9, rule_version: RULE_VERSION,
       });
-    } else if (c.credit_requires === 'learner_question') {
+    } else if (c.credit_requires === 'learner_question' && !opts.coveredElsewhere?.includes(c.id)) {
       // Cue phrases ("you mentioned", "I understand") can show a skill, but their absence
       // proves nothing: learners follow up without them. A confident rule-made
       // not_observed here anchored the evaluator, which then never credited a clear

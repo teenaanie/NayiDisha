@@ -33,6 +33,8 @@ export interface JudgeInput {
     runtime: Omit<RuntimeExtension, 'translations'> & { translations?: unknown };
     /** Cue follow-up checks whose cue never came up: left out of the count, neither met nor missed. */
     inapplicable_check_ids?: string[];
+    /** Focused retry: checks credited in the first attempt count as met. */
+    focused_retry?: { first_attempt_covered: { check_id: string }[] };
   };
 }
 
@@ -59,7 +61,9 @@ export function mockJudge(input: JudgeInput): EvaluationCandidate {
     if (existing) Object.assign(existing, record); else { evidence.push(record); byCheck.set(checkId, record); }
   }
 
+  const carried = new Set((ce.focused_retry?.first_attempt_covered ?? []).map((x) => x.check_id));
   const satisfied = (checkId: string) => {
+    if (carried.has(checkId)) return true;
     const e = byCheck.get(checkId);
     if (!e) return false;
     if (checkId in ce.runtime.absence_checks) return e.status === 'not_observed';
