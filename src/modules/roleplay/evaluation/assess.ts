@@ -99,6 +99,13 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
         },
       } : {}),
     },
+    // evaluator_v4: what the first attempt already covered, in words, beside the transcript.
+    first_attempt_json: focused ? {
+      covered: (input.first_attempt ?? []).filter((x) => carried.includes(x.check_id)).map((x) => ({
+        check_id: x.check_id, means: bundle.rubric.checks.find((c) => c.id === x.check_id)?.description ?? x.check_id,
+        learner_said_in_first_attempt: x.quote,
+      })),
+    } : null,
     // The evaluator's knowledge base (owner spec). Unused by evaluator_v1, whose template has no placeholder.
     evaluation_guide_json: evaluationGuideFor(bundle, rule, ids.out),
     risk_policy_json: bundle.risk_policy,
@@ -130,18 +137,25 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
   };
 
   let accepted: EvaluationCandidate | null = null;
+  let slipFallback: EvaluationCandidate | null = null;   // valid, but called first-attempt work missed
   for (let attempt = 1; attempt <= 2 && !accepted; attempt++) {
     const res = await completeWithRetry({ task: 'evaluate', template: input.template, data, schema: evaluationCandidateSchemaFor(contract), temperature: 0, maxTokens: 12000, correlation: input.correlation });
     const text = ids.answerIn(res.text);
     const v = validateCandidate(text, { bundle, turns: input.turns, session_id: input.session_id, transcript_hash: input.transcript_hash, rubric_version: rubricVersion, assessable_learner_turn_ids: rule.assessable_learner_turn_ids, contract_version: contract });
     outputs.push({ attempt, text, ok: v.ok, errors: v.ok ? [] : v.errors, notes: v.notes, provider: res.provider, model: res.model, request_id: res.request_id, latency_ms: res.latency_ms, usage: res.usage });
+    // Follow-up: the first answer may not call something from the first attempt missed (live runs
+    // still wrote "missed following up on 'another EMI'" after the instruction; 7 Oct 2026). The
+    // repair request names it; a second answer is accepted as it is rather than failing.
+    const slips = v.ok && focused && attempt === 1 ? firstAttemptSlips(bundle, v.candidate, carried) : [];
+    if (v.ok && slips.length) { slipFallback = v.candidate; outputs[outputs.length - 1].notes = [...(v.notes ?? []), ...slips]; data.contract_json.previous_errors = slips; continue; }
     if (v.ok) accepted = v.candidate;
     // One repair request with the same evidence snapshot, told what was wrong.
     else data.contract_json.previous_errors = v.errors.slice(0, 30).map(ids.textOut);
   }
+  accepted ??= slipFallback;
   if (!accepted) return { status: 'failed', reason: 'Evaluator output failed validation twice.', rule, outputs };
 
-  if (focused) accepted = settleFocused(accepted, new Set(carried), prefixTurns);
+  if (focused) accepted = removeFirstAttemptSlips(bundle, settleFocused(accepted, new Set(carried), prefixTurns), carried);
   const review = reconcile(bundle, accepted, rule);
 
   if (focused) {
@@ -163,6 +177,61 @@ export async function assess(input: AssessInput): Promise<AssessResult> {
     if (e instanceof ScoringError) return { status: 'failed', reason: e.message, rule, outputs };
     throw e;
   }
+}
+
+const MISSED = /\b(missed|miss|did not|didn['’]t|not (?:ask|asked|follow|followed|probe|probed|explore|explored|cover|covered)|failed to|without (?:asking|following)|no follow-up|overlooked|ignored|forgot)\b/i;
+
+/**
+ * Sentences of a follow-up's rationales and coaching tips that call something the first attempt
+ * covered missed: a carried check's phrase (from the evaluation guide) in a sentence that says
+ * missed / did not ask / failed to.
+ */
+export function firstAttemptSlips(bundle: ScenarioBundle, c: EvaluationCandidate, carried: string[]): string[] {
+  const g = runtimeOf(bundle).evaluation_guide;
+  if (!g || !carried.length) return [];
+  const phrases = new Map<string, string[]>();
+  for (const x of [...g.framework, ...g.cues]) if (carried.includes(x.check_id) && x.phrases?.length) phrases.set(x.check_id, x.phrases);
+  const out: string[] = [];
+  for (const d of c.dimension_scores) {
+    for (const [field, text] of [['rationale', d.rationale], ['coaching', d.coaching ?? '']] as const) {
+      for (const sentence of text.split(/(?<=[.!?।])\s+/)) {
+        if (!MISSED.test(sentence)) continue;
+        for (const [checkId, list] of phrases) {
+          const hit = list.find((p) => new RegExp(String.raw`(?<![\p{L}])${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\p{L}])`, 'iu').test(sentence));
+          if (hit) out.push(`dimension_scores ${d.dimension_id} ${field}: says "${hit}" was missed, but the learner covered it in the first attempt (FIRST_ATTEMPT, ${checkId}). Rewrite that sentence without calling it missed; keep any genuinely missed points.`);
+        }
+      }
+    }
+  }
+  return Array.from(new Set(out));
+}
+
+/**
+ * Last resort after the repair request: in a follow-up's rationales and tips, a sentence that calls
+ * first-attempt work missed loses that item ("missed 'another EMI' and 'extra charges'" →
+ * "missed 'extra charges'"); a sentence left with nothing else to say is dropped. Live Flash with
+ * reasoning off kept the slip through both the instruction and the repair request (7 Oct 2026).
+ */
+export function removeFirstAttemptSlips(bundle: ScenarioBundle, c: EvaluationCandidate, carried: string[]): EvaluationCandidate {
+  const g = runtimeOf(bundle).evaluation_guide;
+  if (!g || !carried.length) return c;
+  const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Longest first, whole words: "other EMI" must not eat the middle of "another EMI".
+  const phrases = [...g.framework, ...g.cues].filter((x) => carried.includes(x.check_id)).flatMap((x) => x.phrases ?? []).sort((a, b) => b.length - a.length);
+  if (!phrases.length) return c;
+  const has = (text: string, ph: string) => new RegExp(String.raw`(?<![\p{L}])${esc(ph)}(?![\p{L}])`, 'iu').test(text);
+  const fix = (text: string) => text.split(/(?<=[.!?।])\s+/).map((sentence) => {
+    if (!MISSED.test(sentence)) return sentence;
+    let out = sentence;
+    for (const ph of phrases) {
+      // The item as quoted or bare, with its joining word, in a list: "'X' and 'Y'", "X, Y and Z".
+      const item = String.raw`(?:the customer's (?:cue|mention) (?:about|of) (?:having )?)?['"‘“]?(?<![\p{L}])${esc(ph)}(?![\p{L}])['"’”]?`;
+      out = out.replace(new RegExp(String.raw`${item}\s*(?:,|\band\b|\bor\b)\s*`, 'iu'), '').replace(new RegExp(String.raw`\s*(?:,|\band\b|\bor\b)\s*${item}`, 'iu'), '');
+    }
+    // Still about a first-attempt item (it was the only one): drop the sentence.
+    return phrases.some((ph) => has(out, ph)) ? '' : out;
+  }).filter(Boolean).join(' ');
+  return { ...c, dimension_scores: c.dimension_scores.map((d) => ({ ...d, rationale: fix(d.rationale) || d.rationale, ...(d.coaching ? { coaching: fix(d.coaching) || d.coaching } : {}) })) };
 }
 
 /**
@@ -279,14 +348,18 @@ export function stripTurnAliases(text: string): string {
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:in|at|during|from)\s+${TURN_WORDS}${ALIAS_LIST}\s*,?\s*([a-z])?`, 'gi'), (_, lead: string, next?: string) => capital(lead, next))
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:टर्न\s*)?${ALIAS_LIST}\s*(?:में|मध्ये|मधे|वर)\s*,?\s*`, 'g'), '$1')
     .replace(/\s*\((?:turns?\s+)?T\d+(?:\s*(?:,|and|&|-|–)\s*T\d+)*\)/gi, '')
-    .replace(new RegExp(String.raw`\s+(?:in|at|from|during)\s+${TURN_WORDS}${ALIAS_LIST}\b`, 'gi'), '')
+    .replace(new RegExp(String.raw`,?\s+(?:such as|like|e\.g\.)\s+${ALIAS_LIST}\b`, 'gi'), '')
+    .replace(new RegExp(String.raw`\s+(?:in|at|from|during|after|before|by|on)\s+${TURN_WORDS}${ALIAS_LIST}\b`, 'gi'), '')
     .replace(/\bT\d+\b/g, '');
-  return repairDanglingTurnRefs(t).replace(/\s+([.,;:!?।])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+  return repairDanglingTurnRefs(t).replace(/,\s*,/g, ',').replace(/\s+([.,;:!?।])/g, '$1').replace(/\s{2,}/g, ' ').trim();
 }
 
 /** "In , you asked" / "In turns like and, try" / "में, आपने": what deleting the label alone left behind. */
 export function repairDanglingTurnRefs(text: string): string {
   return text
     .replace(/(^|[.!?।]\s+)(?:in|at|during|from)\s*(?:(?:the\s+)?turns?\s*(?:like|such\s+as)?\s*)?(?:(?:and|or|&)\s*)*,\s*([a-z])?/gi, (_, lead: string, next?: string) => capital(lead, next))
-    .replace(/(^|[.!?।]\s+)(?:में|मध्ये|मधे)\s*,\s*/g, '$1');
+    .replace(/(^|[.!?।]\s+)(?:में|मध्ये|मधे)\s*,\s*/g, '$1')
+    // Mid-sentence: "For example, after, you could have asked" (the label after "after" removed).
+    .replace(/,\s*(?:after|before|in|at|during)\s*,/gi, ',')
+    .replace(/,\s*(?:such as|like)\s*,/gi, ',');
 }

@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.1.0: provenance
+# EDU_DISCOVERY_001 v4.1.1: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -65,5 +65,9 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   clarification request (found by the training agent). New fact and topic
   `employment_duration`: about 8 years with the same company [R]; asking it also earns the
   employment check, as employment discovery.
+- **4.1.1 (7 Oct 2026), checking the first training brief:** when the learner says "son",
+  the customer corrects them with a fixed line ("Actually, it is my daughter, not my son.",
+  Hindi and Marathi too) [R]; `evaluator_v4` never calls something covered in a focused
+  retry's first attempt missed; `roleplay_v4` repeats politely ("As I mentioned").
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

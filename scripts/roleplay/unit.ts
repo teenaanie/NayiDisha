@@ -16,7 +16,7 @@ import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerRep
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
-import { assess, stripTurnAliases, settleFocused } from '../../src/modules/roleplay/evaluation/assess';
+import { assess, stripTurnAliases, settleFocused, firstAttemptSlips } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
@@ -557,6 +557,34 @@ export async function unitTests(): Promise<Check[]> {
       ok('PS30', 'Follow-up: a check credited in the first attempt is not left as missed, and a risk resting only on copied turns is not raised again',
         !out.evidence.some((e) => e.id === 'ev_income') && out.evidence.some((e) => e.id === 'ev_timing') && out.dimension_scores[0].evidence_ids.join() === 'ev_timing'
         && out.risk_flags.map((f) => f.rule_id).join() === 'documents_dismissed', JSON.stringify(out.risk_flags.map((f) => f.rule_id)));
+    }
+    {
+      // The customer corrects "your son"; a draft that keeps saying "son" falls back to the fixed answer alone.
+      const said = await conv3().say("Could you tell me what course is your son going to be doing?");
+      const hiSaid = await conv3('hi').say('आपका बेटा कौन सा कोर्स कर रहा है?');
+      const plain = await conv3().say('For that reason, how much loan do you need?');
+      ok('PS31', 'When the learner says "son", the customer first corrects them (English and Hindi); "reason" does not trigger it',
+        said.reply.text.startsWith('Actually, it is my daughter, not my son.') && said.reply.text.includes('Priya') && hiSaid.reply.text.startsWith('वैसे, बेटा नहीं, मेरी बेटी है।') && !plain.reply.text.includes('daughter, not my son'),
+        `${said.reply.text} | ${hiSaid.reply.text} | ${plain.reply.text}`);
+      overrideProvider('roleplay', { id: 'stubborn', model: 'm', live: true, complete: async () => ({ text: JSON.stringify({ text: 'Yes, my son is doing B.Com.', used_fact_ids: [], requested_end: false }), provider: 'stubborn', model: 'm', request_id: null, usage: null, latency_ms: 1 }) });
+      const q31 = 'What course is your son doing, and which year?';
+      const cls31 = { hits: [{ intent_id: 'student_details', confidence: 1, sentence: { text: q31, start: 0, end: Array.from(q31).length }, question: true }], low_confidence: false, asks_anything: true, classifier_version: 'test', uncovered_question: 'which year?' };
+      const plan31 = resolveDisclosure(p, cls31, new Set(['cue_soon']));
+      const r31 = await generateCustomerReply({ bundle: p, plan: plan31, history: [], learnerText: 'What course is your son doing, and which year?', template: tpl, correlation: { tenant_id: 't', session_id: 's', operation_id: 'o' } });
+      overrideProvider('roleplay', null);
+      ok('PS31', 'If every draft fails, a fixed answer stands alone: no "Could you explain what you mean?" after it',
+        r31.method === 'fallback' && r31.text === 'Actually, it is my daughter, not my son. Her name is Priya. She has got admission for B.Com at a college in Pune.', r31.text);
+    }
+    {
+      const cand = { dimension_scores: [{ dimension_id: 'active_listening', score: 3, anchor_score: 3, evidence_ids: [], status: 'scored',
+        rationale: 'The learner followed up on timing. However, they missed following up on the cue about \'another EMI\' and \'extra charges\'.',
+        coaching: 'When the customer mentions extra charges, ask what happened.' }] } as never;
+      const slips = firstAttemptSlips(p, cand, ['follows_up_other_emi_cue', 'income']);
+      const none = firstAttemptSlips(p, cand, ['income']);
+      ok('PS32', 'A follow-up comment calling first-attempt work missed is caught ("another EMI"), a genuinely missed cue is not ("extra charges")',
+        slips.length === 1 && /"another EMI"/.test(slips[0]) && none.length === 0, slips.join(' | '));
+      ok('PS28', 'A turn reference after "after"/"before" is removed too', stripTurnAliases('For example, after T10, you could have asked about the charges.') === 'For example, you could have asked about the charges.'
+        && stripTurnAliases('For example, after, you could have asked about the charges.') === 'For example, you could have asked about the charges.' && stripTurnAliases('Ask after the customer finishes.') === 'Ask after the customer finishes.');
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
