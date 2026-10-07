@@ -574,6 +574,16 @@ export async function integrationTests(): Promise<Check[]> {
       titles.includes('Opening line') && !titles.includes('Invented quote') && t1.suggestions.find((x) => x.title === 'From the tester')?.source === 'tester_note' && t1.suggestions[0].severity === 'high'
       && titles.includes('Report quote') && t1.suggestions.find((x) => x.title === 'Report quote')!.evidence[0].turn === null,
       titles.join(' | '));
+    {
+      // The agent sees each evidence item's outcome, and a follow-up's first-attempt credit.
+      const { digests } = await rp.sessionDigests(nd.id, [sid, fsid]);
+      const ev0 = (digests[0].assessment.evidence as { outcome: string | null; status: string; check: string }[]);
+      const simple = ev0.find((e) => e.check.startsWith('simple_language:'));
+      ok('TRAIN', 'The agent sees each check\'s outcome (an absence check not_observed reads as met) and a follow-up\'s first-attempt credit',
+        ev0.every((e) => e.outcome !== undefined) && (!simple || simple.status !== 'not_observed' || simple.outcome === 'met')
+        && digests[1].assessment.follow_up_of_first_attempt === true && Array.isArray(digests[1].assessment.first_attempt_covered) && (digests[1].assessment.first_attempt_covered as unknown[]).length > 0,
+        `${simple?.status}→${simple?.outcome}; first attempt ${(digests[1].assessment.first_attempt_covered as unknown[] | undefined)?.length}`);
+    }
     const ev = t1.suggestions.find((x) => x.title === 'Opening line')!.evidence[0];
     const [turn] = await sql<{ text: string }[]>`SELECT text FROM rp.turn WHERE session_id = ${ev.session_id} AND sequence = ${ev.turn}`;
     ok('TRAIN', 'Kept evidence points at a real session turn that contains the quote', !!turn && turn.text.includes(ev.quote), ev.quote);
