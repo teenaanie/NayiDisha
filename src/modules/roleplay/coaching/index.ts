@@ -26,12 +26,23 @@ const checkShape = ajv.compile(coachingCandidateSchema);
  * attempt for "avoiding a pitch").
  */
 export type Outcome = 'met' | 'missed' | 'violated' | 'unclear' | 'other';
+/**
+ * The model sometimes marks a judgement-only check "uncertain" while its own explanation affirms
+ * it ("The conversation remained focused on the loan requirement throughout."; 7 Oct 2026). With
+ * no quote to weigh and plainly positive words with no hedge, that is a met behaviour.
+ */
+const AFFIRM = /\b(remained|kept|stayed|consistently|successfully|clearly|throughout|maintained|well)\b/i;
+const HEDGE = /\b(not|no|never|didn['’]t|did not|unclear|uncertain|cannot|can['’]t|could not|insufficient|partially|partly|some|somewhat|limited|may|might|unsure|difficult|without|lack|lacked|missed|however|but|although|though|only)\b/i;
+export function affirmsWithoutQuote(e: { method: string; learner_spans: unknown[]; explanation: string }): boolean {
+  return e.method === 'llm' && e.learner_spans.length === 0 && AFFIRM.test(e.explanation) && !HEDGE.test(e.explanation);
+}
+
 export function evidenceOutcomes(bundle: ScenarioBundle, candidate: EvaluationCandidate): Map<string, Outcome> {
   const absence = runtimeOf(bundle).absence_checks;
   const out = new Map<string, Outcome>();
   for (const e of candidate.evidence) {
     if (!e.check_id) { out.set(e.id, e.status === 'observed' || e.status === 'contradicted' ? 'violated' : 'other'); continue; }
-    if (e.status === 'uncertain') out.set(e.id, 'unclear');
+    if (e.status === 'uncertain') out.set(e.id, affirmsWithoutQuote(e) ? 'met' : 'unclear');
     // For an absence check the evaluator reports a violation as `contradicted`; `observed` affirms
     // the good behaviour ("used simple language", with a quote) and `not_observed` means none seen.
     else if (e.check_id in absence) out.set(e.id, e.status === 'contradicted' ? 'violated' : 'met');

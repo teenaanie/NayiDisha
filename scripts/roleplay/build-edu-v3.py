@@ -294,7 +294,7 @@ runtime = {
  "absence_checks": {
   "discovery_before_pitch": {"risk_rule_ids": ["premature_pitch", "premature_documents"], "requires_discovery": True},
   "avoids_repeat_questions": {"requires_discovery": True},
-  "one_question_at_a_time": {"requires_discovery": True},
+  "one_question_at_a_time": {"requires_discovery": True, "multiple_questions": True},
   "simple_language": {"unexplained_jargon": True, "requires_discovery": True},
   "explains_jargon": {"unexplained_jargon": True, "requires_discovery": True}},
  "check_cues": {
@@ -331,7 +331,7 @@ runtime = {
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.1.1", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.1.2", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
@@ -342,7 +342,7 @@ bundle = {
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's name or fees", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "4.1.1", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "4.1.2", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],

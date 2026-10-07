@@ -12,11 +12,12 @@ import { classify } from '../../src/modules/roleplay/runtime/intents';
 import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/registry';
 import type { Language } from '../../src/modules/roleplay/runtime/language';
 import { billedOutputTokens } from '../../src/modules/ai-usage';
+import { affirmsWithoutQuote } from '../../src/modules/roleplay/coaching';
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
-import { assess, stripTurnAliases, settleFocused, firstAttemptSlips } from '../../src/modules/roleplay/evaluation/assess';
+import { assess, stripTurnAliases, settleFocused, firstAttemptSlips, applyRuleViolations } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
@@ -585,6 +586,26 @@ export async function unitTests(): Promise<Check[]> {
         slips.length === 1 && /"another EMI"/.test(slips[0]) && none.length === 0, slips.join(' | '));
       ok('PS28', 'A turn reference after "after"/"before" is removed too', stripTurnAliases('For example, after T10, you could have asked about the charges.') === 'For example, you could have asked about the charges.'
         && stripTurnAliases('For example, after, you could have asked about the charges.') === 'For example, you could have asked about the charges.' && stripTurnAliases('Ask after the customer finishes.') === 'Ask after the customer finishes.');
+    }
+    {
+      const T = (texts: string[]) => texts.map((text, i) => ({ id: `q${i}`, sequence: i, speaker: (i % 2 ? 'learner' : 'customer') as 'learner' | 'customer', text, origin: (i ? 'live' : 'opening') as 'live' | 'opening' }));
+      const multi = (texts: string[]) => extractRuleEvidence(p, T(texts) as never).evidence.find((e) => e.check_id === 'one_question_at_a_time' && e.method === 'rule');
+      const two = multi([p.conversation.opening_text, 'So, out of 4 and a half, 50,000 you will be able to pay out of your pocket, is it? What is your source of income?']);
+      const and = multi([p.conversation.opening_text, 'How much do you need and when do you need it by?']);
+      const tag = multi([p.conversation.opening_text, 'So you need 4 lakh within 30 days for her fees, right? Is that correct?']);
+      const one = multi([p.conversation.opening_text, 'What is your source of income?']);
+      ok('PS33', 'Two real questions in one message are a rule violation with the quote; a single question or a short tag is not',
+        two?.status === 'contradicted' && /is it\? What is your source of income\?$/.test(two.learner_spans[0].quote) && and?.status === 'contradicted' && !tag && !one,
+        `${two?.learner_spans[0]?.quote} | ${and?.status} | ${tag?.status} | ${one?.status}`);
+      const rule33 = extractRuleEvidence(p, T([p.conversation.opening_text, 'How much do you need and when do you need it by?']) as never);
+      const cand = { evidence: [{ id: 'ev_one_question_at_a_time', check_id: 'one_question_at_a_time', category: 'conversation', status: 'observed', learner_spans: [], context_spans: [], searched_turn_ids: [], explanation: 'The learner asked multiple questions in a single turn.', method: 'llm', confidence: 0.8 }],
+        dimension_scores: [{ dimension_id: 'clarity', score: 3, anchor_score: 3, evidence_ids: ['ev_one_question_at_a_time'], rationale: '', status: 'scored' }], risk_flags: [] } as never;
+      const fixed = applyRuleViolations(p, cand, rule33);
+      const ev = fixed.evidence.find((e) => e.id === 'ev_one_question_at_a_time');
+      ok('PS33', 'The rule overrides the model\'s "met" for that check, keeping its evidence ID', ev?.status === 'contradicted' && ev.method === 'rule' && ev.learner_spans.length === 1 && fixed.dimension_scores[0].evidence_ids.join() === 'ev_one_question_at_a_time', `${ev?.status} ${ev?.method}`);
+      const e = (explanation: string) => ({ method: 'llm', learner_spans: [], explanation });
+      ok('PS34', '"Uncertain" with a plainly positive explanation counts as met; a hedged one stays unclear',
+        affirmsWithoutQuote(e('The conversation remained focused on the loan requirement throughout.')) && !affirmsWithoutQuote(e('The conversation remained mostly focused, but drifted once.')) && !affirmsWithoutQuote(e('It is unclear whether the learner kept focus.')) && !affirmsWithoutQuote({ ...e('Kept focus throughout.'), method: 'rule' }), '');
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 

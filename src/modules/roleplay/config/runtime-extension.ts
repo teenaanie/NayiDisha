@@ -22,7 +22,11 @@ export interface RuntimeExtension {
   /** Intents and risk rules that only fire while discovery is incomplete. */
   discovery_conditioned: string[];
   /** Checks satisfied by the absence of a behaviour rather than an action. */
-  absence_checks: Record<string, { risk_rule_ids?: string[]; unexplained_jargon?: boolean; requires_discovery?: boolean }>;
+  /**
+   * Checks satisfied by absence. `multiple_questions`: a learner message asking two or more real
+   * questions is a violation the rules record themselves (with the quote), whatever the model says.
+   */
+  absence_checks: Record<string, { risk_rule_ids?: string[]; unexplained_jargon?: boolean; requires_discovery?: boolean; multiple_questions?: boolean }>;
   /** Phrase cues for checks judged qualitatively; the mock evaluator uses them, a live evaluator sees them as examples. */
   check_cues: Record<string, string[]>;
   /** Terms that count as jargon unless explained in the same turn. */

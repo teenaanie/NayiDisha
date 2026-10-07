@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.1.1: provenance
+# EDU_DISCOVERY_001 v4.1.2: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -69,5 +69,8 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   the customer corrects them with a fixed line ("Actually, it is my daughter, not my son.",
   Hindi and Marathi too) [R]; `evaluator_v4` never calls something covered in a focused
   retry's first attempt missed; `roleplay_v4` repeats politely ("As I mentioned").
+- **4.1.2 (7 Oct 2026):** "one question at a time" is decided by a rule: a learner message with
+  two or more real questions is a violation, with the quote (the assessor had marked it met
+  while writing "asked multiple questions in a single turn").
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
