@@ -391,7 +391,7 @@ export interface RetryInput { mode: 'full' | 'focused'; retry_plan_id: string; e
 
 export async function startRetry(actor: Actor, sessionId: string, input: RetryInput) {
   const parent = await loadSessionFor(actor, sessionId);
-  if (parent.kind === 'assessment') throw conflict('ASSESSMENT_NO_RETRY', 'A graded assessment cannot be retried; your manager can allow a retake.');
+  if (parent.kind === 'assessment') throw conflict('ASSESSMENT_NO_RETRY', 'A graded assessment cannot be retried; your manager or the NayiDisha team can allow another attempt.');
   if (!['reported', 'report_partial'].includes(parent.state)) throw conflict('NO_ASSESSMENT', 'A retry needs a completed report.');
   if (parent.current_run_id !== input.expected_assessment_id) throw conflict('STALE_ASSESSMENT', 'The report changed; reload it before retrying.', { current_assessment_id: parent.current_run_id });
   const [plan] = await sql<{ id: string; mode: string; checkpoint_sequence: number | null; target_check_ids: string[]; run_id: string }[]>`

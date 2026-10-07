@@ -11,7 +11,7 @@ import { sql } from '@/lib/db';
  * that does not exist (404), so IDs leak nothing (AT21).
  */
 
-export type Role = 'learner' | 'manager' | 'author' | 'reviewer' | 'tenant_admin' | 'worker';
+export type Role = 'learner' | 'manager' | 'author' | 'reviewer' | 'tenant_admin' | 'worker' | 'operator';
 export interface Actor {
   tenant_id: string;
   tenant_slug: string;

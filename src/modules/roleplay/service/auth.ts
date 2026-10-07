@@ -74,6 +74,19 @@ export async function requestActor(): Promise<Actor | null> {
   return null;
 }
 
+/**
+ * The Practice coach user behind an operations page: the administrator or the operations
+ * user, never the demo "act as" account, so the Operations workspace always acts as the
+ * operator themselves.
+ */
+export async function operatorActor(): Promise<Actor | null> {
+  const who = await identity();
+  if (!who || (who.role !== 'ADMIN' && who.role !== 'OPERATIONS')) return null;
+  const tid = await tenantId(DEFAULT_TENANT);
+  if (!tid) return null;
+  return actorFor(tid, who.role === 'ADMIN' ? `nd:admin:${who.id}` : 'nd:operations', randomUUID());
+}
+
 /** For the demo switcher: every seeded synthetic account. */
 export async function syntheticAccounts() {
   return sql<{ tenant: string; subject: string; display_name: string; roles: string[] }[]>`
