@@ -58,7 +58,14 @@ async function processEvaluate(job: Job) {
   const started = Date.now();
   const recorded = await sql<{ turn_id: string; intents: { intent_id: string; question: boolean; start?: number; end?: number }[] }[]>`
     SELECT turn_id, intents FROM rp.turn_analysis WHERE session_id = ${s.id}`;
+  // A focused retry continues the first attempt: what was credited there stays covered.
+  const firstAttempt = run.mode === 'focused' && s.retry_scope?.parent_run_id
+    ? (await sql<{ check_id: string; quote: string | null }[]>`
+        SELECT check_id, learner_spans->0->>'quote' AS quote FROM rp.evidence
+         WHERE run_id = ${s.retry_scope.parent_run_id} AND tenant_id = ${s.tenant_id} AND check_id IS NOT NULL AND status = 'observed'`)
+    : [];
   const result = await assess({
+    first_attempt: firstAttempt,
     recordedIntents: new Map(recorded.map((r) => [r.turn_id, r.intents])),
     bundle, turns: snap.content, session_id: s.id, transcript_hash: snap.hash, mode: run.mode,
     target_check_ids: s.retry_scope?.target_check_ids ?? [], template: template.content, template_id: s.prompt_versions.evaluator.id,

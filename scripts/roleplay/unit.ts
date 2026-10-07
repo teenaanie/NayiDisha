@@ -16,7 +16,7 @@ import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerRep
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
-import { assess, stripTurnAliases } from '../../src/modules/roleplay/evaluation/assess';
+import { assess, stripTurnAliases, settleFocused } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
@@ -540,6 +540,23 @@ export async function unitTests(): Promise<Check[]> {
       const focused = extractRuleEvidence(p, T([[p.conversation.opening_text, 'customer', 'opening'], ['How much loan do you need?', 'learner', 'retry_prefix'], ['About 4 lakh.', 'customer', 'retry_prefix'], ['When exactly do you need the money?', 'learner', 'live']]) as never, { excludeOrigins: ['retry_prefix'] }).evidence;
       const amt = focused.find((e) => e.check_id === 'loan_amount'); const inc = focused.find((e) => e.check_id === 'income');
       ok('PS29', 'A focused retry says an area was asked in the first attempt, not that it was never asked', !!amt && /^Asked in the first attempt/.test(amt.explanation) && !!inc && /^Not asked after the retry point/.test(inc.explanation), `${amt?.explanation} | ${inc?.explanation}`);
+    }
+    {
+      const sp = (turn_id: string) => ({ turn_id, start: 0, end: 3, quote: 'abc' });
+      const c = { contract_version: '1.1', session_id: 's', transcript_hash: 'h', rubric_version: 'r',
+        evidence: [
+          { id: 'ev_income', check_id: 'income', category: 'coverage', status: 'not_observed', learner_spans: [], context_spans: [], searched_turn_ids: [], explanation: '', method: 'rule', confidence: 0.8 },
+          { id: 'ev_timing', check_id: 'timing', category: 'coverage', status: 'not_observed', learner_spans: [], context_spans: [], searched_turn_ids: [], explanation: '', method: 'rule', confidence: 0.8 },
+          { id: 'risk_old', category: 'compliance', status: 'observed', learner_spans: [sp('old')], context_spans: [], searched_turn_ids: [], explanation: '', method: 'rule', confidence: 0.9 },
+          { id: 'risk_new', category: 'compliance', status: 'observed', learner_spans: [sp('new')], context_spans: [], searched_turn_ids: [], explanation: '', method: 'rule', confidence: 0.9 },
+        ],
+        dimension_scores: [{ dimension_id: 'questioning_discovery', score: 3, anchor_score: 3, evidence_ids: ['ev_income', 'ev_timing'], rationale: '', status: 'scored' }],
+        risk_flags: [{ rule_id: 'guaranteed_approval', evidence_ids: ['risk_old'], status: 'confirmed' }, { rule_id: 'documents_dismissed', evidence_ids: ['risk_new'], status: 'confirmed' }],
+      } as never;
+      const out = settleFocused(c, new Set(['income']), new Set(['old']));
+      ok('PS30', 'Follow-up: a check credited in the first attempt is not left as missed, and a risk resting only on copied turns is not raised again',
+        !out.evidence.some((e) => e.id === 'ev_income') && out.evidence.some((e) => e.id === 'ev_timing') && out.dimension_scores[0].evidence_ids.join() === 'ev_timing'
+        && out.risk_flags.map((f) => f.rule_id).join() === 'documents_dismissed', JSON.stringify(out.risk_flags.map((f) => f.rule_id)));
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
