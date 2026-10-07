@@ -101,13 +101,14 @@ After practising, a learner can take a graded assessment of the same scenario (`
 
 ## AI training agent (operator menu → AI training)
 
-Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v3` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
+Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v4` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
 
 - **Conversation and scenario:** customer replies, question understanding, scenario content.
 - **Assessment, feedback and framework:** scores and evidence (each check's outcome, quotes and method, risk flags, the cap), the learner-facing feedback and coaching (what went well, improvements, top missed questions, suggested questions, retry instruction), and the assessment framework itself (anchors, checks, weights, the evaluator guide, risk rule examples). The agent sees the full framework and every evidence item, quotes the report as well as the transcript (both are verified), and writes a separate assessment and coaching review.
 
 - **Run log.** `rp.training_run` records the period each run assessed. The next run starts where the last successful one ended, so "reports assessed up to" is always known. A run covers at most 40 sessions, oldest first; the rest go to the next run.
 - **Tester notes.** One observation per line. The agent checks each against the transcripts (confirmed, partly, not found, not checkable) and turns confirmed ones into suggestions.
+- **Outcomes, not raw statuses.** Each evidence item reaches the agent with the platform's outcome (met / missed / violated / unclear; an absence check's not_observed is met), and a follow-up carries what its first attempt was credited for.
 - **Evidence is checked.** Every transcript quote must match the cited turn, and every report quote the session's report text; unmatched quotes are discarded, and an agent suggestion left with no evidence is dropped (one from a tester note is kept).
 - **Human review.** Each suggestion is accepted (optionally with an edited change), rejected or left undecided. Approval needs every suggestion decided and writes a Markdown **build brief** (copy or download) to hand to a developer. Nothing changes live content by itself.
 - **Steps.** A run is split into batches of 5 sessions, one model call each (about 30 s with 3.1 Pro), then a merge call. Work advances while the run page is open and from the daily cron (`/api/cron/ai-training`, 02:00 UTC), which also starts the weekly run on Mondays. A batch that fails 3 times fails the run, which can be retried.

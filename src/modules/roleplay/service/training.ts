@@ -7,6 +7,7 @@ import { sha256 } from '../config/compile';
 import { runtimeOf } from '../config/runtime-extension';
 import { completeWithRetry } from '../providers';
 import { renderFact } from '../runtime/disclosure';
+import { evidenceOutcomes } from '../coaching';
 import type { ScenarioBundle } from '../contracts/types';
 
 /**
@@ -24,7 +25,7 @@ import type { ScenarioBundle } from '../contracts/types';
  * advances while the run page is open (it polls) and from the daily cron.
  */
 
-export const TRAINING_PROMPTS = { review: 'trainer_review_v3', merge: 'trainer_merge_v2' } as const;
+export const TRAINING_PROMPTS = { review: 'trainer_review_v4', merge: 'trainer_merge_v2' } as const;
 export const SESSIONS_PER_STEP = 5;
 export const MAX_SESSIONS_PER_RUN = 40;
 const MAX_STEP_ATTEMPTS = 3;
@@ -140,12 +141,24 @@ export async function sessionDigests(tenantId: string, sessionIds: string[], ref
     const seq = new Map(turns.map((t) => [t.id, t.sequence]));
     const checkDesc = new Map(bundle.rubric.checks.map((c) => [c.id, c.description]));
     const quotes = (spans?: { turn_id: string; quote: string }[]) => (spans ?? []).slice(0, 2).map((x) => ({ turn: seq.get(x.turn_id) ?? null, quote: Array.from(x.quote).slice(0, 160).join('') }));
+    // The platform's own reading of each item (as the coach uses it): for a check satisfied by
+    // absence ("simple language"), not_observed means no violation, i.e. met. The agent misread
+    // that as a failure in three sessions (run 3059561a, 7 Oct 2026).
+    const outcomes = run?.candidate?.evidence ? evidenceOutcomes(bundle, run.candidate as never) : new Map<string, string>();
     const evidence = (run?.candidate?.evidence ?? []).slice(0, 60).map((e) => ({
-      id: e.id, check: e.check_id ? `${e.check_id}: ${checkDesc.get(e.check_id) ?? ''}` : e.category, status: e.status, method: e.method,
+      id: e.id, check: e.check_id ? `${e.check_id}: ${checkDesc.get(e.check_id) ?? ''}` : e.category, status: e.status, outcome: outcomes.get(e.id) ?? null, method: e.method,
       learner_quotes: quotes(e.learner_spans), ...(e.context_spans?.length ? { context_quotes: quotes(e.context_spans) } : {}), explanation: Array.from(e.explanation ?? '').slice(0, 240).join(''),
     }));
+    // A follow-up continues its first attempt; what was credited there counts here, including
+    // turns after the retry point that this transcript does not contain.
+    const [scope] = await sql<{ retry_scope: { mode?: string; parent_run_id?: string } | null }[]>`SELECT retry_scope FROM rp.session WHERE id = ${id}`;
+    const firstAttempt = scope?.retry_scope?.mode === 'focused' && scope.retry_scope.parent_run_id
+      ? (await sql<{ check_id: string; quote: string | null }[]>`SELECT check_id, learner_spans->0->>'quote' AS quote FROM rp.evidence
+          WHERE run_id = ${scope.retry_scope.parent_run_id} AND check_id IS NOT NULL AND status = 'observed'`).map((x) => ({ check: `${x.check_id}: ${checkDesc.get(x.check_id) ?? ''}`, learner_said: x.quote }))
+      : null;
     const assessment: Record<string, unknown> = run ? {
       status: run.status,
+      ...(firstAttempt ? { follow_up_of_first_attempt: true, first_attempt_covered: firstAttempt } : {}),
       ...(run.score?.final_percent !== undefined ? { overall: `${run.score.final_percent}/100 ${run.score.band_label ?? ''}`.trim(), before_adjustments: run.score.base_percent ?? null } : {}),
       ...(run.score?.adjustments?.length ? { adjustments: run.score.adjustments.map((a) => a.detail) } : {}),
       skills: (run.candidate?.dimension_scores ?? []).map((d) => ({ skill: dimName.get(d.dimension_id) ?? d.dimension_id, weight: bundle.scoring.weights?.[d.dimension_id] ?? null, score: d.score, status: d.status, rationale: d.rationale, coaching: d.coaching ?? null, evidence_ids: d.evidence_ids ?? [] })),
