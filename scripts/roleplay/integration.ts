@@ -498,6 +498,45 @@ export async function integrationTests(): Promise<Check[]> {
     ok('GRADE', 'After review the assessment is final with no coaching, and both attempts stay on record', after.status === 'reported' && after.n === 0 && st3.attempts_used === 2 && !st3.can_start, `${after.status}, ${after.n}, ${st3.attempts_used}`);
   }
 
+  // ---- operators: every candidate's assessments, and the number of attempts ---------
+  {
+    // A signed-in candidate is a learner on no team, so no manager sees them.
+    const subject = `nd:candidate:OPS-TEST-${Date.now()}`;
+    const [u] = await sql<{ id: string }[]>`INSERT INTO rp.app_user (tenant_id, subject, display_name) VALUES (${nd.id}, ${subject}, 'Teamless candidate') RETURNING id`;
+    await sql`INSERT INTO rp.membership (tenant_id, user_id, role) VALUES (${nd.id}, ${u.id}, 'learner')`;
+    const cand = await as(nd.id, subject);
+    const ops = await as(nd.id, 'nd:operations');
+    const code = async (f: () => Promise<unknown>) => { try { await f(); return 'ok'; } catch (e) { return (e as rp.ApiError).code ?? String(e); } };
+    const set = (a: Actor, n: number, reason = '') => rp.setAssessmentAttempts(a, { learner_id: u.id, scenario_id: 'EDU_DISCOVERY_001', attempts_allowed: n, reason });
+    const row = async () => (await rp.listOperatorAssessments(ops, { search: 'Teamless' })).find((x) => x.learner_id === u.id);
+    const pr = (await rp.startSession(cand, { scenario_id: 'EDU_DISCOVERY_001' })).session.session_id;
+    await say(cand, pr, 'What do you need the loan for?');
+    await finishAndReport(cand, pr);
+    const r0 = await row();
+    ok('OPS', 'An operator sees a teamless candidate once they have a practice report, ready with 0 of 1 used', ops.roles.includes('operator') && !!r0 && r0.practised && r0.attempts_used === 0 && r0.attempts_allowed === 1, JSON.stringify(r0 && { u: r0.attempts_used, a: r0.attempts_allowed }));
+    const g1 = (await rp.startSession(cand, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' })).session;
+    await say(cand, g1.session_id, 'What do you need the loan for?');
+    await finishAndReport(cand, g1.session_id);
+    const managerSees = (await rp.listTeamAssessments(neha)).some((x) => x.learner_id === u.id);
+    const r1 = await row();
+    const ob = (await rp.getReport(ops, g1.session_id)).body as Record<string, any>;
+    ok('OPS', 'No manager sees the candidate; the operator does, with the full assessment (transcript, evidence) and no coaching',
+      !managerSees && r1?.attempts_used === 1 && r1.attempts[0]?.session_id === g1.session_id && typeof r1.attempts[0]?.final_percent === 'number'
+      && ob.view === 'manager' && Array.isArray(ob.transcript) && ob.dimensions.every((d: { coaching: unknown }) => d.coaching === null), `${managerSees} ${r1?.attempts_used}`);
+    const byLearner = await code(() => set(cand, 3)); const byManager = await code(() => set(neha, 3));
+    ok('OPS', 'Only operators set attempts: the learner and a manager are refused (403)', byLearner === 'FORBIDDEN' && byManager === 'FORBIDDEN', `${byLearner} / ${byManager}`);
+    const up = await set(ops, 3, 'Exam practice'); const st3 = await rp.assessmentStatus(cand, 'EDU_DISCOVERY_001');
+    ok('OPS', 'Raising to 3 lets the candidate start again (1 of 3)', up.attempts_allowed === 3 && st3.attempts_allowed === 3 && st3.can_start, JSON.stringify(up));
+    const down = await set(ops, 1); const st1 = await rp.assessmentStatus(cand, 'EDU_DISCOVERY_001');
+    const [gr] = await sql<{ live: number; revoked: number }[]>`SELECT count(*) FILTER (WHERE revoked_at IS NULL)::int live, count(*) FILTER (WHERE revoked_at IS NOT NULL)::int revoked FROM rp.assessment_grant WHERE learner_id = ${u.id}`;
+    ok('OPS', 'Lowering to 1 withdraws the unused attempts, kept on record as withdrawn', down.attempts_allowed === 1 && !st1.can_start && gr.live === 0 && gr.revoked === 2, JSON.stringify(gr));
+    await set(ops, 2);
+    await rp.startSession(cand, { scenario_id: 'EDU_DISCOVERY_001', kind: 'assessment' });
+    const below = await code(() => set(ops, 1)); const zero = await code(() => set(ops, 0)); const same = await set(ops, 2);
+    const [aud] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.audit_event WHERE action = 'assessment.attempts_set' AND subject_id = ${u.id}`;
+    ok('OPS', 'An attempt in progress counts as used: cannot go below it or below 1; an unchanged number is not audited', below === 'BELOW_USED' && zero === 'BAD_ATTEMPTS' && !same.changed && aud.n === 3, `${below} / ${zero} / ${aud.n} audits`);
+  }
+
   // ---- AI training agent (operator menu → AI training) ---------------------------------
   {
     await sql`DELETE FROM rp.training_run`;

@@ -29,7 +29,7 @@ export default async function PracticeHome() {
           const last = g.attempts.find((a) => a.state !== 'active');
           return <div className="mt" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
             <h3>Graded assessment</h3>
-            <p className="small muted">The same conversation, scored but with no coaching: you see your overall score and each skill's weighted score. One attempt; your manager can allow a retake.</p>
+            <p className="small muted">The same conversation, scored but with no coaching: you see your overall score and each skill's weighted score. One attempt; your manager or the NayiDisha team can allow another.</p>
             {last && <p>Your result: {last.final_percent != null ? <Link href={`/roleplay/s/${last.session_id}/report`}><strong>{Math.round(last.final_percent)}/100 · {last.band_label}</strong></Link> : <Link href={`/roleplay/s/${last.session_id}/report`}>see the result</Link>}{last.state === 'review_required' ? ' (under review)' : ''}</p>}
             {g.active_session_id ? <Link className="btn btn-primary" href={`/roleplay/s/${g.active_session_id}`}>Continue your assessment</Link>
               : g.can_start ? <StartButton scenarioId={b.scenario_id} languages={b.languages} kind="assessment" showBrief={false} label={g.attempts_used ? 'Retake the graded assessment' : 'Take the graded assessment'} />

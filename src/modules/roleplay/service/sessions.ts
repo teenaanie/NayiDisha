@@ -49,7 +49,7 @@ export async function transcript(sessionId: string, conn: Tx = sql): Promise<(Tr
      WHERE t.session_id = ${sessionId} ORDER BY t.sequence`;
 }
 
-/** Owner, a manager of the learner's team, or (for preview sessions) the author who started it. */
+/** Owner, a manager of the learner's team, an operator, or (for preview sessions) the author who started it. */
 export async function loadSessionFor(actor: Actor, sessionId: string, access: 'owner' | 'owner_or_manager' = 'owner', conn: Tx = sql, lock = false): Promise<SessionRow> {
   if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw notFound('Session');
   const rows = lock
@@ -62,6 +62,7 @@ export async function loadSessionFor(actor: Actor, sessionId: string, access: 'o
     const [m] = await conn`SELECT 1 FROM rp.team_membership WHERE user_id = ${s.learner_id} AND tenant_id = ${actor.tenant_id} AND role = 'member' AND team_id = ANY(${actor.managed_team_ids}) AND (valid_to IS NULL OR valid_to > now())`;
     if (m) return s;
   }
+  if (access === 'owner_or_manager' && actor.roles.includes('operator') && !s.is_preview) return s; // operators see every learner in the tenant
   if (access === 'owner_or_manager' && actor.roles.includes('reviewer')) return s; // reviewers see evidence for review; no team drill-down
   throw notFound('Session');   // 404, not 403: existence is not disclosed
 }

@@ -17,8 +17,8 @@ const TENANTS: { slug: string; name: string; settings: Record<string, unknown>; 
     settings: { author_reviewer_combined: false, daily_provider_call_budget: 5000, min_cohort: 5 },
     teams: ['North sales team', 'South sales team'],
     seats: [
-      { subject: 'nd:admin:ADMIN-001', name: 'Demo administrator', roles: ['author', 'reviewer', 'manager', 'tenant_admin', 'learner'], teams: [['North sales team', 'manager'], ['South sales team', 'manager']] },
-      { subject: 'nd:operations', name: 'Operations', roles: ['author', 'manager'] },
+      { subject: 'nd:admin:ADMIN-001', name: 'Demo administrator', roles: ['author', 'reviewer', 'manager', 'tenant_admin', 'learner', 'operator'], teams: [['North sales team', 'manager'], ['South sales team', 'manager']] },
+      { subject: 'nd:operations', name: 'Operations', roles: ['author', 'manager', 'operator'] },
       { subject: 'synthetic:author.meera', name: 'Meera (author)', roles: ['author'] },
       { subject: 'synthetic:reviewer.rahul', name: 'Rahul (reviewer)', roles: ['reviewer'] },
       { subject: 'synthetic:manager.neha', name: 'Neha (manager, North)', roles: ['manager'], teams: [['North sales team', 'manager']] },
