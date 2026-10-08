@@ -35,7 +35,29 @@ export interface CustomerReply {
 /** Function words that start sentences; never distinctive enough to reveal a hidden fact. */
 const COMMON_WORDS = new Set(['the', 'this', 'that', 'these', 'those', 'she', 'her', 'his', 'they', 'their', 'them', 'our', 'you', 'your', 'its', 'has', 'have', 'had', 'does', 'did', 'not', 'some', 'any', 'all', 'about', 'around', 'and', 'but', 'for', 'with', 'from', 'will', 'would', 'can', 'could', 'was', 'were', 'are', 'there', 'here', 'what', 'when', 'who', 'how', 'yes']);
 
-const LEAK = /(allowed_facts|persona_public_style|unknown_response|history_json|system prompt|hidden fact|rubric|evaluator|\bscore\b|as an ai\b|language model|i am an ai)/i;
+// "score" leaks the assessment, but "my CIBIL score" is ordinary banking talk: the filter
+// blocked every reply to a CIBIL question (training run 233132ec, 8 Oct 2026).
+const LEAK = /(allowed_facts|persona_public_style|unknown_response|history_json|system prompt|hidden fact|rubric|evaluator|(?<!\b(?:cibil|credit)\s)\bscore\b|as an ai\b|language model|i am an ai)/i;
+
+/**
+ * Figures as numbers, with Indian units read as values: "₹4.5 lakh" is 450000, so it matches
+ * the fact "₹4,50,000" (the cost breakup was rejected as an unsupported figure every time the
+ * model said "4.5 lakh"; training run 233132ec). The digits as written are kept too.
+ */
+const UNITS: [RegExp, number][] = [[/^(?:lakhs?|lacs?|लाख)/i, 1e5], [/^(?:crores?|करोड़|कोटी)/i, 1e7], [/^(?:thousand|हज़ार|हजार)/i, 1e3]];
+/** Each figure in the text: its digits as written, and its value when a unit follows. */
+export function figuresIn(text: string): { raw: string; value: string | null }[] {
+  return [...text.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => {
+    const raw = m[0].replace(/,/g, '');
+    const unit = UNITS.find(([re]) => re.test(text.slice(m.index! + m[0].length).trimStart()));
+    return { raw, value: unit ? String(Math.round(Number(raw) * unit[1])) : null };
+  });
+}
+/** Every figure in the reply appears in the context, as written or by value. */
+function figuresOk(reply: string, context: string): boolean {
+  const allowed = new Set(figuresIn(context).flatMap((f) => (f.value ? [f.raw, f.value] : [f.raw])));
+  return figuresIn(reply).every((f) => allowed.has(f.raw) || (f.value !== null && allowed.has(f.value)));
+}
 
 /** Validate one model candidate against what this turn may say. */
 export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allowedIds: string[], learnerText: string, history: TranscriptTurn[]): { ok: true; candidate: RoleplayCandidate } | { ok: false; reason: string } {
@@ -53,8 +75,7 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
   const context = [allowedText, learnerText, bundle.conversation.opening_text, ...history.map((t) => t.text), bundle.persona.name, bundle.scenario.learner_brief].join(' ');
 
   // Figures: every number must already exist in authorised facts or the conversation.
-  const okNumbers = new Set(numbersIn(context));
-  if (numbersIn(c.text).some((n) => !okNumbers.has(n))) return { ok: false, reason: 'unsupported_figure' };
+  if (!figuresOk(c.text, context)) return { ok: false, reason: 'unsupported_figure' };
 
   // Hidden facts: a known, unauthorised value must not appear, nor its distinctive words.
   for (const f of bundle.facts) {

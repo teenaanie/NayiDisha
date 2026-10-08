@@ -12,7 +12,7 @@ export function StartSimForm({levels,disabled}:{levels:Level[];disabled:string|n
   </fieldset>
   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:12}}>
    <div className="field"><label htmlFor="sim-n">Practice sessions per candidate</label><input id="sim-n" name="practice_sessions" type="number" min={1} max={10} defaultValue={5}/></div>
-   <div className="field"><label htmlFor="sim-m">Messages per session</label><input id="sim-m" name="message_budget" type="number" min={4} max={30} defaultValue={14}/><div className="muted small">About 14 is a 10-minute conversation.</div></div>
+   <div className="field"><label htmlFor="sim-m">Messages per session</label><input id="sim-m" name="message_budget" type="number" min={4} max={30} defaultValue={14}/><div className="muted small">About 14 is a 10-minute conversation. The excellent candidate gets 4 more, to cover every area and summarise.</div></div>
    <div className="field"><label htmlFor="sim-l">Language</label><select id="sim-l" name="language" defaultValue="en"><option value="en">English</option><option value="hi">Hindi</option><option value="mr">Marathi</option></select></div>
   </div>
   <fieldset className="field-group"><legend>Options</legend>

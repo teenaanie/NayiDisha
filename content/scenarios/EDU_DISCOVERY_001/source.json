@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -857,7 +857,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1714,6 +1714,25 @@
     "foreclosure",
     "moratorium"
    ],
+   "risk_not_examples": {
+    "guaranteed_approval": [
+     "We have a quick approval process.",
+     "Our approval process is fast.",
+     "We can process your loan quickly.",
+     "We offer education loans with competitive interest rates and quick processing."
+    ],
+    "documents_dismissed": [
+     "Please submit your documents and we will process the loan.",
+     "Please send your KYC documents.",
+     "Do you have the admission letter and fee structure ready?",
+     "Once you have the documents, send them to us and we can proceed."
+    ],
+    "income_falsification": [
+     "Please share your income proof.",
+     "We will need your salary slips as income proof.",
+     "Please send your KYC documents and income proof."
+    ]
+   },
    "acknowledgement_text": "I see. Please go on.",
    "derivations": [],
    "translations": {
