@@ -3,6 +3,7 @@ import { localized, type Language } from '../runtime/language';
 import type { CoachingCandidate, Evidence, EvaluationCandidate, ScenarioBundle, TranscriptTurn, Finding } from '../contracts/types';
 import { coachingCandidateSchema } from '../contracts/schemas';
 import { runtimeOf } from '../config/runtime-extension';
+import { VOLUNTEERED } from '../evaluation/extract';
 import type { CoachInput } from './mock-coach';
 
 /**
@@ -42,7 +43,8 @@ export function evidenceOutcomes(bundle: ScenarioBundle, candidate: EvaluationCa
   const out = new Map<string, Outcome>();
   for (const e of candidate.evidence) {
     if (!e.check_id) { out.set(e.id, e.status === 'observed' || e.status === 'contradicted' ? 'violated' : 'other'); continue; }
-    if (e.status === 'uncertain') out.set(e.id, affirmsWithoutQuote(e) ? 'met' : 'unclear');
+    if (e.status === 'uncertain' && e.method === 'rule' && e.explanation.startsWith(VOLUNTEERED)) out.set(e.id, 'other');   // answered unasked: neither met nor a gap
+    else if (e.status === 'uncertain') out.set(e.id, affirmsWithoutQuote(e) ? 'met' : 'unclear');
     // For an absence check the evaluator reports a violation as `contradicted`; `observed` affirms
     // the good behaviour ("used simple language", with a quote) and `not_observed` means none seen.
     else if (e.check_id in absence) out.set(e.id, e.status === 'contradicted' ? 'violated' : 'met');

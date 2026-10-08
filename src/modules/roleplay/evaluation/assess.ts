@@ -5,7 +5,7 @@ import { computeDerivations } from '../config/patch';
 import { renderFact } from '../runtime/disclosure';
 import { completeWithRetry, type CompletionResult } from '../providers';
 import { scoreAssessment, ScoringError } from '../scoring';
-import { extractRuleEvidence, RULE_VERSION, type RuleEvidence, type RecordedIntent } from './extract';
+import { extractRuleEvidence, RULE_VERSION, VOLUNTEERED, type RuleEvidence, type RecordedIntent } from './extract';
 import { validateCandidate, VALIDATOR_VERSION } from './validate';
 import { evaluationCandidateSchemaFor } from '../contracts/schemas';
 
@@ -217,6 +217,9 @@ export function applyRuleViolations(bundle: ScenarioBundle, c: EvaluationCandida
   // Unexplained jargon the rules found is a violation, whatever status the model copied it with.
   const jargonIds = new Set(rule.evidence.filter((e) => e.method === 'rule' && e.id.startsWith('jargon_')).map((e) => e.id));
   if (jargonIds.size) c = { ...c, evidence: c.evidence.map((e) => (jargonIds.has(e.id) && e.status === 'observed' ? { ...e, status: 'contradicted' as const } : e)) };
+  // A question the customer answered unasked is never a miss, whatever the model wrote.
+  const volunteered = new Map(rule.evidence.filter((e) => e.method === 'rule' && e.check_id && e.explanation.startsWith(VOLUNTEERED)).map((e) => [e.check_id!, e]));
+  if (volunteered.size) c = { ...c, evidence: c.evidence.map((e) => (e.check_id && volunteered.has(e.check_id) && e.status === 'not_observed' ? { ...volunteered.get(e.check_id)!, id: e.id } : e)) };
   const found = rule.evidence.filter((e) => e.method === 'rule' && e.status === 'contradicted' && e.check_id && absence[e.check_id]?.multiple_questions);
   if (!found.length) return c;
   let evidence = [...c.evidence];

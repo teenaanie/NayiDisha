@@ -711,6 +711,27 @@ export async function unitTests(): Promise<Check[]> {
       const digits = bk('The total is ₹4,50,000, with ₹3,00,000 for tuition.');
       const made = bk('It comes to about ₹5.5 lakh in all.');
       ok('PS42', '"₹4.5 lakh" matches the total "₹4,50,000" (and back); an invented figure is still rejected', lakh.ok && digits.ok && !made.ok && made.reason === 'unsupported_figure', [lakh, digits, made].map((x) => (x.ok ? 'ok' : x.reason)).join(' / '));
+      // Training run 2fd1f462 (second simulated run).
+      ok('PS44', 'A summary of the amount needed, "we can definitely help" and "charges will be explained" are not risk flags',
+        ["Just to make sure I've got everything right, you need a loan of ₹4 lakh for your daughter's college fees, within 30 days.", 'Yes, absolutely, we can definitely help you with a loan.', 'We will ensure the processing fee and other charges are transparently communicated.']
+          .every((x) => !flags(x).some((r) => ['guaranteed_approval', 'charges_misrepresented'].includes(r))) && flags('There are no other charges at all.').includes('charges_misrepresented'),
+        flags("Just to make sure I've got everything right, you need a loan of ₹4 lakh for your daughter's college fees, within 30 days.").join(','));
+      const multi = (x: string) => extractRuleEvidence(p, t3(['What do you need the loan for?', 'How much do you need?', 'What is your monthly income?', x])).evidence.some((e) => e.id.startsWith('multi_q_'));
+      ok('PS45', 'A confirmation before the next question, or the same question rephrased, is one question; two different questions are two',
+        !multi('So you need about ₹4 lakh, is that right? And when do you need the money?') && !multi('What is your monthly take-home salary? I mean, how much do you earn each month after deductions?') && multi('When do you need the money, and do you have any other EMIs right now?'),
+        ['confirm', 'rephrase', 'two'].map((k, i) => `${k}:${multi(['So you need about ₹4 lakh, is that right? And when do you need the money?', 'What is your monthly take-home salary? I mean, how much do you earn each month after deductions?', 'When do you need the money, and do you have any other EMIs right now?'][i])}`).join(' '));
+      const volTurns: TranscriptTurn[] = [{ id: 'o', sequence: 0, speaker: 'customer', text: p.conversation.opening_text, origin: 'opening' },
+        { id: 'l0', sequence: 1, speaker: 'learner', text: 'What is the loan for?', origin: 'live' }, { id: 'c0', sequence: 2, speaker: 'customer', text: "It is for my daughter's college admission.", origin: 'live' },
+        { id: 'l1', sequence: 3, speaker: 'learner', text: 'Can you contribute anything from your own savings?', origin: 'live' }, { id: 'c1', sequence: 4, speaker: 'customer', text: 'I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan.', origin: 'live' },
+        { id: 'l2', sequence: 5, speaker: 'learner', text: 'Okay, so you need about ₹4 lakh. What is your monthly income?', origin: 'live' }, { id: 'c2', sequence: 6, speaker: 'customer', text: 'I earn about ₹55,000 a month.', origin: 'live' }];
+      const vr = extractRuleEvidence(p, volTurns);
+      const vev = vr.evidence.find((e) => e.check_id === 'loan_amount')!;
+      const modelSaid = { evidence: [{ ...vev, id: 'ev_amount_model', status: 'not_observed' as const, method: 'llm' as const, explanation: 'Never asked the amount.' }], dimension_scores: [], risk_flags: [] } as never;
+      const vfixed = applyRuleViolations(p, modelSaid, vr);
+      const asked = extractRuleEvidence(p, t3(['What is the loan for?', 'How much loan do you need?'])).evidence.find((e) => e.check_id === 'loan_amount')!;
+      ok('PS46', 'A loan amount the customer gave unasked is neither a miss nor credit; asked, it is credit',
+        vr.inapplicable_check_ids.includes('loan_amount') && evidenceOutcomes(p, { evidence: [vev] } as never).get(vev.id) === 'other' && evidenceOutcomes(p, vfixed).get('ev_amount_model') === 'other' && asked.status === 'observed',
+        `${vev.status} ${vev.explanation}`);
     }
     ok('PS18', 'Turn labels used by the evaluator never reach learners', stripTurnAliases('Follow up on cues such as existing EMIs. (T0, T4, T6)') === 'Follow up on cues such as existing EMIs.' && stripTurnAliases('Say "Income?" less often (T5).') === 'Say "Income?" less often.' && stripTurnAliases('Use TV and EMI.') === 'Use TV and EMI.');
     ok('PS16', 'Practice reminders come from the scenario: 12 and 15 minutes in v3, 10 and 12 in 2.1.0', JSON.stringify(publicBrief('x', p).reminder_minutes) === '[12,15]' && JSON.stringify(publicBrief('x', b).reminder_minutes) === '[10,12]');

@@ -305,9 +305,10 @@ runtime = {
   "explains_jargon": ["which means", "that means", "in simple terms", "in other words", "simply put"]},
  "jargon_terms": ["LTV", "FOIR", "CIBIL", "collateral", "hypothecation", "amortisation", "amortization", "foreclosure", "moratorium"],
  "risk_not_examples": {
-  "guaranteed_approval": ["We have a quick approval process.", "Our approval process is fast.", "We can process your loan quickly.", "We offer education loans with competitive interest rates and quick processing."],
+  "guaranteed_approval": ["We have a quick approval process.", "Our approval process is fast.", "We can process your loan quickly.", "We offer education loans with competitive interest rates and quick processing.", "Just to make sure I have everything right, you need a loan of ₹4 lakh for your daughter's college fees, within 30 days.", "So you need about ₹4 lakh for the fees.", "Yes, we can definitely help you with a loan.", "I can certainly help you with that."],
   "documents_dismissed": ["Please submit your documents and we will process the loan.", "Please send your KYC documents.", "Do you have the admission letter and fee structure ready?", "Once you have the documents, send them to us and we can proceed."],
-  "income_falsification": ["Please share your income proof.", "We will need your salary slips as income proof.", "Please send your KYC documents and income proof."]},
+  "income_falsification": ["Please share your income proof.", "We will need your salary slips as income proof.", "Please send your KYC documents and income proof."],
+  "charges_misrepresented": ["We will explain the processing fee and other charges clearly.", "We will ensure the processing fee and other charges are transparently communicated.", "I will tell you about all the charges before you apply.", "There is a processing fee, and I will share the details."]},
  "acknowledgement_text": "I see. Please go on.",
  "derivations": [],
  "translations": {"hi": hi, "mr": mr},
@@ -335,7 +336,7 @@ runtime = {
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.1.3", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.1.4", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
@@ -346,7 +347,7 @@ bundle = {
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's name or fees", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "4.1.3", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "4.1.4", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],

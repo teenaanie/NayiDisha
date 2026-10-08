@@ -59,7 +59,7 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
       };
       const list = scripts[level] ?? scripts.competent;
       const done = asked >= Math.min(list.length, budget) - 1;
-      return JSON.stringify({ message: list[Math.min(asked, list.length - 1)], done });
+      return JSON.stringify({ areas_left: done ? [] : ['the rest of the script'], message: list[Math.min(asked, list.length - 1)], done });
     }
     case 'classify':
       return JSON.stringify({ intents: [], is_question: false, other_question: '' });

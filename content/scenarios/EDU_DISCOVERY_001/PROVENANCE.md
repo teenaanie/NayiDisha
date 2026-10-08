@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.1.3: provenance
+# EDU_DISCOVERY_001 v4.1.4: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -78,5 +78,11 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   dismissing documents or falsifying income. Unexplained jargon is recorded as a violation, never
   as met. The customer may say "CIBIL score" (it was blocked as a prompt leak), and "₹4.5 lakh"
   matches the total "₹4,50,000" (the cost breakup was rejected as an unsupported figure).
+- **4.1.4 (8 Oct 2026), from the second simulated-candidate run (training run 2fd1f462):**
+  more harmless look-alikes (rules-1.8.0): a summary of the amount needed ("you need a loan of
+  ₹4 lakh…"), "we can definitely help you with a loan" and "charges will be explained clearly"
+  are not risk flags. A money answer the customer gives unasked (the loan amount while answering
+  about savings) makes that question not applicable, neither credit nor a miss. "One question at
+  a time" counts a confirmation ("Is that right?") or the same question rephrased as one.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

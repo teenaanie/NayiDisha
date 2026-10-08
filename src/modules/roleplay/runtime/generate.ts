@@ -3,7 +3,8 @@ import type { ScenarioBundle, TranscriptTurn, RoleplayCandidate } from '../contr
 import { roleplayCandidateSchema } from '../contracts/schemas';
 import { runtimeOf } from '../config/runtime-extension';
 import { completeWithRetry, type CompletionResult } from '../providers';
-import { renderFact, numbersIn, type DisclosurePlan } from './disclosure';
+import { renderFact, numbersIn, figuresIn, type DisclosurePlan } from './disclosure';
+export { figuresIn } from './disclosure';
 import { localized, type Language } from './language';
 import { sentences, coverage } from './text';
 
@@ -39,20 +40,6 @@ const COMMON_WORDS = new Set(['the', 'this', 'that', 'these', 'those', 'she', 'h
 // blocked every reply to a CIBIL question (training run 233132ec, 8 Oct 2026).
 const LEAK = /(allowed_facts|persona_public_style|unknown_response|history_json|system prompt|hidden fact|rubric|evaluator|(?<!\b(?:cibil|credit)\s)\bscore\b|as an ai\b|language model|i am an ai)/i;
 
-/**
- * Figures as numbers, with Indian units read as values: "₹4.5 lakh" is 450000, so it matches
- * the fact "₹4,50,000" (the cost breakup was rejected as an unsupported figure every time the
- * model said "4.5 lakh"; training run 233132ec). The digits as written are kept too.
- */
-const UNITS: [RegExp, number][] = [[/^(?:lakhs?|lacs?|लाख)/i, 1e5], [/^(?:crores?|करोड़|कोटी)/i, 1e7], [/^(?:thousand|हज़ार|हजार)/i, 1e3]];
-/** Each figure in the text: its digits as written, and its value when a unit follows. */
-export function figuresIn(text: string): { raw: string; value: string | null }[] {
-  return [...text.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => {
-    const raw = m[0].replace(/,/g, '');
-    const unit = UNITS.find(([re]) => re.test(text.slice(m.index! + m[0].length).trimStart()));
-    return { raw, value: unit ? String(Math.round(Number(raw) * unit[1])) : null };
-  });
-}
 /** Every figure in the reply appears in the context, as written or by value. */
 function figuresOk(reply: string, context: string): boolean {
   const allowed = new Set(figuresIn(context).flatMap((f) => (f.value ? [f.raw, f.value] : [f.raw])));
