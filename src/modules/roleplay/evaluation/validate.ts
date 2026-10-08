@@ -162,7 +162,9 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
 
   if (c.session_id !== ctx.session_id) e('session_id does not match the session under assessment.');
   if (c.contract_version !== (ctx.contract_version ?? '1.0')) e(`contract_version must be ${ctx.contract_version ?? '1.0'}.`);
-  if (c.transcript_hash !== ctx.transcript_hash) e('transcript_hash does not match the frozen snapshot.');
+  // The hash is only echoed back from the request, and every quote is checked against the frozen
+  // turns below, so a mis-copied hash (live, 8 Oct 2026: two assessments lost) is corrected, not fatal.
+  if (c.transcript_hash !== ctx.transcript_hash) { notes.push(`transcript_hash ${JSON.stringify(String(c.transcript_hash).slice(0, 16))}… corrected to the frozen snapshot's.`); c.transcript_hash = ctx.transcript_hash; }
   if (c.rubric_version !== ctx.rubric_version) e('rubric_version does not match the pinned rubric.');
 
   const turns = new Map(ctx.turns.map((t) => [t.id, t]));

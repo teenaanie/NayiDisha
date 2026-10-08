@@ -679,6 +679,8 @@ export async function unitTests(): Promise<Check[]> {
       rs.dimension_scores[0].evidence_ids.push('ev_never_written');
       if (rs.risk_flags[0]) rs.risk_flags.push(clone(rs.risk_flags[0]));
       const vs = validateCandidate(JSON.stringify(rs), ctxR);
+      const vh = validateCandidate(JSON.stringify({ ...clone(ar.candidate), transcript_hash: 'hr-miscopied' }), ctxR);
+      ok('PS38', 'A mis-copied transcript hash is corrected with a note, not a failed assessment', vh.ok && vh.candidate.transcript_hash === 'hr' && vh.notes.some((n) => /corrected to the frozen snapshot/.test(n)), vh.ok ? '' : vh.errors.join(' '));
       ok('PS36', 'A "null" check_id, a citation of unwritten evidence and a repeated risk flag are cleaned, not a failed assessment',
         rEv.length > 0 && rs.risk_flags.length > 1 && vs.ok && vs.candidate.risk_flags.length === rs.risk_flags.length - 1 && !vs.candidate.dimension_scores[0].evidence_ids.includes('ev_never_written') && ['cleared', 'dropped unknown evidence', 'merged into the earlier flag'].every((k) => vs.notes.some((n) => n.includes(k))),
         vs.ok ? vs.notes.join(' ') : vs.errors.join(' '));
