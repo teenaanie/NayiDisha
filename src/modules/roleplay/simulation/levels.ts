@@ -10,6 +10,8 @@ export interface SimLevel {
   expected_band: { label: string; min: number; max: number };
   behaviour: string[];
   use_feedback: string;
+  /** Named areas the level covers; the candidate tracks them by these names. */
+  areas?: string[];
   /** Added to the run's message limit for this level. */
   extra_messages?: number;
 }

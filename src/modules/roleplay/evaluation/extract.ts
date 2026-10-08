@@ -1,7 +1,7 @@
 import type { ScenarioBundle, TranscriptTurn, Evidence, Span, RiskRule } from '../contracts/types';
 import { runtimeOf } from '../config/runtime-extension';
 import { classify, clauses, CLASSIFIER_VERSION } from '../runtime/intents';
-import { discoveryComplete } from '../runtime/disclosure';
+import { discoveryComplete, figuresIn } from '../runtime/disclosure';
 import { localized, type Language } from '../runtime/language';
 import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothetical, coverage, cpSlice, cpIndexOf, cpLength, type Sentence } from '../runtime/text';
 
@@ -15,7 +15,13 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.7.0';
+export const RULE_VERSION = 'rules-1.8.0';
+/** The explanation of a check the customer answered before being asked (see evidenceOutcomes). */
+export const VOLUNTEERED = 'The customer gave this before being asked, so it is not a missed question';
+/** Checking understanding, not asking for something new: "Is that correct?", "Did I get that right?" */
+const CONFIRMATION = /(?:^|[,;\s])(?:is that (?:right|correct|okay|ok)|did i get (?:that|it|everything) right|have i understood(?: (?:that|it|you))?(?: correctly)?|does that sound right|am i right)\s*\?$/i;
+/** The same question again in other words. */
+const REPHRASE = /^(?:i mean|that is|in other words|or rather|i mean to say|what i mean is)\b/i;
 const PLEASANTRY = /(?:^|[\s,!.])(?:how (?:can|may) i (?:help|assist)(?: you)?(?: today)?|how are you(?: doing)?(?: today)?|shall we (?:start|begin)|can i help you(?: today)?)\?$/i;
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
@@ -70,6 +76,13 @@ export interface RecordedIntent { intent_id: string; question: boolean; start?: 
  * judged in the first assessment). `coveredElsewhere`: checks already credited in the learner's
  * first attempt, outside this transcript; a rule never reports them as not asked.
  */
+/** Both clauses ask about the same topic (the second asks nothing the first did not). */
+function sameTopic(bundle: ScenarioBundle, a: string, b: string): boolean {
+  const topics = (text: string) => new Set(classify(bundle, text, { discoveryComplete: false }).hits.filter((h) => h.question).map((h) => h.intent_id));
+  const x = topics(a), y = topics(b);
+  return y.size > 0 && [...y].every((i) => x.has(i));
+}
+
 export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; riskSkipOrigins?: TranscriptTurn['origin'][]; coveredElsewhere?: string[]; recordedIntents?: Map<string, RecordedIntent[]>; language?: Language } = {}): RuleEvidence {
   const rt = runtimeOf(bundle);
   const excluded = new Set(opts.excludeOrigins ?? []);
@@ -202,6 +215,13 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
   }
 
   // ---- one evidence record per check: observed spans, or a complete search --
+  // A money answer the customer stated in a reply (not the opening) before anyone asked for it.
+  const volunteeredIn = (c: (typeof bundle.rubric.checks)[number]) => {
+    const money = c.expected_fact_ids.map((id) => facts.get(id));
+    if (!money.length || money.some((f) => f?.type !== 'money') || c.accepted_intents.some((i) => asked.has(i))) return null;   // asked at some point (a retry's first attempt too): not volunteered
+    const rupees = money.map((f) => String(Math.round(((f!.value as { amount_minor: number }).amount_minor) / 100)));
+    return customer.find((t) => t.origin !== 'opening' && t.sequence > 0 && rupees.every((r) => figuresIn(t.text).some((x) => x.raw === r || x.value === r))) ?? null;
+  };
   for (const c of bundle.rubric.checks) {
     const spans = observed.get(c.id);
     if (spans?.length) {
@@ -210,6 +230,17 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
         learner_spans: spans.slice(0, 3), context_spans: [], searched_turn_ids: [],
         explanation: c.credit_requires === 'learner_question' ? `Learner asked: ${c.description.toLowerCase()}.` : `Learner showed: ${c.description.toLowerCase()}.`,
         method: c.credit_requires === 'learner_question' ? 'semantic' : 'rule', confidence: 0.9, rule_version: RULE_VERSION,
+      });
+    } else if (c.credit_requires === 'learner_question' && !opts.coveredElsewhere?.includes(c.id) && volunteeredIn(c)) {
+      // The customer already gave the answer, unasked ("For the rest, about ₹4 lakh, I need the
+      // loan" while answering about savings): not a question the learner missed (training run
+      // 2fd1f462, 8 Oct 2026). Neither credit nor a gap.
+      const v = volunteeredIn(c)!;
+      inapplicable.push(c.id);
+      evidence.push({
+        id: safeId(`ev_${c.id}`), category: c.category, check_id: c.id, status: 'uncertain',
+        learner_spans: [], context_spans: [{ turn_id: v.id, start: 0, end: cpLength(v.text), quote: v.text }], searched_turn_ids: assessableIds,
+        explanation: `${VOLUNTEERED} (${c.description.toLowerCase()}).`, method: 'rule', confidence: 0.85, rule_version: RULE_VERSION,
       });
     } else if (c.credit_requires === 'learner_question' && !opts.coveredElsewhere?.includes(c.id)) {
       // Cue phrases ("you mentioned", "I understand") can show a skill, but their absence
@@ -237,8 +268,19 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     const spans: Span[] = [];
     for (const t of assessable) {
       // A greeting or offer of help ("How can I help you today?") is not a discovery question.
-      const asks = sentences(t.text).filter((s) => isQuestion(s.text)).flatMap((s) => clauses(s))
+      const raw = sentences(t.text).filter((s) => isQuestion(s.text)).flatMap((s) => clauses(s))
         .filter((c) => c.text.trim().split(/\s+/).length > 3 && !PLEASANTRY.test(c.text.trim()));
+      // One question, said twice, is still one: a check that the learner understood ("Is that
+      // right?") before the next question, or the same question rephrased straight away ("What is
+      // your income? I mean, your monthly take-home?"), the same topic asked again (training run
+      // 2fd1f462, 8 Oct 2026). Two different questions still count as two.
+      const asks: typeof raw = [];
+      for (const c of raw) {
+        if (CONFIRMATION.test(c.text.trim())) continue;
+        const prev = asks[asks.length - 1];
+        if (prev && (REPHRASE.test(c.text.trim()) || sameTopic(bundle, prev.text, c.text))) continue;
+        asks.push(c);
+      }
       if (asks.length < 2) continue;
       const start = asks[0].start, end = asks[asks.length - 1].end;
       spans.push({ turn_id: t.id, start, end, quote: cpSlice(t.text, start, end) });

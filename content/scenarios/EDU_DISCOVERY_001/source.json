@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.1.3",
+  "version": "4.1.4",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -857,7 +857,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.1.3",
+  "version": "4.1.4",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1719,7 +1719,11 @@
      "We have a quick approval process.",
      "Our approval process is fast.",
      "We can process your loan quickly.",
-     "We offer education loans with competitive interest rates and quick processing."
+     "We offer education loans with competitive interest rates and quick processing.",
+     "Just to make sure I have everything right, you need a loan of ₹4 lakh for your daughter's college fees, within 30 days.",
+     "So you need about ₹4 lakh for the fees.",
+     "Yes, we can definitely help you with a loan.",
+     "I can certainly help you with that."
     ],
     "documents_dismissed": [
      "Please submit your documents and we will process the loan.",
@@ -1731,6 +1735,12 @@
      "Please share your income proof.",
      "We will need your salary slips as income proof.",
      "Please send your KYC documents and income proof."
+    ],
+    "charges_misrepresented": [
+     "We will explain the processing fee and other charges clearly.",
+     "We will ensure the processing fee and other charges are transparently communicated.",
+     "I will tell you about all the charges before you apply.",
+     "There is a processing fee, and I will share the details."
     ]
    },
    "acknowledgement_text": "I see. Please go on.",

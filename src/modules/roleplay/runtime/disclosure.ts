@@ -182,3 +182,18 @@ export function renderFact(f: Fact): string | null {
 export function numbersIn(text: string): string[] {
   return (text.match(/\d+(?:[.,]\d+)*/g) ?? []).map((n) => n.replace(/,/g, ''));
 }
+
+/**
+ * Figures as numbers, with Indian units read as values: "₹4.5 lakh" is 450000, so it matches
+ * "₹4,50,000" (training run 233132ec). The digits as written are kept too.
+ */
+const UNITS: [RegExp, number][] = [[/^(?:lakhs?|lacs?|लाख)/i, 1e5], [/^(?:crores?|करोड़|कोटी)/i, 1e7], [/^(?:thousand|हज़ार|हजार)/i, 1e3]];
+/** Each figure in the text: its digits as written, and its value when a unit follows. */
+export function figuresIn(text: string): { raw: string; value: string | null }[] {
+  return [...text.matchAll(/\d+(?:[.,]\d+)*/g)].map((m) => {
+    const raw = m[0].replace(/,/g, '');
+    const unit = UNITS.find(([re]) => re.test(text.slice(m.index! + m[0].length).trimStart()));
+    return { raw, value: unit ? String(Math.round(Number(raw) * unit[1])) : null };
+  });
+}
+

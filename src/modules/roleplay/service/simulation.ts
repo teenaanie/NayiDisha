@@ -22,7 +22,7 @@ import { SIM_LEVELS, simLevel, simSubject, SIM_RUNNER_SUBJECT, pickPersonality, 
  * assessment) under a lease, levels in parallel, driven by the run page and the daily cron.
  */
 
-export const CANDIDATE_PROMPT = 'candidate_v1';
+export const CANDIDATE_PROMPT = 'candidate_v2';
 const LEASE_SECONDS = 290;
 const SCENARIO_ID = 'EDU_DISCOVERY_001';
 
@@ -41,7 +41,7 @@ interface RunRow { id: string; tenant_id: string; status: 'running' | 'completed
 export interface SimSessionRow { id: string; run_id: string; level: string; seq: number; kind: 'practice' | 'assessment'; status: 'pending' | 'talking' | 'scoring' | 'done' | 'failed'; session_id: string | null; messages: number; closing: boolean; final_percent: string | null; band_label: string | null; coach_notes: string[] | null; personality: string | null; error: string | null; updated_at: Date }
 export interface Calibration { level: string; label: string; expected: string; practice: (number | null)[]; assessment: { percent: number | null; band: string | null } | null; judged_on: 'assessment' | 'last practice' | null; in_band: boolean | null }
 
-const candidateSchema = { type: 'object', additionalProperties: false, required: ['message', 'done'], properties: { message: { type: 'string' }, done: { type: 'boolean' } } } as const;
+const candidateSchema = { type: 'object', additionalProperties: false, required: ['areas_left', 'message', 'done'], properties: { areas_left: { type: 'array', items: { type: 'string' } }, message: { type: 'string' }, done: { type: 'boolean' } } } as const;
 
 function canRun(actor: Actor) { requireRole(actor, 'author', 'tenant_admin'); }
 
@@ -149,19 +149,27 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
       }
       const history = s.transcript.map((t) => ({ speaker: t.speaker === 'learner' ? 'you (the officer)' : 'customer', text: t.text }));
       // A reply cut off mid-JSON (live, 8 Oct 2026) is asked for again rather than failing the session.
-      let out: { message: string; done: boolean } | null = null;
+      // So is a close with its own areas still open and messages to spare: the Excellent candidate
+      // closed after 10 of 18 messages, skipping areas it listed (second live run, 8 Oct 2026).
+      let out: { areas_left?: string[]; message: string; done: boolean } | null = null;
+      let reminder: string | null = null;
       for (let attempt = 0; attempt < 3 && !out; attempt++) {
         const res = await completeWithRetry({
           task: 'simulate', template: loadPrompt(CANDIDATE_PROMPT), schema: candidateSchema as never, temperature: 0.7, maxTokens: 900,
           data: {
-            level_json: { id: level.id, label: level.label, behaviour: level.behaviour, use_feedback: level.use_feedback },
+            level_json: { id: level.id, label: level.label, behaviour: level.behaviour, use_feedback: level.use_feedback, ...(level.areas ? { areas: level.areas } : {}) },
             personality_json: simPersonality(row.personality)?.style ?? null,
             brief_json: { role: 'Loan Sales Officer', brief: s.learner_brief },
-            coach_notes_json: row.coach_notes ?? [], message_budget_json: budget, messages_sent_json: row.messages, history_json: history,
+            coach_notes_json: reminder ? [...(row.coach_notes ?? []), reminder] : row.coach_notes ?? [], message_budget_json: budget, messages_sent_json: row.messages, history_json: history,
           },
           correlation: { tenant_id: run.tenant_id, session_id: row.session_id!, operation_id: `sim:${run.id}` },
         }, undefined, 2);
-        try { out = JSON.parse(res.text) as { message: string; done: boolean }; } catch { if (attempt === 2) throw new Error('The candidate\'s reply could not be read after 3 tries.'); }
+        try { out = JSON.parse(res.text) as { areas_left?: string[]; message: string; done: boolean }; } catch { if (attempt === 2) throw new Error('The candidate\'s reply could not be read after 3 tries.'); continue; }
+        const left = out.areas_left ?? [];
+        if (out.done && left.length && budget - row.messages > 2 && !reminder) {
+          reminder = `You still have areas to cover (${left.join(', ')}) and ${budget - row.messages} messages left: ask about the next one now instead of closing.`;
+          out = null;
+        }
       }
       const message = cleanMessage(out!.message ?? '') || 'Could you tell me a little more about that?';
       await submitTurn(candidate, row.session_id!, { client_message_id: `sim-${row.id}-${row.messages + 1}`, text: message, expected_revision: s.revision });

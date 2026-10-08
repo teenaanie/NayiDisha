@@ -101,7 +101,7 @@ After practising, a learner can take a graded assessment of the same scenario (`
 
 ## Simulated candidates (operator menu → Simulated candidates)
 
-AI candidates at three levels (needs improvement, competent, excellent; `content/simulation/candidates.json`, prompt `candidate_v1`, task `simulate` with `RP_LLM_MODEL_SIMULATOR`) practise with the AI customer through the real product (`src/modules/roleplay/service/simulation.ts`, migration 023).
+AI candidates at three levels (needs improvement, competent, excellent; `content/simulation/candidates.json`, prompt `candidate_v2` (it tracks the areas it still has to cover; a close with areas left and messages to spare is asked for again once), task `simulate` with `RP_LLM_MODEL_SIMULATOR`) practise with the AI customer through the real product (`src/modules/roleplay/service/simulation.ts`, migration 023).
 
 - **Accounts.** `rp:seed` creates three synthetic learners (`sim:candidate.<level>`) in their own "Simulated candidates" team, which the demo administrator manages, plus a "Simulation runner" that owns automatic retakes. Real teams' analytics never include them.
 - **A run.** Each candidate does N practice sessions (default 5, about 14 messages each, which is roughly a 10-minute conversation), then the graded assessment. Sessions are started, spoken, finished, assessed and coached by the same service functions as for people. Before each practice after the first, the candidate reads its previous report's coaching (skill tips, areas of improvement, missed questions) and applies it as its level would.

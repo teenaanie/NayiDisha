@@ -58,7 +58,22 @@
         "Use short, simple sentences and check the customer's understanding."
       ],
       "use_feedback": "You read your coach's notes carefully and apply all of them.",
-      "extra_messages": 4
+      "extra_messages": 4,
+      "areas": [
+        "purpose",
+        "loan amount",
+        "what the amount covers (cost breakup)",
+        "own contribution",
+        "when the money is needed",
+        "monthly income",
+        "employment and how long",
+        "existing EMIs",
+        "previous loans",
+        "a comfortable EMI",
+        "preferred repayment period",
+        "what matters most (priorities)",
+        "concerns (for example charges)"
+      ]
     }
   ],
   "personalities": [
