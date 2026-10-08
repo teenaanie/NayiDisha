@@ -1,5 +1,5 @@
 {
-  "note": "Simulated candidates for the Practice coach (operator menu → Simulated candidates). Each level is an AI playing a loan sales officer. The behaviour lists follow the owner's rubric anchors (level 1, 3 and 5 of the four skills); expected bands are the calibration check. Each session also draws a personality (how the officer talks, never how skilled they are), so no two runs sound alike.",
+  "note": "Simulated candidates for the Practice coach (operator menu → Simulated candidates). Each level is an AI playing a loan sales officer. The behaviour lists follow the owner's rubric anchors (level 1, 3 and 5 of the four skills); expected bands are the calibration check. Each session also draws a personality (how the officer talks, never how skilled they are), so no two runs sound alike. A level's extra_messages are added to the run's message limit: covering every area, following each cue and summarising needs more messages (the first live run's Excellent candidate ran short at 14).",
   "levels": [
     {
       "id": "needs_improvement",
@@ -57,7 +57,8 @@
         "Before closing, summarise the need, amount, timing, repayment comfort and concerns accurately, and ask the customer to confirm.",
         "Use short, simple sentences and check the customer's understanding."
       ],
-      "use_feedback": "You read your coach's notes carefully and apply all of them."
+      "use_feedback": "You read your coach's notes carefully and apply all of them.",
+      "extra_messages": 4
     }
   ],
   "personalities": [

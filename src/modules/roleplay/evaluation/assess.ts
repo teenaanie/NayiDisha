@@ -214,6 +214,9 @@ export function firstAttemptSlips(bundle: ScenarioBundle, c: EvaluationCandidate
  */
 export function applyRuleViolations(bundle: ScenarioBundle, c: EvaluationCandidate, rule: RuleEvidence): EvaluationCandidate {
   const absence = runtimeOf(bundle).absence_checks;
+  // Unexplained jargon the rules found is a violation, whatever status the model copied it with.
+  const jargonIds = new Set(rule.evidence.filter((e) => e.method === 'rule' && e.id.startsWith('jargon_')).map((e) => e.id));
+  if (jargonIds.size) c = { ...c, evidence: c.evidence.map((e) => (jargonIds.has(e.id) && e.status === 'observed' ? { ...e, status: 'contradicted' as const } : e)) };
   const found = rule.evidence.filter((e) => e.method === 'rule' && e.status === 'contradicted' && e.check_id && absence[e.check_id]?.multiple_questions);
   if (!found.length) return c;
   let evidence = [...c.evidence];

@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.1.2: provenance
+# EDU_DISCOVERY_001 v4.1.3: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -72,5 +72,11 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
 - **4.1.2 (7 Oct 2026):** "one question at a time" is decided by a rule: a learner message with
   two or more real questions is a violation, with the quote (the assessor had marked it met
   while writing "asked multiple questions in a single turn").
+- **4.1.3 (8 Oct 2026), from the first simulated-candidate run (training run 233132ec):** risk
+  rules get harmless look-alikes (`risk_not_examples`, rules-1.7.0): "quick approval process",
+  "please submit your documents" and "income proof" are no longer flagged as promising approval,
+  dismissing documents or falsifying income. Unexplained jargon is recorded as a violation, never
+  as met. The customer may say "CIBIL score" (it was blocked as a prompt leak), and "₹4.5 lakh"
+  matches the total "₹4,50,000" (the cost breakup was rejected as an unsupported figure).
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

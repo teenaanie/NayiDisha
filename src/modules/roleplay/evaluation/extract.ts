@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.6.0';
+export const RULE_VERSION = 'rules-1.7.0';
 const PLEASANTRY = /(?:^|[\s,!.])(?:how (?:can|may) i (?:help|assist)(?: you)?(?: today)?|how are you(?: doing)?(?: today)?|shall we (?:start|begin)|can i help you(?: today)?)\?$/i;
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
@@ -122,6 +122,8 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
         if (rt.discovery_conditioned.includes(rule.id) && (!gateOpen || asksDiscovery)) continue;
         const { score: sim, example } = riskSimilarity(rule, s.text);
         if (sim < 0.6) continue;
+        // A harmless look-alike ("Please submit your documents") that fits at least as well is not a candidate.
+        if (riskSimilarity({ ...rule, examples: rt.risk_not_examples[rule.id] ?? [] }, s.text).score >= sim) continue;
         // Guards: "I cannot guarantee approval", "Did someone promise you approval?",
         // "He said it would be approved", "If I said it was guaranteed..." are not promises.
         const firstMatch = firstMatchedWord(rule, s.text, example);
@@ -254,7 +256,9 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     const t = turns.find((x) => x.id === j.turn_id)!;
     const at = cpIndexOf(t.text.toLowerCase(), j.term.toLowerCase());
     evidence.push({
-      id: safeId(`jargon_${j.term}_${evidence.length}`), category: 'conversation', status: 'observed',
+      // A violation of the "explains jargon" absence check: `contradicted`, so it reads as violated,
+      // never as the good behaviour (an "observed" item was reported as met; training run 233132ec).
+      id: safeId(`jargon_${j.term}_${evidence.length}`), category: 'conversation', status: 'contradicted',
       learner_spans: [{ turn_id: t.id, start: at, end: at + cpLength(j.term), quote: cpSlice(t.text, at, at + cpLength(j.term)) }],
       context_spans: [], searched_turn_ids: [], explanation: `Used "${j.term}" without explaining it.`, method: 'rule', confidence: 0.85, rule_version: RULE_VERSION,
     });

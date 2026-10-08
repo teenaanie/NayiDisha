@@ -14,7 +14,7 @@ import type { Language } from '../../src/modules/roleplay/runtime/language';
 import { billedOutputTokens } from '../../src/modules/ai-usage';
 import { affirmsWithoutQuote } from '../../src/modules/roleplay/coaching';
 import { cleanMessage } from '../../src/modules/roleplay/service/simulation';
-import { pickPersonality, SIM_PERSONALITIES } from '../../src/modules/roleplay/simulation/levels';
+import { pickPersonality, SIM_PERSONALITIES, levelBudget, simLevel } from '../../src/modules/roleplay/simulation/levels';
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
@@ -616,6 +616,7 @@ export async function unitTests(): Promise<Check[]> {
         !multi('Hello Mr. Sharma, how can I help you today? What is the loan for?') && !!multi('What is the loan for? And when exactly do you need the money?'), '');
       ok('PS35', 'A simulated candidate\'s message is cleaned as a learner would type it (escaped ₹ decoded, blank lines collapsed)',
         cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?') === 'An income of ₹55,000. Right?', cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?'));
+      ok('PS43', 'The excellent candidate gets 4 more messages than the run limit; the others get the limit', levelBudget(simLevel('excellent')!, 14) === 18 && levelBudget(simLevel('competent')!, 14) === 14 && levelBudget(simLevel('needs_improvement')!, 14) === 14);
       ok('PS37', 'A session\'s personality is drawn at random but never repeats the last one', SIM_PERSONALITIES.length >= 4 && SIM_PERSONALITIES.every((p) => [0, 0.5, 0.99].every((r) => pickPersonality(p.id, () => r).id !== p.id)) && new Set([0, 0.3, 0.6, 0.99].map((r) => pickPersonality(null, () => r).id)).size > 1);
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
@@ -684,6 +685,32 @@ export async function unitTests(): Promise<Check[]> {
       ok('PS36', 'A "null" check_id, a citation of unwritten evidence and a repeated risk flag are cleaned, not a failed assessment',
         rEv.length > 0 && rs.risk_flags.length > 1 && vs.ok && vs.candidate.risk_flags.length === rs.risk_flags.length - 1 && !vs.candidate.dimension_scores[0].evidence_ids.includes('ev_never_written') && ['cleared', 'dropped unknown evidence', 'merged into the earlier flag'].every((k) => vs.notes.some((n) => n.includes(k))),
         vs.ok ? vs.notes.join(' ') : vs.errors.join(' '));
+    }
+    // Training run 233132ec (8 Oct 2026, first simulated-candidate run): four system fixes.
+    {
+      const t3 = (texts: string[]): TranscriptTurn[] => [{ id: 'o', sequence: 0, speaker: 'customer', text: p.conversation.opening_text, origin: 'opening' }, ...texts.flatMap((x, i) => [
+        { id: `l${i}`, sequence: 2 * i + 1, speaker: 'learner' as const, text: x, origin: 'live' as const }, { id: `c${i}`, sequence: 2 * i + 2, speaker: 'customer' as const, text: 'Okay.', origin: 'live' as const }])];
+      const flags = (x: string) => extractRuleEvidence(p, t3(['What do you need the loan for?', x])).risk_candidates.map((r) => r.rule_id);
+      const harmless = ['We offer education loans with very competitive interest rates and a quick approval process.', 'Please submit your documents, and we will process the loan.', 'Once you have your KYC documents, income proof, and CIBIL score, please send them to us, and we can proceed with the loan application.'];
+      const real = { 'Your loan will definitely be approved.': 'guaranteed_approval', "You don't need to submit any documents.": 'documents_dismissed', 'Just write a higher salary on the form.': 'income_falsification' } as Record<string, string>;
+      ok('PS39', 'Harmless look-alikes (quick approval process, please submit documents, income proof) are not risk flags; real ones still are',
+        harmless.every((x) => !flags(x).some((r) => ['guaranteed_approval', 'documents_dismissed', 'income_falsification'].includes(r))) && Object.entries(real).every(([x, r]) => flags(x).includes(r)),
+        harmless.map((x) => flags(x).join(',') || '-').join(' | ') + ' || ' + Object.keys(real).map((x) => flags(x).join(',') || '-').join(' | '));
+      const jt = t3(['What do you need the loan for?', 'What is your CIBIL score?']);
+      const jr = extractRuleEvidence(p, jt);
+      const jev = jr.evidence.filter((e) => e.id.startsWith('jargon_'));
+      const copied = { evidence: jev.map((e) => ({ ...e, check_id: 'explains_jargon', status: 'observed' as const })), dimension_scores: [], risk_flags: [] } as never;
+      const fixed = applyRuleViolations(p, copied, jr);
+      const outs = evidenceOutcomes(p, fixed);
+      ok('PS40', 'Unexplained jargon found by the rules is a violation, even when the model copies it as observed', jev.length > 0 && jev.every((e) => e.status === 'contradicted') && (fixed as any).evidence.every((e: any) => outs.get(e.id) === 'violated'), [...outs.values()].join(','));
+      const cibil = validateRoleplayOutput(p, JSON.stringify({ text: "I don't know my CIBIL score.", used_fact_ids: [], requested_end: false }), [], 'What is your CIBIL score?', []);
+      const leak = validateRoleplayOutput(p, JSON.stringify({ text: 'My score in this test is good.', used_fact_ids: [], requested_end: false }), [], 'How are you?', []);
+      ok('PS41', 'The customer may say "CIBIL score"; other mentions of a score are still a leak', cibil.ok && !leak.ok && leak.reason === 'prompt_leakage', `${cibil.ok ? 'ok' : (cibil as any).reason} / ${leak.ok ? 'ok' : leak.reason}`);
+      const bk = (text: string) => validateRoleplayOutput(p, JSON.stringify({ text, used_fact_ids: ['total_cost', 'cost_breakup'], requested_end: false }), ['total_cost', 'cost_breakup', ...p.facts.filter((f) => f.id === 'purpose').map((f) => f.id)], 'Can you give me the breakup?', []);
+      const lakh = bk('It comes to about ₹4.5 lakh in all: ₹3 lakh for tuition and admission, ₹1.2 lakh for hostel and food, and ₹30,000 for books.');
+      const digits = bk('The total is ₹4,50,000, with ₹3,00,000 for tuition.');
+      const made = bk('It comes to about ₹5.5 lakh in all.');
+      ok('PS42', '"₹4.5 lakh" matches the total "₹4,50,000" (and back); an invented figure is still rejected', lakh.ok && digits.ok && !made.ok && made.reason === 'unsupported_figure', [lakh, digits, made].map((x) => (x.ok ? 'ok' : x.reason)).join(' / '));
     }
     ok('PS18', 'Turn labels used by the evaluator never reach learners', stripTurnAliases('Follow up on cues such as existing EMIs. (T0, T4, T6)') === 'Follow up on cues such as existing EMIs.' && stripTurnAliases('Say "Income?" less often (T5).') === 'Say "Income?" less often.' && stripTurnAliases('Use TV and EMI.') === 'Use TV and EMI.');
     ok('PS16', 'Practice reminders come from the scenario: 12 and 15 minutes in v3, 10 and 12 in 2.1.0', JSON.stringify(publicBrief('x', p).reminder_minutes) === '[12,15]' && JSON.stringify(publicBrief('x', b).reminder_minutes) === '[10,12]');

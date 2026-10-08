@@ -6,7 +6,7 @@ import { drain } from './jobs';
 import { startTrainingRun } from './training';
 import { loadPrompt } from '../config/content';
 import { completeWithRetry } from '../providers';
-import { SIM_LEVELS, simLevel, simSubject, SIM_RUNNER_SUBJECT, pickPersonality, simPersonality, type SimLevel } from '../simulation/levels';
+import { SIM_LEVELS, simLevel, simSubject, SIM_RUNNER_SUBJECT, pickPersonality, simPersonality, levelBudget, type SimLevel } from '../simulation/levels';
 
 /**
  * Simulated candidates (operator menu → Simulated candidates).
@@ -117,6 +117,7 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
   const rows = await sql<SimSessionRow[]>`SELECT * FROM rp.sim_session WHERE run_id = ${run.id} AND level = ${level.id} ORDER BY seq`;
   const row = rows.find((r) => r.status !== 'done' && r.status !== 'failed');
   if (!row) return false;
+  const budget = levelBudget(level, run.config.message_budget);
   const candidate = await actorFor(run.tenant_id, simSubject(level.id));
   if (!candidate) throw new ApiError(409, 'SIM_NOT_SEEDED', 'The simulated candidate accounts are missing.');
   try {
@@ -141,7 +142,7 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
       if (s.state !== 'active') { await setRow(row.id, { status: 'scoring' }); return true; }
       if (s.pending_operation) { await drain({ kinds: ['customer_turn'], budgetMs: 30000 }); return true; }
       // Closed (or out of messages): finish. Kept on the row, so a retry finishes rather than talks on.
-      if (row.closing || row.messages >= run.config.message_budget) {
+      if (row.closing || row.messages >= budget) {
         await finishSession(candidate, row.session_id!, { expected_revision: s.revision });
         await setRow(row.id, { status: 'scoring' });
         return true;
@@ -156,7 +157,7 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
             level_json: { id: level.id, label: level.label, behaviour: level.behaviour, use_feedback: level.use_feedback },
             personality_json: simPersonality(row.personality)?.style ?? null,
             brief_json: { role: 'Loan Sales Officer', brief: s.learner_brief },
-            coach_notes_json: row.coach_notes ?? [], message_budget_json: run.config.message_budget, messages_sent_json: row.messages, history_json: history,
+            coach_notes_json: row.coach_notes ?? [], message_budget_json: budget, messages_sent_json: row.messages, history_json: history,
           },
           correlation: { tenant_id: run.tenant_id, session_id: row.session_id!, operation_id: `sim:${run.id}` },
         }, undefined, 2);
@@ -166,7 +167,7 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
       await submitTurn(candidate, row.session_id!, { client_message_id: `sim-${row.id}-${row.messages + 1}`, text: message, expected_revision: s.revision });
       await drain({ kinds: ['customer_turn'], budgetMs: 30000 });
       // The next step finishes once the customer has replied to the closing message.
-      await setRow(row.id, { messages: row.messages + 1, closing: out!.done || row.messages + 1 >= run.config.message_budget });
+      await setRow(row.id, { messages: row.messages + 1, closing: out!.done || row.messages + 1 >= budget });
       return true;
     }
     if (row.status === 'scoring') {

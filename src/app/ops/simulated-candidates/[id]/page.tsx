@@ -5,7 +5,7 @@ import {Pill} from '../../../ui';
 import {requestActor} from '@/modules/roleplay/service/auth';
 import {ApiError} from '@/modules/roleplay/service/context';
 import {getSimRun,judgedScore} from '@/modules/roleplay/service/simulation';
-import {simPersonality} from '@/modules/roleplay/simulation/levels';
+import {simPersonality,levelBudget} from '@/modules/roleplay/simulation/levels';
 import {SimProgress,CancelSim,TrainSim} from '../client';
 import {SIM_STATUS,STEP_STATUS} from '../labels';
 export const dynamic='force-dynamic';
@@ -51,7 +51,7 @@ export default async function SimRun({params}:{params:Promise<{id:string}>}){
   {run.training_run_id&&<div className="note mb">The AI training agent reviewed these sessions: <Link href={`/ops/ai-training/${run.training_run_id}`}>open the training run</Link>.</div>}
   {run.status!=='running'&&done>0&&<div className="mb"><TrainSim runId={run.id} again={!!run.training_run_id}/></div>}
 
-  {levels.map(l=>{const mine=sessions.filter(s=>s.level===l.id);return <section key={l.id} className="card mb"><div className="card-head"><h2>{l.label}</h2><span className="small muted">Expected {l.expected_band.label} ({l.expected_band.min}–{l.expected_band.max})</span></div><div className="card-body tight"><div className="tblwrap"><table>
+  {levels.map(l=>{const mine=sessions.filter(s=>s.level===l.id);return <section key={l.id} className="card mb"><div className="card-head"><h2>{l.label}</h2><span className="small muted">Expected {l.expected_band.label} ({l.expected_band.min}–{l.expected_band.max}) · up to {levelBudget(l,run.config.message_budget)} messages</span></div><div className="card-body tight"><div className="tblwrap"><table>
    <thead><tr><th>#</th><th>Session</th><th>Personality</th><th>Status</th><th className="num">Messages</th><th className="num">Score</th><th>Coaching it used</th></tr></thead>
    <tbody>{mine.map(s=><tr key={s.id}>
     <td>{s.seq}</td>

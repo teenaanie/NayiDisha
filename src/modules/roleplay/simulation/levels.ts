@@ -10,6 +10,8 @@ export interface SimLevel {
   expected_band: { label: string; min: number; max: number };
   behaviour: string[];
   use_feedback: string;
+  /** Added to the run's message limit for this level. */
+  extra_messages?: number;
 }
 
 export interface SimPersonality { id: string; label: string; style: string }
@@ -25,4 +27,6 @@ export function pickPersonality(previous: string | null, rand = Math.random): Si
 export const simLevel = (id: string) => SIM_LEVELS.find((l) => l.id === id) ?? null;
 export const simSubject = (id: string) => `sim:candidate.${id}`;
 export const SIM_RUNNER_SUBJECT = 'sim:runner';
+/** This level's message limit in a run. */
+export const levelBudget = (level: SimLevel, runBudget: number) => runBudget + (level.extra_messages ?? 0);
 export const SIM_TEAM = 'Simulated candidates';
