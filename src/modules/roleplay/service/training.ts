@@ -8,6 +8,7 @@ import { runtimeOf } from '../config/runtime-extension';
 import { completeWithRetry } from '../providers';
 import { renderFact } from '../runtime/disclosure';
 import { evidenceOutcomes } from '../coaching';
+import { simLevel } from '../simulation/levels';
 import type { ScenarioBundle } from '../contracts/types';
 
 /**
@@ -25,7 +26,7 @@ import type { ScenarioBundle } from '../contracts/types';
  * advances while the run page is open (it polls) and from the daily cron.
  */
 
-export const TRAINING_PROMPTS = { review: 'trainer_review_v4', merge: 'trainer_merge_v2' } as const;
+export const TRAINING_PROMPTS = { review: 'trainer_review_v5', merge: 'trainer_merge_v2' } as const;
 export const SESSIONS_PER_STEP = 5;
 export const MAX_SESSIONS_PER_RUN = 40;
 const MAX_STEP_ATTEMPTS = 3;
@@ -87,6 +88,8 @@ export interface TrainingOutput { summary: string; assessment_summary: string; s
 
 export interface SessionDigest {
   ref: string; session_id: string; language: string; scenario_version: string; retry_of: string | null; kind: 'practice' | 'assessment';
+  /** Set when the learner is a simulated AI candidate (operator menu → Simulated candidates). */
+  simulated_candidate?: { level: string; expected_band: string };
   assessment: Record<string, unknown>; coaching: Record<string, unknown> | null;
   transcript: { turn: number; speaker: 'customer' | 'learner'; text: string; note?: string }[];
 }
@@ -180,8 +183,10 @@ export async function sessionDigests(tenantId: string, sessionIds: string[], ref
       ...(cr.content.no_risk_statement ? { no_risk_statement: cr.content.no_risk_statement } : {}),
       ...(cr.content.retry_plan?.instruction ? { retry_instruction: cr.content.retry_plan.instruction } : {}),
     } : null;
+    const [sim] = await sql<{ level: string }[]>`SELECT level FROM rp.sim_session WHERE session_id = ${id} LIMIT 1`;
+    const lvl = sim ? simLevel(sim.level) : null;
     // A graded assessment has no coaching report by design; the agent should not report that as missing.
-    digests.push({ ref: `S${refStart + i}`, session_id: id, language: s.language ?? 'en', scenario_version: s.scenario_version, retry_of: s.parent_session_id, kind: s.kind ?? 'practice', assessment, coaching, transcript });
+    digests.push({ ...(lvl ? { simulated_candidate: { level: lvl.label, expected_band: `${lvl.expected_band.label} (${lvl.expected_band.min}–${lvl.expected_band.max})` } } : {}), ref: `S${refStart + i}`, session_id: id, language: s.language ?? 'en', scenario_version: s.scenario_version, retry_of: s.parent_session_id, kind: s.kind ?? 'practice', assessment, coaching, transcript });
   }
   return { digests, bundles };
 }
@@ -271,7 +276,7 @@ function parseOutput(text: string): TrainingOutput {
 
 interface Step { refs: string[]; session_ids: string[]; status: 'pending' | 'done' | 'failed'; attempts: number; output?: ReturnType<typeof verifyOutput>; error?: string; model?: string }
 interface RunRow {
-  id: string; tenant_id: string; trigger: 'manual' | 'weekly'; period_from: Date; period_to: Date; status: 'analysing' | 'in_review' | 'approved' | 'failed';
+  id: string; tenant_id: string; trigger: 'manual' | 'weekly'; scope: 'period' | 'sessions'; period_from: Date; period_to: Date; status: 'analysing' | 'in_review' | 'approved' | 'failed';
   session_ids: string[]; sessions_skipped: number; steps: Step[]; result: Record<string, unknown> | null; tester_notes: string | null; model: string | null;
   prompt_ids: Record<string, unknown>; error: string | null; created_by: string; created_at: Date; completed_at: Date | null;
   reviewed_by: string | null; approved_at: Date | null; brief_md: string | null;
@@ -288,13 +293,13 @@ export async function trainingWatermark(tenantId: string): Promise<Date | null> 
  * milliseconds, so a session assessed at .331500 would otherwise fall into two runs (or none).
  */
 async function exactWatermark(tenantId: string): Promise<string | null> {
-  const [r] = await sql<{ to: string | null }[]>`SELECT max(period_to)::text AS to FROM rp.training_run WHERE tenant_id = ${tenantId} AND status <> 'failed'`;
+  const [r] = await sql<{ to: string | null }[]>`SELECT max(period_to)::text AS to FROM rp.training_run WHERE tenant_id = ${tenantId} AND status <> 'failed' AND scope = 'period'`;
   return r?.to ?? null;
 }
 
 function canTrain(actor: Actor) { requireRole(actor, 'author', 'tenant_admin'); }
 
-export async function startTrainingRun(actor: Actor | null, tenantId: string, opts: { trigger: 'manual' | 'weekly'; notes?: string | null; from?: Date | null; createdBy?: string }) {
+export async function startTrainingRun(actor: Actor | null, tenantId: string, opts: { trigger: 'manual' | 'weekly'; notes?: string | null; from?: Date | null; createdBy?: string; sessionIds?: string[] }) {
   if (actor) canTrain(actor);
   const [busy] = await sql`SELECT 1 FROM rp.training_run WHERE tenant_id = ${tenantId} AND status = 'analysing'`;
   if (busy) throw new ApiError(409, 'TRAINING_RUN_ACTIVE', 'A training run is still in progress. Wait for it to finish first.');
@@ -302,16 +307,24 @@ export async function startTrainingRun(actor: Actor | null, tenantId: string, op
   // Boundaries stay database text (microseconds) from query to storage; see exactWatermark.
   const from = opts.from ? opts.from.toISOString() : (await exactWatermark(tenantId)) ?? '1970-01-01T00:00:00Z';
   const [{ now }] = await sql<{ now: string }[]>`SELECT now()::text AS now`;
+  // A run for chosen sessions (a simulation's) reviews exactly those and leaves the watermark alone,
+  // so the next period run still reviews every real session. Period runs skip simulated learners:
+  // their own simulation run reviews them.
+  const chosen = opts.sessionIds ?? null;
   // Oldest first, so a capped run still moves the watermark forward without gaps.
   const rows = await sql<{ session_id: string; done: string }[]>`
     SELECT session_id, done FROM (
       SELECT DISTINCT ON (er.session_id) er.session_id, er.completed_at AS at, er.completed_at::text AS done
-      FROM rp.evaluation_run er JOIN rp.session s ON s.id = er.session_id
-      WHERE er.tenant_id = ${tenantId} AND er.status IN ${sql(ASSESSED)} AND er.completed_at > ${from}::timestamptz AND er.completed_at <= ${now}::timestamptz AND NOT s.is_preview
+      FROM rp.evaluation_run er JOIN rp.session s ON s.id = er.session_id JOIN rp.app_user u ON u.id = s.learner_id
+      WHERE er.tenant_id = ${tenantId} AND er.status IN ${sql(ASSESSED)} AND NOT s.is_preview
+        AND ${chosen
+          ? sql`er.session_id = ANY(${chosen}::uuid[])`
+          : sql`er.completed_at > ${from}::timestamptz AND er.completed_at <= ${now}::timestamptz AND u.subject NOT LIKE 'sim:%'`}
       ORDER BY er.session_id, er.completed_at DESC) x
     ORDER BY at`;
   const picked = rows.slice(0, MAX_SESSIONS_PER_RUN);
-  const to = rows.length > picked.length ? picked[picked.length - 1].done : now;
+  const to = chosen ? (picked[picked.length - 1]?.done ?? now) : rows.length > picked.length ? picked[picked.length - 1].done : now;
+  const periodFrom = chosen ? (picked[0]?.done ?? now) : from;
   const ids = picked.map((r) => r.session_id);
   const steps: Step[] = [];
   for (let i = 0; i < ids.length; i += SESSIONS_PER_STEP) {
@@ -324,8 +337,8 @@ export async function startTrainingRun(actor: Actor | null, tenantId: string, op
   const status = steps.length ? 'analysing' : 'in_review';
   const result = steps.length ? null : { summary: 'No practice sessions were assessed in this period, so there was nothing to review.', tester_note_findings: [], dropped: { evidence: 0, suggestions: 0 } };
   const [run] = await sql<{ id: string }[]>`
-    INSERT INTO rp.training_run (tenant_id, trigger, period_from, period_to, status, session_ids, sessions_skipped, steps, result, tester_notes, prompt_ids, created_by, completed_at)
-    VALUES (${tenantId}, ${opts.trigger}, ${from}::timestamptz, ${to}::timestamptz, ${status}, ${ids}::uuid[], ${rows.length - picked.length}, ${sql.json(steps as never)}, ${result ? sql.json(result as never) : null},
+    INSERT INTO rp.training_run (tenant_id, trigger, scope, period_from, period_to, status, session_ids, sessions_skipped, steps, result, tester_notes, prompt_ids, created_by, completed_at)
+    VALUES (${tenantId}, ${opts.trigger}, ${chosen ? 'sessions' : 'period'}, ${periodFrom}::timestamptz, ${to}::timestamptz, ${status}, ${ids}::uuid[], ${rows.length - picked.length}, ${sql.json(steps as never)}, ${result ? sql.json(result as never) : null},
             ${notes}, ${sql.json(prompts as never)}, ${opts.createdBy ?? actor?.display_name ?? 'system'}, ${status === 'in_review' ? now : null}::timestamptz)
     RETURNING id`;
   await audit(actor, 'training.run_started', 'training_run', run.id, { trigger: opts.trigger, sessions: ids.length, more_pending: rows.length - picked.length });

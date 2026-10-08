@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 import {trainingCronTick} from '@/modules/roleplay/service/training';
+import {advanceSimRuns} from '@/modules/roleplay/service/simulation';
 
 /**
  * Daily at 02:00 UTC (07:30 India), from vercel.json. On Mondays it starts the weekly AI
@@ -18,5 +19,7 @@ export async function GET(req:Request){
  if(req.headers.get('authorization')!==`Bearer ${secret}`)return NextResponse.json({error:'Unauthorized'},{status:401});
  // Leave room for a review step that starts near the end of the budget (each takes up to ~4 minutes).
  const r=await trainingCronTick(new Date(),20000);
- return NextResponse.json({ok:true,...r});
+ // Simulated-candidate runs left unfinished (nobody kept the page open) move on here too.
+ const simulations=await advanceSimRuns(150000);
+ return NextResponse.json({ok:true,...r,simulations});
 }

@@ -32,7 +32,7 @@ export default async function TrainingRun({params}:{params:Promise<{id:string}>}
  return <main className="page">
   <div className="page-head"><div className="nd-section-kicker"><Link href="/ops/ai-training">AI training</Link></div>
    <h1>Training run <Pill tone={RUN_STATUS[run.status].tone}>{RUN_STATUS[run.status].label}</Pill></h1>
-   <p>Reports assessed {+run.period_from===0?'from the beginning':`after ${fmtDateTime(run.period_from)}`} up to {fmtDateTime(run.period_to)} · {run.session_ids.length} session{run.session_ids.length===1?'':'s'} · {run.trigger==='weekly'?'weekly schedule':`started by ${run.created_by}`} on {fmtDateTime(run.created_at)}{run.model?` · ${run.model}`:''}</p></div>
+   <p>{run.scope==='sessions'?<>The sessions of one simulation, assessed {fmtDateTime(run.period_from)} to {fmtDateTime(run.period_to)} (weekly runs are not affected) · </>:<>Reports assessed {+run.period_from===0?'from the beginning':`after ${fmtDateTime(run.period_from)}`} up to {fmtDateTime(run.period_to)} · </>}{run.session_ids.length} session{run.session_ids.length===1?'':'s'} · {run.trigger==='weekly'?'weekly schedule':`started by ${run.created_by}`} on {fmtDateTime(run.created_at)}{run.model?` · ${run.model}`:''}</p></div>
 
   {run.status==='analysing'&&<><RunProgress runId={run.id}/><div className="muted small mb">{done} of {run.steps.length} batch{run.steps.length===1?'':'es'} reviewed{done===run.steps.length?'; combining the results':''}.</div></>}
   {run.status==='failed'&&<div className="note bad mb"><p>{run.error??'The run failed.'}</p><RetryButton runId={run.id}/></div>}

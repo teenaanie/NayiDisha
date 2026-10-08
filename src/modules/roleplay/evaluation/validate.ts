@@ -140,11 +140,12 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
     if (typeof ev?.confidence === 'number' && ev.confidence > 1) { preNotes.push(`evidence[${i}] ${ev.id}: confidence ${ev.confidence} capped at 1.`); ev.confidence = 1; }
   }
   // Risk evidence belongs to a risk rule, not a check; live runs (1 Oct 2026) sent check_id ""
-  // or the risk rule's id there. Either is cleared rather than failing the assessment.
+  // or the risk rule's id there, and a simulated run (8 Oct 2026) the string "null". Each is
+  // cleared rather than failing the assessment.
   const riskRuleIds = new Set(ctx.bundle.risk_policy.rules.map((r) => r.id));
   const checkIds = new Set(ctx.bundle.rubric.checks.map((c) => c.id));
   for (const [i, ev] of (((parsed as { evidence?: unknown[] })?.evidence ?? []) as { check_id?: unknown; id?: string }[]).entries()) {
-    if (ev && 'check_id' in ev && (ev.check_id === '' || ev.check_id === null || (typeof ev.check_id === 'string' && riskRuleIds.has(ev.check_id) && !checkIds.has(ev.check_id)))) {
+    if (ev && 'check_id' in ev && (ev.check_id === '' || ev.check_id === null || ev.check_id === 'null' || (typeof ev.check_id === 'string' && riskRuleIds.has(ev.check_id) && !checkIds.has(ev.check_id)))) {
       preNotes.push(`evidence[${i}] ${ev.id}: check_id ${JSON.stringify(ev.check_id)} cleared (risk evidence has no check).`);
       delete ev.check_id;
     }
@@ -207,6 +208,20 @@ export function validateCandidate(raw: string, ctx: ValidationContext): { ok: tr
   }
 
   const dims = ctx.bundle.rubric.dimensions;
+  // A dimension citing evidence the assessor never wrote (simulated run, 8 Oct 2026) loses that
+  // citation; a risk rule flagged twice has its flags merged. Neither changes a score.
+  for (const [i, d] of c.dimension_scores.entries()) {
+    const missing = d.evidence_ids.filter((id) => !ids.has(id));
+    if (missing.length) { notes.push(`dimension_scores[${i}] ${d.dimension_id}: dropped unknown evidence ${missing.map((m) => `"${m}"`).join(', ')}.`); d.evidence_ids = d.evidence_ids.filter((id) => ids.has(id)); }
+  }
+  const firstFlag = new Map<string, (typeof c.risk_flags)[number]>();
+  c.risk_flags = c.risk_flags.filter((f, i) => {
+    const prior = firstFlag.get(f.rule_id);
+    if (!prior) { firstFlag.set(f.rule_id, f); return true; }
+    prior.evidence_ids = [...new Set([...prior.evidence_ids, ...f.evidence_ids])];
+    notes.push(`risk_flags[${i}] ${f.rule_id}: merged into the earlier flag for the same rule.`);
+    return false;
+  });
   const seen = new Set<string>();
   for (const [i, d] of c.dimension_scores.entries()) {
     const w = `dimension_scores[${i}] ${d.dimension_id}`;

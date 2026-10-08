@@ -46,6 +46,21 @@ export async function mockComplete(req: CompletionRequest): Promise<string> {
       })));
       return JSON.stringify({ summary: `Offline review of ${sessions.length} session${sessions.length === 1 ? '' : 's'}.`, assessment_summary: 'Offline review: the assessment was not examined.', suggestions, tester_note_findings: findings });
     }
+    case 'simulate': {
+      // A scripted candidate: the questions its level would ask, in order; the excellent one ends
+      // with a summary. Enough to drive the whole pipeline offline.
+      const level = (req.data.level_json as { id: string }).id;
+      const asked = ((req.data.history_json ?? []) as { speaker: string }[]).filter((t) => t.speaker === 'learner').length;
+      const budget = Number(req.data.message_budget_json ?? 6);
+      const scripts: Record<string, string[]> = {
+        needs_improvement: ['Loan for what?', 'We have a good education loan, you should apply. How much and when?', 'Send your documents.'],
+        competent: ['What do you need the loan for?', 'How much loan do you need?', 'What is your monthly income?', 'Do you have any other EMIs?', "What's a comfortable EMI for you?", 'So you need about 4 lakh for your daughter\'s fees. Is that right?'],
+        excellent: ['How can I help you today? What is the loan for?', 'How much do you need?', 'When exactly do you need the money?', 'What is your monthly income?', 'You mentioned another EMI. How much do you pay for it each month?', "What's a comfortable EMI for you?", 'Do you have any concerns about taking a loan?', 'To summarise, you need about 4 lakh within 30 days for your daughter\'s fees, with a comfortable EMI and no hidden charges. Is that correct?'],
+      };
+      const list = scripts[level] ?? scripts.competent;
+      const done = asked >= Math.min(list.length, budget) - 1;
+      return JSON.stringify({ message: list[Math.min(asked, list.length - 1)], done });
+    }
     case 'classify':
       return JSON.stringify({ intents: [], is_question: false, other_question: '' });
   }

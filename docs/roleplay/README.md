@@ -99,14 +99,24 @@ After practising, a learner can take a graded assessment of the same scenario (`
 - **Operators** (NayiDisha operations and administrators, role `operator`, migration 023) use **Operations → Assessments** (`/ops/assessments`). It lists every learner in the tenant, signed-in candidates included, since they are on no team and have no manager. They can open any graded attempt in full and set how many attempts a learner has per scenario (1–10, never below the attempts already used; an attempt in progress counts as used). Raising the number adds grants. Lowering it withdraws the newest unused ones, which stay on record (`revoked_at`). Each change is audited as `assessment.attempts_set`.
 - Assessments are listed separately for managers and excluded from practice analytics. The training agent reviews them too, without expecting coaching.
 
+## Simulated candidates (operator menu → Simulated candidates)
+
+AI candidates at three levels (needs improvement, competent, excellent; `content/simulation/candidates.json`, prompt `candidate_v1`, task `simulate` with `RP_LLM_MODEL_SIMULATOR`) practise with the AI customer through the real product (`src/modules/roleplay/service/simulation.ts`, migration 023).
+
+- **Accounts.** `rp:seed` creates three synthetic learners (`sim:candidate.<level>`) in their own "Simulated candidates" team, which the demo administrator manages, plus a "Simulation runner" that owns automatic retakes. Real teams' analytics never include them.
+- **A run.** Each candidate does N practice sessions (default 5, about 14 messages each, which is roughly a 10-minute conversation), then the graded assessment. Sessions are started, spoken, finished, assessed and coached by the same service functions as for people. Before each practice after the first, the candidate reads its previous report's coaching (skill tips, areas of improvement, missed questions) and applies it as its level would.
+- **Calibration.** Expected bands: needs improvement below 55, competent 55–84, excellent 85 and above. The run page shows each candidate's practice trend, its assessment score and whether it landed in its band.
+- **Training hand-off.** When a run finishes, the AI training agent is started with the calibration as tester notes. Sessions carry `simulated_candidate` in its digest, and `trainer_review_v5` tells it to check calibration and never coach the AI learner. That training run reviews exactly the simulation's sessions (`scope = 'sessions'`, migration 023): it does not move the weekly watermark, and period runs skip simulated learners.
+- **Steps.** Work advances in small steps under a lease, with levels in parallel: the run page polls, and the daily cron advances leftovers. Repeated runs grant the candidates a retake automatically (audited).
+
 ## AI training agent (operator menu → AI training)
 
-Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v4` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
+Reviews the practice sessions whose assessment finished since the last run and suggests improvements to the system, not the learner (`src/modules/roleplay/service/training.ts`, prompts `trainer_review_v5` and `trainer_merge_v2`, migrations 020 and 021). The report has two parts:
 
 - **Conversation and scenario:** customer replies, question understanding, scenario content.
 - **Assessment, feedback and framework:** scores and evidence (each check's outcome, quotes and method, risk flags, the cap), the learner-facing feedback and coaching (what went well, improvements, top missed questions, suggested questions, retry instruction), and the assessment framework itself (anchors, checks, weights, the evaluator guide, risk rule examples). The agent sees the full framework and every evidence item, quotes the report as well as the transcript (both are verified), and writes a separate assessment and coaching review.
 
-- **Run log.** `rp.training_run` records the period each run assessed. The next run starts where the last successful one ended, so "reports assessed up to" is always known. A run covers at most 40 sessions, oldest first; the rest go to the next run.
+- **Run log.** `rp.training_run` records the period each run assessed. The next run starts where the last successful one ended, so "reports assessed up to" is always known. A run covers at most 40 sessions, oldest first; the rest go to the next run. Runs started by a simulation (`scope = 'sessions'`) are left out of the watermark.
 - **Tester notes.** One observation per line. The agent checks each against the transcripts (confirmed, partly, not found, not checkable) and turns confirmed ones into suggestions.
 - **Outcomes, not raw statuses.** Each evidence item reaches the agent with the platform's outcome (met / missed / violated / unclear; an absence check's not_observed is met), and a follow-up carries what its first attempt was credited for.
 - **Evidence is checked.** Every transcript quote must match the cited turn, and every report quote the session's report text; unmatched quotes are discarded, and an agent suggestion left with no evidence is dropped (one from a tester note is kept).

@@ -15,7 +15,8 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.5.0';
+export const RULE_VERSION = 'rules-1.6.0';
+const PLEASANTRY = /(?:^|[\s,!.])(?:how (?:can|may) i (?:help|assist)(?: you)?(?: today)?|how are you(?: doing)?(?: today)?|shall we (?:start|begin)|can i help you(?: today)?)\?$/i;
 
 export interface RiskCandidate { rule_id: string; evidence_id: string; turn_id: string; sentence: string; similarity: number }
 export interface RuleEvidence {
@@ -233,7 +234,9 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     if (!spec.multiple_questions) continue;
     const spans: Span[] = [];
     for (const t of assessable) {
-      const asks = sentences(t.text).filter((s) => isQuestion(s.text)).flatMap((s) => clauses(s)).filter((c) => c.text.trim().split(/\s+/).length > 3);
+      // A greeting or offer of help ("How can I help you today?") is not a discovery question.
+      const asks = sentences(t.text).filter((s) => isQuestion(s.text)).flatMap((s) => clauses(s))
+        .filter((c) => c.text.trim().split(/\s+/).length > 3 && !PLEASANTRY.test(c.text.trim()));
       if (asks.length < 2) continue;
       const start = asks[0].start, end = asks[asks.length - 1].end;
       spans.push({ turn_id: t.id, start, end, quote: cpSlice(t.text, start, end) });

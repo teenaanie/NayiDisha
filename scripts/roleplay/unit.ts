@@ -13,6 +13,7 @@ import { publicBrief, semanticDiff } from '../../src/modules/roleplay/service/re
 import type { Language } from '../../src/modules/roleplay/runtime/language';
 import { billedOutputTokens } from '../../src/modules/ai-usage';
 import { affirmsWithoutQuote } from '../../src/modules/roleplay/coaching';
+import { cleanMessage } from '../../src/modules/roleplay/service/simulation';
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
@@ -607,6 +608,14 @@ export async function unitTests(): Promise<Check[]> {
       ok('PS34', '"Uncertain" with a plainly positive explanation counts as met; a hedged one stays unclear',
         affirmsWithoutQuote(e('The conversation remained focused on the loan requirement throughout.')) && !affirmsWithoutQuote(e('The conversation remained mostly focused, but drifted once.')) && !affirmsWithoutQuote(e('It is unclear whether the learner kept focus.')) && !affirmsWithoutQuote({ ...e('Kept focus throughout.'), method: 'rule' }), '');
     }
+    {
+      const T = (texts: string[]) => texts.map((text, i) => ({ id: `g${i}`, sequence: i, speaker: (i % 2 ? 'learner' : 'customer') as 'learner' | 'customer', text, origin: (i ? 'live' : 'opening') as 'live' | 'opening' }));
+      const multi = (text: string) => extractRuleEvidence(p, T([p.conversation.opening_text, text]) as never).evidence.find((e) => e.check_id === 'one_question_at_a_time' && e.method === 'rule');
+      ok('PS35', 'A greeting or offer of help does not count as a second question; two real questions still do',
+        !multi('Hello Mr. Sharma, how can I help you today? What is the loan for?') && !!multi('What is the loan for? And when exactly do you need the money?'), '');
+      ok('PS35', 'A simulated candidate\'s message is cleaned as a learner would type it (escaped ₹ decoded, blank lines collapsed)',
+        cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?') === 'An income of ₹55,000. Right?', cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?'));
+    }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 
     // Scoring: 30/30/25/15 weighted to 100; owner's bands; serious risks cap at 54.
@@ -661,6 +670,16 @@ export async function unitTests(): Promise<Check[]> {
       const ctxR = { bundle: p, turns: risky.turns, session_id: 'v3r', transcript_hash: 'hr', rubric_version: `${p.rubric.id}@${p.rubric.version}`, assessable_learner_turn_ids: ar.rule.assessable_learner_turn_ids, contract_version: '1.1' as const };
       const vr = validateCandidate(JSON.stringify(rk), ctxR);
       ok('PS15', 'Risk evidence with an empty or risk-rule check_id is cleaned, not a failed assessment', riskEv.length > 0 && vr.ok && vr.notes.some((n) => /cleared \(risk evidence has no check\)/.test(n)), vr.ok ? vr.notes.filter((n) => /cleared/.test(n)).join(' ') : vr.errors.join(' '));
+      // Simulated run, 8 Oct 2026: check_id "null", a skill citing evidence never written, and one rule flagged twice.
+      const rs = clone(ar.candidate);
+      const rEv = rs.evidence.filter((e) => e.id.startsWith('risk_'));
+      if (rEv[0]) (rEv[0] as any).check_id = 'null';
+      rs.dimension_scores[0].evidence_ids.push('ev_never_written');
+      if (rs.risk_flags[0]) rs.risk_flags.push(clone(rs.risk_flags[0]));
+      const vs = validateCandidate(JSON.stringify(rs), ctxR);
+      ok('PS36', 'A "null" check_id, a citation of unwritten evidence and a repeated risk flag are cleaned, not a failed assessment',
+        rEv.length > 0 && rs.risk_flags.length > 1 && vs.ok && vs.candidate.risk_flags.length === rs.risk_flags.length - 1 && !vs.candidate.dimension_scores[0].evidence_ids.includes('ev_never_written') && ['cleared', 'dropped unknown evidence', 'merged into the earlier flag'].every((k) => vs.notes.some((n) => n.includes(k))),
+        vs.ok ? vs.notes.join(' ') : vs.errors.join(' '));
     }
     ok('PS18', 'Turn labels used by the evaluator never reach learners', stripTurnAliases('Follow up on cues such as existing EMIs. (T0, T4, T6)') === 'Follow up on cues such as existing EMIs.' && stripTurnAliases('Say "Income?" less often (T5).') === 'Say "Income?" less often.' && stripTurnAliases('Use TV and EMI.') === 'Use TV and EMI.');
     ok('PS16', 'Practice reminders come from the scenario: 12 and 15 minutes in v3, 10 and 12 in 2.1.0', JSON.stringify(publicBrief('x', p).reminder_minutes) === '[12,15]' && JSON.stringify(publicBrief('x', b).reminder_minutes) === '[10,12]');
