@@ -14,7 +14,7 @@ const FEATURES:Record<string,string>={
  'practice.transcribe':'Sales practice — voice to text','practice.read_aloud':'Sales practice — read aloud',
  'voice.interpret':'Voice registration — understanding answers','script.score':'Role script — rubric scoring',
  'roleplay.roleplay':'Practice coach — customer replies','roleplay.evaluate':'Practice coach — assessment','roleplay.coach':'Practice coach — coaching',
- 'roleplay.classify':'Practice coach — question understanding','roleplay.train':'Practice coach — AI training agent','roleplay.transcribe':'Practice coach — voice to text','roleplay.read_aloud':'Practice coach — read aloud',
+ 'roleplay.classify':'Practice coach — question understanding','roleplay.train':'Practice coach — AI training agent','roleplay.simulate':'Practice coach — simulated candidates','roleplay.transcribe':'Practice coach — voice to text','roleplay.read_aloud':'Practice coach — read aloud',
 };
 const int=(n:number)=>new Intl.NumberFormat('en-IN').format(Math.round(n));
 const usd=(n:number)=>'$'+(n<1?n.toFixed(4):n.toFixed(2));

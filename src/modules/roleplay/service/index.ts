@@ -11,6 +11,7 @@ export * from './analytics';
 export { drain, runOne } from './jobs';
 export { purgeExpired } from './retention';
 export * from './training';
+export * from './simulation';
 export { assessmentStatus, assessmentScore, listTeamAssessments, grantRetake, listOperatorAssessments, setAssessmentAttempts, MAX_ASSESSMENT_ATTEMPTS, type AssessmentStatus, type AssessmentScore, type OperatorAssessmentRow } from './assessment';
 export { LIMITS } from './guards';
 export { voiceCapabilities, setVoiceConsent, hasVoiceConsent, transcribe, speak } from './voice';

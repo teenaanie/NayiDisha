@@ -1,6 +1,7 @@
 import { sql } from '@/lib/db';
 import { compile } from '../config/compile';
 import { loadScenarioPackage } from '../config/content';
+import { SIM_LEVELS } from '../simulation/levels';
 import { actorFor, type Actor } from './context';
 import { ensurePrompts, createDraft, submitDraft, publishDraft, validateBundleForTenant } from './registry';
 
@@ -15,9 +16,13 @@ const TENANTS: { slug: string; name: string; settings: Record<string, unknown>; 
   {
     slug: 'nayidisha', name: 'NayiDisha (demo)',
     settings: { author_reviewer_combined: false, daily_provider_call_budget: 5000, min_cohort: 5 },
-    teams: ['North sales team', 'South sales team'],
+    teams: ['North sales team', 'South sales team', 'Simulated candidates'],
     seats: [
-      { subject: 'nd:admin:ADMIN-001', name: 'Demo administrator', roles: ['author', 'reviewer', 'manager', 'tenant_admin', 'learner', 'operator'], teams: [['North sales team', 'manager'], ['South sales team', 'manager']] },
+      { subject: 'nd:admin:ADMIN-001', name: 'Demo administrator', roles: ['author', 'reviewer', 'manager', 'tenant_admin', 'learner', 'operator'], teams: [['North sales team', 'manager'], ['South sales team', 'manager'], ['Simulated candidates', 'manager']] },
+      // AI candidates for the simulation runner (operator menu → Simulated candidates): their own
+      // team, so they never appear in a real team's analytics. The runner seat owns automatic retakes.
+      ...SIM_LEVELS.map((l): Seat => ({ subject: `sim:candidate.${l.id}`, name: `Sim: ${l.label}`, roles: ['learner'], teams: [['Simulated candidates', 'member']] })),
+      { subject: 'sim:runner', name: 'Simulation runner', roles: [] },
       { subject: 'nd:operations', name: 'Operations', roles: ['author', 'manager', 'operator'] },
       { subject: 'synthetic:author.meera', name: 'Meera (author)', roles: ['author'] },
       { subject: 'synthetic:reviewer.rahul', name: 'Rahul (reviewer)', roles: ['reviewer'] },

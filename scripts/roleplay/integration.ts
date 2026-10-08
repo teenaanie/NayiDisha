@@ -630,6 +630,72 @@ export async function integrationTests(): Promise<Check[]> {
     await sql`DELETE FROM rp.training_run`;
   }
 
+  // ---- simulated candidates (operator menu → Simulated candidates) ---------------------
+  {
+    await sql`DELETE FROM rp.training_run`;
+    // The offline mock answers instantly; lift the per-learner rate limits for this block.
+    const [{ settings }] = await sql<{ settings: Record<string, unknown> }[]>`SELECT settings FROM rp.tenant WHERE id = ${nd.id}`;
+    await sql`UPDATE rp.tenant SET settings = ${sql.json({ ...settings, rate_limits: { turn: 10000, start: 10000, finish: 10000 } } as never)} WHERE id = ${nd.id}`;
+    const simAccounts = await sql<{ subject: string; team: string }[]>`SELECT u.subject, t.name AS team FROM rp.app_user u JOIN rp.team_membership m ON m.user_id = u.id JOIN rp.team t ON t.id = m.team_id
+      WHERE u.tenant_id = ${nd.id} AND u.subject LIKE 'sim:candidate.%' AND m.role = 'member'`;
+    ok('SIM', 'The seed creates the three simulated candidates in their own team', simAccounts.length === 3 && simAccounts.every((a) => a.team === 'Simulated candidates'), simAccounts.map((a) => a.subject).join(','));
+    let denied = '';
+    try { await rp.startSimRun(asha, nd.id); } catch (e) { denied = (e as rp.ApiError).code; }
+    ok('SIM', 'Only authors and tenant admins can run simulations', denied === 'FORBIDDEN', denied);
+    const run1 = await rp.startSimRun(meera, nd.id, { practice_sessions: 2, message_budget: 6 });
+    let busy = '';
+    try { await rp.startSimRun(meera, nd.id); } catch (e) { busy = (e as rp.ApiError).code; }
+    ok('SIM', 'One simulation at a time', busy === 'SIM_RUN_ACTIVE', busy);
+    for (let i = 0; i < 10 && (await sql`SELECT 1 FROM rp.sim_run WHERE id = ${run1.id} AND status = 'running'`).length; i++) await rp.advanceSimRun(run1.id, 240000);
+    const r1 = await rp.getSimRun(meera, run1.id);
+    const per = (lvl: string) => r1.sessions.filter((x) => x.level === lvl);
+    ok('SIM', 'Each candidate practises through the real product, then takes the graded assessment',
+      r1.run.status === 'completed' && ['needs_improvement', 'competent', 'excellent'].every((l) => per(l).length === 3 && per(l).every((x) => x.status === 'done' && x.session_id && x.final_percent !== null) && per(l)[2].kind === 'assessment'),
+      r1.sessions.map((x) => `${x.level[0]}${x.seq}:${x.status}:${x.final_percent}${x.error ? ' ' + x.error : ''}`).join(' '));
+    const second = per('competent').find((x) => x.seq === 2)!;
+    const [sess] = await sql<{ kind: string; learner: string }[]>`SELECT s.kind, u.subject AS learner FROM rp.session s JOIN rp.app_user u ON u.id = s.learner_id WHERE s.id = ${per('excellent')[2].session_id}`;
+    ok('SIM', 'From the second practice, a candidate reads its last report\'s coaching; the last session is a graded assessment of its own account',
+      per('competent')[0].coach_notes?.length === 0 && (second.coach_notes?.length ?? 0) > 0 && sess.kind === 'assessment' && sess.learner === 'sim:candidate.excellent', `${second.coach_notes?.length} notes; ${sess.kind} ${sess.learner}`);
+    const cal = r1.calibration;
+    ok('SIM', 'Calibration compares each candidate\'s assessment with its expected band', cal.length === 3 && cal.every((c) => c.judged_on === 'assessment' && typeof c.in_band === 'boolean'), JSON.stringify(cal.map((c) => [c.level, c.assessment?.percent, c.in_band])));
+    const [tr] = await sql<{ tester_notes: string; session_ids: string[] }[]>`SELECT tester_notes, session_ids FROM rp.training_run WHERE id = ${r1.run.training_run_id}`;
+    ok('SIM', 'When done, the AI training agent is started with the calibration as tester notes', !!tr && /simulated AI candidates/.test(tr.tester_notes) && /Simulated Excellent candidate/.test(tr.tester_notes) && r1.sessions.every((x) => tr.session_ids.includes(x.session_id!)), tr?.tester_notes?.slice(0, 120));
+    const { digests } = await rp.sessionDigests(nd.id, [per('excellent')[0].session_id!]);
+    ok('SIM', 'The training agent sees which sessions are simulated, and at which level', digests[0].simulated_candidate?.level === 'Excellent' && /Strong/.test(digests[0].simulated_candidate.expected_band), JSON.stringify(digests[0].simulated_candidate));
+    const inTeam = (await rp.listTeamAssessments(neha)).filter((a) => r1.sessions.some((x) => x.session_id === a.session_id));
+    ok('SIM', 'Simulated candidates never appear in a real team\'s view', inTeam.length === 0);
+    // A second run: the candidates' graded attempt is used, so the runner allows a retake itself.
+    await rp.advanceTrainingRuns({ budgetMs: 60000 });
+    const [simTr] = await sql<{ scope: string }[]>`SELECT scope FROM rp.training_run WHERE id = ${r1.run.training_run_id}`;
+    const mark = await rp.trainingWatermark(nd.id);
+    const period = await rp.startTrainingRun(meera, nd.id, { trigger: 'manual', from: suiteStart });
+    const [pr] = await sql<{ session_ids: string[] }[]>`SELECT session_ids FROM rp.training_run WHERE id = ${period.id}`;
+    ok('SIM', 'A simulation\'s training run reviews only its sessions and leaves the weekly watermark alone; period runs skip simulated learners',
+      simTr?.scope === 'sessions' && (mark === null || mark < new Date(r1.run.created_at)) && !pr.session_ids.some((id) => r1.sessions.some((x) => x.session_id === id)),
+      `${simTr?.scope}; watermark ${mark?.toISOString() ?? 'none'}; period run ${pr.session_ids.length} sessions`);
+    await sql`DELETE FROM rp.training_run`;
+    const run2 = await rp.startSimRun(meera, nd.id, { levels: ['excellent'], practice_sessions: 1, message_budget: 4, train_after: false });
+    for (let i = 0; i < 10 && (await sql`SELECT 1 FROM rp.sim_run WHERE id = ${run2.id} AND status = 'running'`).length; i++) await rp.advanceSimRun(run2.id, 240000);
+    const r2 = await rp.getSimRun(meera, run2.id);
+    const [grants] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.assessment_grant g JOIN rp.app_user u ON u.id = g.granted_by WHERE u.subject = 'sim:runner'`;
+    ok('SIM', 'A repeat run grants the candidate a retake itself and still ends with an assessment', r2.run.status === 'completed' && r2.sessions.find((x) => x.kind === 'assessment')?.status === 'done' && grants.n >= 1 && !r2.run.training_run_id, `${r2.run.status}; grants ${grants.n}`);
+    const cmp = r2.comparison.excellent;
+    const firstEx = r1.calibration.find((c) => c.level === 'excellent')!;
+    ok('SIM', 'A run compares each candidate with the previous run that scored it', !!cmp && cmp.run_id === r1.run.id && cmp.percent === rp.judgedScore(firstEx) && cmp.change === Math.round(rp.judgedScore(r2.calibration[0])!) - Math.round(cmp.percent), JSON.stringify(cmp));
+    const styles = r2.sessions.map((x) => x.personality);
+    ok('SIM', 'Every session talks with a personality, never the same one twice in a row', styles.every(Boolean) && styles.every((x, i) => i === 0 || x !== styles[i - 1]), styles.join(' → '));
+    const tr2 = await rp.trainSimRun(meera, run2.id);
+    const [t2] = await sql<{ scope: string; session_ids: string[] }[]>`SELECT scope, session_ids FROM rp.training_run WHERE id = ${tr2.id}`;
+    let notYet = '';
+    try { await rp.trainSimRun(meera, run2.id); } catch (e) { notYet = (e as rp.ApiError).code; }
+    ok('SIM', 'An operator can run the AI training agent on a finished simulation\'s conversations', t2.scope === 'sessions' && t2.session_ids.length === r2.sessions.length && (await rp.getSimRun(meera, run2.id)).run.training_run_id === tr2.id && notYet === 'TRAINING_RUN_ACTIVE', `${t2.session_ids.length} sessions; again → ${notYet}`);
+    await rp.advanceTrainingRuns({ budgetMs: 60000 });
+    const run3 = await rp.startSimRun(meera, nd.id, { levels: ['competent'], practice_sessions: 1, train_after: false });
+    await rp.cancelSimRun(meera, run3.id);
+    ok('SIM', 'A running simulation can be cancelled', (await rp.getSimRun(meera, run3.id)).run.status === 'cancelled');
+    await sql`UPDATE rp.tenant SET settings = ${sql.json(settings as never)} WHERE id = ${nd.id}`;
+  }
+
   // ---- audit and metrics ------------------------------------------------------------
   const [aud] = await sql<{ n: number }[]>`SELECT count(DISTINCT action)::int n FROM rp.audit_event WHERE action IN ('session.started','session.finished','scenario.published','evaluation.reviewed','retention.purged')`;
   ok('FR12', 'Audit events record starts, finishes, publications, reviews and purges', aud.n === 5, `${aud.n}/5 kinds`);

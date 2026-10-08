@@ -14,7 +14,7 @@
 import { mockComplete } from './mock';
 import { recordUsage, openaiTokens, billedOutputTokens } from '@/modules/ai-usage';
 
-export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify' | 'train';
+export type Task = 'roleplay' | 'evaluate' | 'coach' | 'classify' | 'train' | 'simulate';
 
 export interface CompletionRequest {
   task: Task;
@@ -123,7 +123,7 @@ class OpenAICompatibleProvider implements ModelProvider {
           messages: [{ role: 'system', content: renderTemplate(req.template, req.data) }, { role: 'user', content: 'Return the JSON object now.' }],
         }),
         // A customer reply must be quick; an assessment of a whole transcript may not be.
-        signal: AbortSignal.timeout(req.task === 'roleplay' || req.task === 'classify'
+        signal: AbortSignal.timeout(req.task === 'roleplay' || req.task === 'classify' || req.task === 'simulate'
           ? Number(process.env.RP_PROVIDER_TIMEOUT_MS ?? 30000)
           : req.task === 'train' ? Number(process.env.RP_TRAIN_TIMEOUT_MS ?? 240000)
           : Number(process.env.RP_EVAL_TIMEOUT_MS ?? 120000)),
@@ -163,7 +163,8 @@ export function providerFor(task: Task): ModelProvider {
     // Separate models per task are optional; on quota-limited tiers they also spread usage across buckets.
     const model = (task === 'evaluate' || task === 'coach') ? (process.env.RP_LLM_MODEL_EVALUATOR ?? process.env.RP_LLM_MODEL)
       : task === 'classify' ? (process.env.RP_LLM_MODEL_CLASSIFIER ?? process.env.RP_LLM_MODEL)
-      : task === 'train' ? (process.env.RP_LLM_MODEL_TRAINER ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
+      : task === 'train' ? (process.env.RP_LLM_MODEL_TRAINER ?? process.env.RP_LLM_MODEL)
+      : task === 'simulate' ? (process.env.RP_LLM_MODEL_SIMULATOR ?? process.env.RP_LLM_MODEL) : process.env.RP_LLM_MODEL;
     if (!base || !key || !model) throw new Error('RP_PROVIDER=openai_compatible needs RP_LLM_BASE_URL, RP_LLM_MODEL and a key (RP_LLM_API_KEY, or RP_LLM_API_KEY_FROM naming the variable that holds it).');
     return new OpenAICompatibleProvider(base, key, model);
   }
