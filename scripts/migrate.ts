@@ -25,6 +25,15 @@ async function main(){
  const reset=process.argv.includes('--reset');
  if(reset)console.log(`Resetting database at ${assertResetAllowed()}`);
  await sql`CREATE TABLE IF NOT EXISTS public.nd_migration(name text PRIMARY KEY,applied_at timestamptz DEFAULT now())`;
+ // The tracker sits in "public", which Supabase serves through its public Data API. Only this
+ // runner (the database owner, which bypasses row-level security) needs it, so row-level security
+ // with no policies, and no grants to Supabase's anon/authenticated roles, keeps it off that API
+ // (Supabase security advisor "rls_disabled_in_public", 3 Oct 2026). Plain Postgres has no such roles.
+ await sql`ALTER TABLE public.nd_migration ENABLE ROW LEVEL SECURITY`;
+ await sql`DO $$ BEGIN
+   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN REVOKE ALL ON public.nd_migration FROM anon; END IF;
+   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN REVOKE ALL ON public.nd_migration FROM authenticated; END IF;
+ END $$`;
  if(reset)await sql`DELETE FROM public.nd_migration`;
  const [existing]=await sql`SELECT to_regclass('app.candidate') AS table_name`;
  if(existing.table_name&&!reset)for(const name of ['001_schema.sql','002_lifecycle.sql'])await sql`INSERT INTO public.nd_migration(name) VALUES(${name}) ON CONFLICT DO NOTHING`;
