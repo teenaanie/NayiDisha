@@ -1,7 +1,7 @@
 'use client';
 import {useActionState,useEffect,useRef,useState} from 'react';
 import {useRouter} from 'next/navigation';
-import {startSimAction,advanceSimAction,cancelSimAction} from './actions';
+import {startSimAction,advanceSimAction,cancelSimAction,trainSimAction} from './actions';
 
 type Level={id:string;label:string;expected:string};
 export function StartSimForm({levels,disabled}:{levels:Level[];disabled:string|null}){
@@ -47,4 +47,9 @@ export function SimProgress({runId}:{runId:string}){
 export function CancelSim({runId}:{runId:string}){
  const [state,action,pending]=useActionState(cancelSimAction.bind(null,runId),{});
  return <form action={action} className="btnrow"><button className="btn btn-sm" disabled={pending}>{pending?'Cancelling…':'Cancel run'}</button>{state.error&&<span className="small" style={{color:'var(--bad)'}}>{state.error}</span>}</form>;
+}
+
+export function TrainSim({runId,again}:{runId:string;again:boolean}){
+ const [state,action,pending]=useActionState(trainSimAction.bind(null,runId),{});
+ return <form action={action} className="btnrow"><button className="btn btn-sm" disabled={pending}>{pending?'Starting…':again?'Run the AI training agent again on these conversations':'Run the AI training agent on these conversations'}</button>{state.error&&<span className="small" style={{color:'var(--bad)'}}>{state.error}</span>}</form>;
 }

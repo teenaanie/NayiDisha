@@ -14,6 +14,7 @@ import type { Language } from '../../src/modules/roleplay/runtime/language';
 import { billedOutputTokens } from '../../src/modules/ai-usage';
 import { affirmsWithoutQuote } from '../../src/modules/roleplay/coaching';
 import { cleanMessage } from '../../src/modules/roleplay/service/simulation';
+import { pickPersonality, SIM_PERSONALITIES } from '../../src/modules/roleplay/simulation/levels';
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
@@ -615,6 +616,7 @@ export async function unitTests(): Promise<Check[]> {
         !multi('Hello Mr. Sharma, how can I help you today? What is the loan for?') && !!multi('What is the loan for? And when exactly do you need the money?'), '');
       ok('PS35', 'A simulated candidate\'s message is cleaned as a learner would type it (escaped ₹ decoded, blank lines collapsed)',
         cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?') === 'An income of ₹55,000. Right?', cleanMessage('An income of \n\n\n\\u20b955,000.\\nRight?'));
+      ok('PS37', 'A session\'s personality is drawn at random but never repeats the last one', SIM_PERSONALITIES.length >= 4 && SIM_PERSONALITIES.every((p) => [0, 0.5, 0.99].every((r) => pickPersonality(p.id, () => r).id !== p.id)) && new Set([0, 0.3, 0.6, 0.99].map((r) => pickPersonality(null, () => r).id)).size > 1);
     }
     ok('PS25', 'An open question about the need counts as asking the loan purpose', classify(p, ask, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'loan_purpose'), classify(p, ask, { discoveryComplete: false }).hits.map((h) => h.intent_id).join(','));
 

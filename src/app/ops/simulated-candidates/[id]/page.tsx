@@ -5,7 +5,8 @@ import {Pill} from '../../../ui';
 import {requestActor} from '@/modules/roleplay/service/auth';
 import {ApiError} from '@/modules/roleplay/service/context';
 import {getSimRun} from '@/modules/roleplay/service/simulation';
-import {SimProgress,CancelSim} from '../client';
+import {simPersonality} from '@/modules/roleplay/simulation/levels';
+import {SimProgress,CancelSim,TrainSim} from '../client';
 import {SIM_STATUS,STEP_STATUS} from '../labels';
 export const dynamic='force-dynamic';
 // The page's server action runs a few minutes of the simulation per call.
@@ -43,13 +44,15 @@ export default async function SimRun({params}:{params:Promise<{id:string}>}){
    </tr>)}</tbody>
   </table></div></div></section>
 
-  {run.training_run_id&&<div className="note mb">The AI training agent is reviewing these sessions: <Link href={`/ops/ai-training/${run.training_run_id}`}>open the training run</Link>.</div>}
+  {run.training_run_id&&<div className="note mb">The AI training agent reviewed these sessions: <Link href={`/ops/ai-training/${run.training_run_id}`}>open the training run</Link>.</div>}
+  {run.status!=='running'&&done>0&&<div className="mb"><TrainSim runId={run.id} again={!!run.training_run_id}/></div>}
 
   {levels.map(l=>{const mine=sessions.filter(s=>s.level===l.id);return <section key={l.id} className="card mb"><div className="card-head"><h2>{l.label}</h2><span className="small muted">Expected {l.expected_band.label} ({l.expected_band.min}–{l.expected_band.max})</span></div><div className="card-body tight"><div className="tblwrap"><table>
-   <thead><tr><th>#</th><th>Session</th><th>Status</th><th className="num">Messages</th><th className="num">Score</th><th>Coaching it used</th></tr></thead>
+   <thead><tr><th>#</th><th>Session</th><th>Personality</th><th>Status</th><th className="num">Messages</th><th className="num">Score</th><th>Coaching it used</th></tr></thead>
    <tbody>{mine.map(s=><tr key={s.id}>
     <td>{s.seq}</td>
     <td>{s.kind==='assessment'?'Graded assessment':'Practice'}{s.session_id&&<div className="small"><Link href={`/roleplay/s/${s.session_id}/report`}>Report and transcript</Link></div>}</td>
+    <td className="small">{simPersonality(s.personality)?.label??'—'}</td>
     <td><Pill tone={STEP_STATUS[s.status].tone}>{STEP_STATUS[s.status].label}</Pill>{s.error&&<div className="small" style={{color:'var(--bad)'}}>{s.error}</div>}</td>
     <td className="num">{s.messages}</td>
     <td className="num">{s.final_percent!=null?<>{pct(s.final_percent)} <span className="muted small">{s.band_label}</span></>:'—'}</td>

@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS rp.sim_session (
   final_percent NUMERIC,
   band_label    TEXT,
   coach_notes   JSONB,                      -- what the candidate was given from its previous report
+  personality   TEXT,                       -- how the candidate talks this session (content/simulation/candidates.json)
   error         TEXT,
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (run_id, level, seq),

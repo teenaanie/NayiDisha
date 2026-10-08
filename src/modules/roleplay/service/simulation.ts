@@ -6,7 +6,7 @@ import { drain } from './jobs';
 import { startTrainingRun } from './training';
 import { loadPrompt } from '../config/content';
 import { completeWithRetry } from '../providers';
-import { SIM_LEVELS, simLevel, simSubject, SIM_RUNNER_SUBJECT, type SimLevel } from '../simulation/levels';
+import { SIM_LEVELS, simLevel, simSubject, SIM_RUNNER_SUBJECT, pickPersonality, simPersonality, type SimLevel } from '../simulation/levels';
 
 /**
  * Simulated candidates (operator menu → Simulated candidates).
@@ -38,7 +38,7 @@ export interface SimConfig {
 export const DEFAULT_SIM_CONFIG: SimConfig = { levels: ['needs_improvement', 'competent', 'excellent'], practice_sessions: 5, assessment: true, learn: true, language: 'en', message_budget: 14, train_after: true };
 
 interface RunRow { id: string; tenant_id: string; status: 'running' | 'completed' | 'failed' | 'cancelled'; config: SimConfig; scenario_id: string; summary: Calibration[] | null; training_run_id: string | null; error: string | null; created_by: string; created_at: Date; completed_at: Date | null }
-export interface SimSessionRow { id: string; run_id: string; level: string; seq: number; kind: 'practice' | 'assessment'; status: 'pending' | 'talking' | 'scoring' | 'done' | 'failed'; session_id: string | null; messages: number; closing: boolean; final_percent: string | null; band_label: string | null; coach_notes: string[] | null; error: string | null; updated_at: Date }
+export interface SimSessionRow { id: string; run_id: string; level: string; seq: number; kind: 'practice' | 'assessment'; status: 'pending' | 'talking' | 'scoring' | 'done' | 'failed'; session_id: string | null; messages: number; closing: boolean; final_percent: string | null; band_label: string | null; coach_notes: string[] | null; personality: string | null; error: string | null; updated_at: Date }
 export interface Calibration { level: string; label: string; expected: string; practice: (number | null)[]; assessment: { percent: number | null; band: string | null } | null; judged_on: 'assessment' | 'last practice' | null; in_band: boolean | null }
 
 const candidateSchema = { type: 'object', additionalProperties: false, required: ['message', 'done'], properties: { message: { type: 'string' }, done: { type: 'boolean' } } } as const;
@@ -89,13 +89,13 @@ function coachNotes(body: Record<string, any>): string[] {
   return Array.from(new Set(out)).slice(0, 10);
 }
 
-async function setRow(id: string, patch: Partial<Pick<SimSessionRow, 'status' | 'session_id' | 'messages' | 'closing' | 'final_percent' | 'band_label' | 'coach_notes' | 'error'>>) {
+async function setRow(id: string, patch: Partial<Pick<SimSessionRow, 'status' | 'session_id' | 'messages' | 'closing' | 'final_percent' | 'band_label' | 'coach_notes' | 'personality' | 'error'>>) {
   const p = patch as Record<string, string | number | null | undefined | string[]>;
   const v = (x: unknown) => (x === undefined ? null : (x as string | number | null));
   await sql`UPDATE rp.sim_session SET
       status = COALESCE(${v(p.status)}, status), session_id = COALESCE(${v(p.session_id)}::uuid, session_id),
       messages = COALESCE(${v(p.messages)}::int, messages), closing = COALESCE(${'closing' in p ? !!p.closing : null}::boolean, closing), final_percent = COALESCE(${v(p.final_percent)}::numeric, final_percent),
-      band_label = COALESCE(${v(p.band_label)}, band_label), error = COALESCE(${v(p.error)}, error),
+      band_label = COALESCE(${v(p.band_label)}, band_label), personality = COALESCE(${v(p.personality)}, personality), error = COALESCE(${v(p.error)}, error),
       coach_notes = ${'coach_notes' in p ? sql.json((p.coach_notes ?? []) as never) : sql`coach_notes`}, updated_at = now()
     WHERE id = ${id}`;
 }
@@ -130,7 +130,9 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
       }
       if (row.kind === 'assessment') await ensureAttempt(run.tenant_id, candidate);
       const started = await startSession(candidate, { scenario_id: run.scenario_id, language: run.config.language === 'en' ? undefined : run.config.language, ...(row.kind === 'assessment' ? { kind: 'assessment' as const } : {}) });
-      await setRow(row.id, { status: 'talking', session_id: started.session.session_id, coach_notes: notes as never });
+      // A fresh personality each session, so runs never sound alike; the level's skill stays the same.
+      const lastStyle = [...rows].reverse().find((r) => r.seq < row.seq && r.personality)?.personality ?? null;
+      await setRow(row.id, { status: 'talking', session_id: started.session.session_id, coach_notes: notes as never, personality: pickPersonality(lastStyle).id });
       return true;
     }
     if (row.status === 'talking') {
@@ -152,6 +154,7 @@ async function stepLevel(run: RunRow, level: SimLevel): Promise<boolean> {
           task: 'simulate', template: loadPrompt(CANDIDATE_PROMPT), schema: candidateSchema as never, temperature: 0.7, maxTokens: 900,
           data: {
             level_json: { id: level.id, label: level.label, behaviour: level.behaviour, use_feedback: level.use_feedback },
+            personality_json: simPersonality(row.personality)?.style ?? null,
             brief_json: { role: 'Loan Sales Officer', brief: s.learner_brief },
             coach_notes_json: row.coach_notes ?? [], message_budget_json: run.config.message_budget, messages_sent_json: row.messages, history_json: history,
           },
@@ -227,13 +230,15 @@ export function calibrationNotes(cal: Calibration[], runId: string): string {
   return lines.join('\n');
 }
 
+const doneSessionIds = (rows: SimSessionRow[]) => rows.flatMap((r) => (r.status === 'done' && r.session_id ? [r.session_id] : []));
+
 async function complete(run: RunRow) {
   const rows = await sql<SimSessionRow[]>`SELECT * FROM rp.sim_session WHERE run_id = ${run.id}`;
   const cal = calibrate(run, rows);
   let trainingRunId: string | null = null;
   let note: string | null = null;
   if (run.config.train_after && rows.some((r) => r.status === 'done')) {
-    try { trainingRunId = (await startTrainingRun(null, run.tenant_id, { trigger: 'manual', notes: calibrationNotes(cal, run.id), createdBy: `Simulation run ${run.id.slice(0, 8)}`, sessionIds: rows.flatMap((r) => (r.status === 'done' && r.session_id ? [r.session_id] : [])) })).id; }
+    try { trainingRunId = (await startTrainingRun(null, run.tenant_id, { trigger: 'manual', notes: calibrationNotes(cal, run.id), createdBy: `Simulation run ${run.id.slice(0, 8)}`, sessionIds: doneSessionIds(rows) })).id; }
     catch (e) { note = `The AI training agent was not started: ${(e as Error).message}`; }
   }
   await sql`UPDATE rp.sim_run SET status = 'completed', completed_at = now(), summary = ${sql.json(cal as never)}, training_run_id = ${trainingRunId}, error = ${note} WHERE id = ${run.id}`;
@@ -288,6 +293,25 @@ export async function cancelSimRun(actor: Actor, runId: string) {
   const [r] = await sql`UPDATE rp.sim_run SET status = 'cancelled', completed_at = now() WHERE id = ${runId} AND tenant_id = ${actor.tenant_id} AND status = 'running' RETURNING id`;
   if (!r) throw new ApiError(409, 'SIM_NOT_RUNNING', 'This simulation is not running.');
   await audit(actor, 'simulation.run_cancelled', 'sim_run', runId, {});
+}
+
+/**
+ * Run the AI training agent on a finished simulation's conversations: when the run was started
+ * without it, or to review them again (for example after a model or prompt change).
+ */
+export async function trainSimRun(actor: Actor, runId: string) {
+  canRun(actor);
+  const [run] = await sql<RunRow[]>`SELECT * FROM rp.sim_run WHERE id = ${runId} AND tenant_id = ${actor.tenant_id}`;
+  if (!run) throw notFound('Simulation');
+  if (run.status === 'running') throw new ApiError(409, 'SIM_RUN_ACTIVE', 'Wait for the simulation to finish first.');
+  const rows = await sql<SimSessionRow[]>`SELECT * FROM rp.sim_session WHERE run_id = ${run.id}`;
+  const ids = doneSessionIds(rows);
+  if (!ids.length) throw new ApiError(409, 'SIM_NO_SESSIONS', 'No conversation in this simulation was assessed, so there is nothing to review.');
+  const cal = run.summary ?? calibrate(run, rows);
+  const tr = await startTrainingRun(actor, run.tenant_id, { trigger: 'manual', notes: calibrationNotes(cal, run.id), createdBy: actor.display_name, sessionIds: ids });
+  await sql`UPDATE rp.sim_run SET training_run_id = ${tr.id} WHERE id = ${run.id}`;
+  await audit(actor, 'simulation.training_started', 'sim_run', run.id, { training_run_id: tr.id, sessions: ids.length });
+  return tr;
 }
 
 export async function listSimRuns(actor: Actor, limit = 30) {

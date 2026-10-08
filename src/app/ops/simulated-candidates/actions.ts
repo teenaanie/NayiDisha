@@ -5,7 +5,7 @@ import {revalidatePath} from 'next/cache';
 import {requireRole} from '@/lib/auth';
 import {requestActor} from '@/modules/roleplay/service/auth';
 import {ApiError} from '@/modules/roleplay/service/context';
-import {startSimRun,advanceSimRun,cancelSimRun} from '@/modules/roleplay/service/simulation';
+import {startSimRun,advanceSimRun,cancelSimRun,trainSimRun} from '@/modules/roleplay/service/simulation';
 
 async function operator(){
  await requireRole(['ADMIN','OPERATIONS']);
@@ -41,4 +41,12 @@ export async function cancelSimAction(runId:string,_:unknown):Promise<{error?:st
  catch(e){return {error:message(e)};}
  revalidatePath(`/ops/simulated-candidates/${runId}`);
  return {};
+}
+
+/** Run the AI training agent on this simulation's conversations (again, or for the first time). */
+export async function trainSimAction(runId:string,_:unknown):Promise<{error?:string}>{
+ let id:string;
+ try{const actor=await operator();id=(await trainSimRun(actor,runId)).id;}
+ catch(e){return {error:message(e)};}
+ redirect(`/ops/ai-training/${id}`);
 }

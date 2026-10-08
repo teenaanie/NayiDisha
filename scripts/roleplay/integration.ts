@@ -679,6 +679,14 @@ export async function integrationTests(): Promise<Check[]> {
     const r2 = await rp.getSimRun(meera, run2.id);
     const [grants] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.assessment_grant g JOIN rp.app_user u ON u.id = g.granted_by WHERE u.subject = 'sim:runner'`;
     ok('SIM', 'A repeat run grants the candidate a retake itself and still ends with an assessment', r2.run.status === 'completed' && r2.sessions.find((x) => x.kind === 'assessment')?.status === 'done' && grants.n >= 1 && !r2.run.training_run_id, `${r2.run.status}; grants ${grants.n}`);
+    const styles = r2.sessions.map((x) => x.personality);
+    ok('SIM', 'Every session talks with a personality, never the same one twice in a row', styles.every(Boolean) && styles.every((x, i) => i === 0 || x !== styles[i - 1]), styles.join(' → '));
+    const tr2 = await rp.trainSimRun(meera, run2.id);
+    const [t2] = await sql<{ scope: string; session_ids: string[] }[]>`SELECT scope, session_ids FROM rp.training_run WHERE id = ${tr2.id}`;
+    let notYet = '';
+    try { await rp.trainSimRun(meera, run2.id); } catch (e) { notYet = (e as rp.ApiError).code; }
+    ok('SIM', 'An operator can run the AI training agent on a finished simulation\'s conversations', t2.scope === 'sessions' && t2.session_ids.length === r2.sessions.length && (await rp.getSimRun(meera, run2.id)).run.training_run_id === tr2.id && notYet === 'TRAINING_RUN_ACTIVE', `${t2.session_ids.length} sessions; again → ${notYet}`);
+    await rp.advanceTrainingRuns({ budgetMs: 60000 });
     const run3 = await rp.startSimRun(meera, nd.id, { levels: ['competent'], practice_sessions: 1, train_after: false });
     await rp.cancelSimRun(meera, run3.id);
     ok('SIM', 'A running simulation can be cancelled', (await rp.getSimRun(meera, run3.id)).run.status === 'cancelled');
