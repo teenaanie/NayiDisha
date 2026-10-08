@@ -314,6 +314,9 @@ export async function trainSimRun(actor: Actor, runId: string) {
   return tr;
 }
 
+/** The score a calibration is judged on: the assessment, or else the last practice. */
+export const judgedScore = (c: Calibration): number | null => c.assessment?.percent ?? [...c.practice].reverse().find((x) => x != null) ?? null;
+
 export async function listSimRuns(actor: Actor, limit = 30) {
   canRun(actor);
   return sql<(RunRow & { sessions: number; done: number; failed: number })[]>`
@@ -329,7 +332,19 @@ export async function getSimRun(actor: Actor, runId: string) {
   const [run] = await sql<RunRow[]>`SELECT * FROM rp.sim_run WHERE id = ${runId} AND tenant_id = ${actor.tenant_id}`;
   if (!run) throw notFound('Simulation');
   const sessions = await sql<SimSessionRow[]>`SELECT * FROM rp.sim_session WHERE run_id = ${runId} ORDER BY level, seq`;
-  return { run, sessions, calibration: run.summary ?? calibrate(run, sessions), levels: SIM_LEVELS.filter((l) => run.config.levels.includes(l.id)) };
+  const calibration = run.summary ?? calibrate(run, sessions);
+  // For each candidate, the latest earlier completed run that scored it: did this run do better?
+  const earlier = await sql<Pick<RunRow, 'id' | 'created_at' | 'summary'>[]>`
+    SELECT id, created_at, summary FROM rp.sim_run WHERE tenant_id = ${actor.tenant_id} AND status = 'completed' AND summary IS NOT NULL AND created_at < ${run.created_at} ORDER BY created_at DESC LIMIT 20`;
+  const comparison = Object.fromEntries(calibration.map((c) => {
+    for (const e of earlier) {
+      const p = (e.summary ?? []).find((x) => x.level === c.level);
+      const prev = p ? judgedScore(p) : null;
+      if (prev != null) { const now = judgedScore(c); return [c.level, { run_id: e.id, created_at: e.created_at, percent: prev, judged_on: p!.judged_on, change: now == null ? null : Math.round(now) - Math.round(prev) }]; }
+    }
+    return [c.level, null];
+  })) as Record<string, { run_id: string; created_at: Date; percent: number; judged_on: Calibration['judged_on']; change: number | null } | null>;
+  return { run, sessions, calibration, comparison, levels: SIM_LEVELS.filter((l) => run.config.levels.includes(l.id)) };
 }
 
 /** Which simulated level, if any, a session belongs to (for the training agent). */

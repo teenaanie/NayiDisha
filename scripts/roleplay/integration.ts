@@ -679,6 +679,9 @@ export async function integrationTests(): Promise<Check[]> {
     const r2 = await rp.getSimRun(meera, run2.id);
     const [grants] = await sql<{ n: number }[]>`SELECT count(*)::int n FROM rp.assessment_grant g JOIN rp.app_user u ON u.id = g.granted_by WHERE u.subject = 'sim:runner'`;
     ok('SIM', 'A repeat run grants the candidate a retake itself and still ends with an assessment', r2.run.status === 'completed' && r2.sessions.find((x) => x.kind === 'assessment')?.status === 'done' && grants.n >= 1 && !r2.run.training_run_id, `${r2.run.status}; grants ${grants.n}`);
+    const cmp = r2.comparison.excellent;
+    const firstEx = r1.calibration.find((c) => c.level === 'excellent')!;
+    ok('SIM', 'A run compares each candidate with the previous run that scored it', !!cmp && cmp.run_id === r1.run.id && cmp.percent === rp.judgedScore(firstEx) && cmp.change === Math.round(rp.judgedScore(r2.calibration[0])!) - Math.round(cmp.percent), JSON.stringify(cmp));
     const styles = r2.sessions.map((x) => x.personality);
     ok('SIM', 'Every session talks with a personality, never the same one twice in a row', styles.every(Boolean) && styles.every((x, i) => i === 0 || x !== styles[i - 1]), styles.join(' → '));
     const tr2 = await rp.trainSimRun(meera, run2.id);

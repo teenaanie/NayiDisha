@@ -4,7 +4,7 @@ import {fmtDateTime} from '@/lib/clock';
 import {Pill} from '../../../ui';
 import {requestActor} from '@/modules/roleplay/service/auth';
 import {ApiError} from '@/modules/roleplay/service/context';
-import {getSimRun} from '@/modules/roleplay/service/simulation';
+import {getSimRun,judgedScore} from '@/modules/roleplay/service/simulation';
 import {simPersonality} from '@/modules/roleplay/simulation/levels';
 import {SimProgress,CancelSim,TrainSim} from '../client';
 import {SIM_STATUS,STEP_STATUS} from '../labels';
@@ -24,7 +24,7 @@ export default async function SimRun({params}:{params:Promise<{id:string}>}){
   if(e instanceof ApiError)return <main className="page"><div className="note bad">{e.message}</div><p><Link href="/ops/simulated-candidates">Back to simulated candidates</Link></p></main>;
   throw e;
  }
- const {run,sessions,calibration,levels}=data;
+ const {run,sessions,calibration,comparison,levels}=data;
  const done=sessions.filter(s=>s.status==='done').length;
  return <main className="page">
   <div className="page-head"><div className="nd-section-kicker"><Link href="/ops/simulated-candidates">Simulated candidates</Link></div>
@@ -35,12 +35,16 @@ export default async function SimRun({params}:{params:Promise<{id:string}>}){
   {run.error&&<div className={`note ${run.status==='failed'?'bad':''} mb`}>{run.error}</div>}
 
   <section className="card mb"><div className="card-head"><h2>Calibration</h2><span className="small muted">Does each candidate score in the band its level should get?</span></div><div className="card-body tight"><div className="tblwrap"><table>
-   <thead><tr><th>Candidate</th><th>Expected</th><th>Practice scores</th><th className="num">Assessment</th><th>Result</th></tr></thead>
+   <thead><tr><th>Candidate</th><th>Expected</th><th>Practice scores</th><th className="num">Assessment</th><th>Result</th><th>Compared with the previous run</th></tr></thead>
    <tbody>{calibration.map(c=><tr key={c.level}>
     <td><strong>{c.label}</strong></td><td className="small">{c.expected}</td>
     <td style={{fontVariantNumeric:'tabular-nums'}}>{c.practice.map(pct).join(' → ')||'—'}</td>
     <td className="num">{c.assessment?<>{pct(c.assessment.percent)} <span className="muted small">{c.assessment.band??''}</span></>:'—'}</td>
     <td>{c.in_band==null?<span className="muted">waiting</span>:<Pill tone={c.in_band?'ok':'warn'}>{c.in_band?'In band':'Outside band'}</Pill>}{c.judged_on&&<div className="muted small">judged on the {c.judged_on}</div>}</td>
+    <td>{(()=>{const p=comparison[c.level];if(!p)return <span className="muted small">no earlier run</span>;
+     const ch=p.change;
+     return <><span style={{fontVariantNumeric:'tabular-nums'}}>{pct(p.percent)} → {pct(judgedScore(c))}</span>{ch!=null&&<> <Pill tone={ch>0?'ok':ch<0?'warn':'mute'}>{ch>0?`+${ch}`:ch===0?'no change':ch}</Pill></>}
+      <div className="muted small"><Link href={`/ops/simulated-candidates/${p.run_id}`}>run of {fmtDateTime(p.created_at)}</Link>{p.judged_on&&p.judged_on!==c.judged_on?` · that run was judged on its ${p.judged_on}`:''}</div></>;})()}</td>
    </tr>)}</tbody>
   </table></div></div></section>
 
