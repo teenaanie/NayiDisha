@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.1.4",
+  "version": "4.2.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -81,7 +81,7 @@
    "Interest rate",
    "Processing fee or other charge amounts",
    "Employer name",
-   "The college's name or fees",
+   "The college's fees beyond the stated breakup",
    "A loan tenure",
    "Approval or guaranteed loan amount"
   ]
@@ -112,7 +112,7 @@
   {
    "id": "student_details",
    "type": "text",
-   "value": "his daughter Priya has got admission for B.Com at a college in Pune",
+   "value": "his daughter Priya has got admission for B.Com at Sahyadri College of Commerce in Pune",
    "knowledge": "known",
    "visibility": "on_intent",
    "release_intents": [
@@ -120,6 +120,18 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "recommendation"
+  },
+  {
+   "id": "college_details",
+   "type": "text",
+   "value": "It is Sahyadri College of Commerce in Kothrud, Pune, affiliated to Savitribai Phule Pune University. B.Com is a 3-year course.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "college_details"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation 11 Oct 2026"
   },
   {
    "id": "loan_amount",
@@ -219,6 +231,19 @@
    "source_ref": "SP"
   },
   {
+   "id": "employer",
+   "type": "text",
+   "value": "I am a senior accounts executive at a private manufacturing company in Pune.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "employment",
+    "employer_details"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 11 Oct 2026"
+  },
+  {
    "id": "employment_duration",
    "type": "text",
    "value": "has worked at the same company for about 8 years",
@@ -244,6 +269,30 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
+  },
+  {
+   "id": "salary_details",
+   "type": "text",
+   "value": "The ₹55,000 is my take-home pay after tax and PF. My gross salary is about ₹65,000 a month, about ₹7.8 lakh a year. It is a fixed salary with a small yearly bonus, credited every month to my salary account.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "salary_details"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 11 Oct 2026"
+  },
+  {
+   "id": "household",
+   "type": "text",
+   "value": "My wife is a homemaker, so I am the only earning member, and we have no other income such as rent. Our household expenses come to about ₹25,000 a month.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "household_finances"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation 11 Oct 2026"
   },
   {
    "id": "cue_other_emi",
@@ -309,6 +358,42 @@
    ],
    "prerequisite_fact_ids": [],
    "source_ref": "SP"
+  },
+  {
+   "id": "vehicle_loan_term",
+   "type": "text",
+   "value": "I took the vehicle loan about 3 years ago. About 2 years, 24 EMIs, are left.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "existing_loan_term"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation 11 Oct 2026"
+  },
+  {
+   "id": "credit_score",
+   "type": "text",
+   "value": "When I checked my CIBIL score about a year ago, it was around 750. I have never missed an EMI.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "credit_score"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation 11 Oct 2026"
+  },
+  {
+   "id": "property",
+   "type": "text",
+   "value": "I own the flat we live in, in Pune. I have no other property, and I would rather not pledge my home for this loan.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "collateral"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "recommendation 11 Oct 2026"
   },
   {
    "id": "cue_extra_charges",
@@ -519,6 +604,117 @@
     ]
    },
    {
+    "id": "salary_details",
+    "description": "Asks details of the customer's salary: take-home or gross, annual salary or CTC, fixed or variable pay, bonus, or where it is credited.",
+    "positive_examples": [
+     "Is that your take-home or gross salary?",
+     "What is your annual salary?",
+     "What is your CTC?",
+     "Is your salary fixed or variable?",
+     "Do you get any bonus or incentives?",
+     "Is your salary credited to your bank account?",
+     "Is that after tax?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "What is your monthly income?",
+     "How much do you earn every month?"
+    ]
+   },
+   {
+    "id": "employer_details",
+    "description": "Asks where the customer works: the company, its type, or the customer's role or designation.",
+    "positive_examples": [
+     "Which company do you work for?",
+     "What is your designation?",
+     "What kind of company is it?",
+     "What is your role there?",
+     "Where do you work?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "household_finances",
+    "description": "Asks about the household: other earning members, other income, dependants, or monthly household expenses.",
+    "positive_examples": [
+     "Does anyone else in the family earn?",
+     "Do you have any other income?",
+     "What are your monthly household expenses?",
+     "Is your wife working?",
+     "How many dependants do you have?",
+     "How much do you spend at home every month?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "existing_loan_term",
+    "description": "Asks about the existing loan's term: when it was taken, when it ends, or how many EMIs are left.",
+    "positive_examples": [
+     "When will your vehicle loan end?",
+     "How many EMIs are left on it?",
+     "When did you take the vehicle loan?",
+     "How much tenure is remaining on that loan?",
+     "When is this loan period going to end?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "Over how many years would you like to repay?",
+     "What loan tenure do you prefer?"
+    ]
+   },
+   {
+    "id": "credit_score",
+    "description": "Asks about the customer's CIBIL or credit score, or repayment track record.",
+    "positive_examples": [
+     "What is your CIBIL score?",
+     "Do you know your credit score?",
+     "Have you ever missed an EMI?",
+     "How is your credit history?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "collateral",
+    "description": "Asks about property, security or collateral, or whether the customer owns a home.",
+    "positive_examples": [
+     "Do you own a house?",
+     "Do you have any property?",
+     "Can you offer any security for the loan?",
+     "Is the house you live in your own?",
+     "Do you have anything to pledge?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "college_details",
+    "description": "Asks about the college or course details: the college's name or location, the university, or how long the course is.",
+    "positive_examples": [
+     "What is the name of the college?",
+     "Which university is it affiliated to?",
+     "How long is the course?",
+     "Is it a 3-year course?",
+     "Where is the college?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
     "id": "income",
     "description": "Asks about the customer's income or cash flow.",
     "positive_examples": [
@@ -711,7 +907,7 @@
     "reveal_fact_ids": [
      "student_details"
     ],
-    "response_text": "Her name is Priya. She has got admission for B.Com at a college in Pune."
+    "response_text": "Her name is Priya. She has got admission for B.Com at Sahyadri College of Commerce in Pune."
    },
    {
     "id": "respond_timing",
@@ -733,9 +929,10 @@
     ],
     "match": "any",
     "reveal_fact_ids": [
-     "employment"
+     "employment",
+     "employer"
     ],
-    "response_text": "I am a salaried employee."
+    "response_text": "I am a salaried employee. I am a senior accounts executive at a private manufacturing company in Pune."
    },
    {
     "id": "respond_employment_duration",
@@ -760,6 +957,83 @@
      "monthly_income"
     ],
     "response_text": "I earn about ₹55,000 a month."
+   },
+   {
+    "id": "respond_salary_details",
+    "priority": 100,
+    "intent_ids": [
+     "salary_details"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "salary_details"
+    ]
+   },
+   {
+    "id": "respond_household_finances",
+    "priority": 100,
+    "intent_ids": [
+     "household_finances"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "household"
+    ]
+   },
+   {
+    "id": "respond_existing_loan_term",
+    "priority": 100,
+    "intent_ids": [
+     "existing_loan_term"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "vehicle_loan_term"
+    ]
+   },
+   {
+    "id": "respond_credit_score",
+    "priority": 100,
+    "intent_ids": [
+     "credit_score"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "credit_score"
+    ]
+   },
+   {
+    "id": "respond_collateral",
+    "priority": 100,
+    "intent_ids": [
+     "collateral"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "property"
+    ]
+   },
+   {
+    "id": "respond_college_details",
+    "priority": 100,
+    "intent_ids": [
+     "college_details"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "college_details"
+    ]
+   },
+   {
+    "id": "respond_employer_details",
+    "priority": 100,
+    "intent_ids": [
+     "employer_details"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "employer"
+    ]
    },
    {
     "id": "respond_existing_commitments",
@@ -857,7 +1131,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.1.4",
+  "version": "4.2.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1117,7 +1391,8 @@
     "category": "coverage",
     "method": "semantic",
     "accepted_intents": [
-     "income"
+     "income",
+     "salary_details"
     ],
     "credit_requires": "learner_question",
     "expected_fact_ids": [
@@ -1130,7 +1405,8 @@
     "category": "coverage",
     "method": "semantic",
     "accepted_intents": [
-     "existing_commitments"
+     "existing_commitments",
+     "existing_loan_term"
     ],
     "credit_requires": "learner_question",
     "expected_fact_ids": [
@@ -1184,7 +1460,8 @@
     "method": "semantic",
     "accepted_intents": [
      "employment",
-     "employment_duration"
+     "employment_duration",
+     "employer_details"
     ],
     "credit_requires": "learner_question",
     "expected_fact_ids": [
@@ -1760,9 +2037,9 @@
       "respond_cost_breakup": "पहले साल का कुल खर्च लगभग ₹4.5 लाख है: लगभग ₹3 लाख ट्यूशन और एडमिशन, लगभग ₹1.2 लाख हॉस्टल और खाना, और लगभग ₹30,000 किताबें और बाकी खर्च।",
       "respond_own_contribution": "मैं अपनी बचत से लगभग ₹50,000 दे सकता हूँ। बाकी लगभग ₹4 लाख के लिए मुझे लोन चाहिए।",
       "respond_course_start": "क्लासें लगभग एक महीने में शुरू होंगी। इसीलिए फ़ीस 30 दिनों के अंदर भरनी है।",
-      "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के एक कॉलेज में B.Com में एडमिशन मिला है।",
+      "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के सह्याद्री कॉलेज ऑफ़ कॉमर्स में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
-      "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ।",
+      "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ। मैं पुणे की एक प्राइवेट मैन्युफैक्चरिंग कंपनी में सीनियर अकाउंट्स एग्ज़ीक्यूटिव हूँ।",
       "respond_employment_duration": "मैं लगभग 8 साल से एक ही कंपनी में काम कर रहा हूँ।",
       "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ।",
       "respond_existing_commitments": "हाँ, मैं अपने वाहन लोन के लिए हर महीने ₹8,000 भरता हूँ।",
@@ -1783,6 +2060,13 @@
       "student_details": "आपकी बेटी का एडमिशन किस कॉलेज में हुआ है?",
       "cost_breakup": "इन ₹4 लाख में क्या-क्या शामिल है?",
       "employment_duration": "आप इस कंपनी में कितने साल से काम कर रहे हैं?",
+      "salary_details": "यह इन-हैंड सैलरी है या ग्रॉस?",
+      "employer_details": "आप किस कंपनी में काम करते हैं?",
+      "household_finances": "घर में और कोई कमाता है?",
+      "existing_loan_term": "आपका वाहन लोन कब खत्म होगा?",
+      "credit_score": "आपका CIBIL स्कोर कितना है?",
+      "collateral": "क्या आपका अपना घर है?",
+      "college_details": "कॉलेज का नाम क्या है?",
       "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?",
       "course_start": "क्लासें कब से शुरू हैं?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
@@ -1814,9 +2098,9 @@
       "respond_cost_breakup": "पहिल्या वर्षाचा एकूण खर्च साधारण ₹4.5 लाख आहे: साधारण ₹3 लाख ट्युशन आणि प्रवेश, साधारण ₹1.2 लाख हॉस्टेल आणि जेवण, आणि साधारण ₹30,000 पुस्तकं आणि इतर खर्च.",
       "respond_own_contribution": "मी माझ्या बचतीतून साधारण ₹50,000 देऊ शकतो. उरलेल्या साधारण ₹4 लाखांसाठी मला कर्ज हवं आहे.",
       "respond_course_start": "वर्ग साधारण एका महिन्यात सुरू होतील. म्हणूनच फी 30 दिवसांच्या आत भरायची आहे.",
-      "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या एका कॉलेजमध्ये B.Com ला प्रवेश मिळाला आहे.",
+      "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या सह्याद्री कॉलेज ऑफ कॉमर्समध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
-      "respond_employment": "मी पगारदार नोकरी करतो.",
+      "respond_employment": "मी पगारदार नोकरी करतो. पुण्यातल्या एका खासगी मॅन्युफॅक्चरिंग कंपनीत मी सीनियर अकाउंट्स एक्झिक्युटिव्ह आहे.",
       "respond_employment_duration": "मी साधारण 8 वर्षांपासून एकाच कंपनीत काम करतोय.",
       "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो.",
       "respond_existing_commitments": "हो, मी माझ्या वाहन कर्जासाठी दर महिन्याला ₹8,000 भरतो.",
@@ -1837,6 +2121,13 @@
       "student_details": "तुमच्या मुलीला कोणत्या कॉलेजमध्ये प्रवेश मिळाला आहे?",
       "cost_breakup": "या ₹4 लाखांत काय काय येतं?",
       "employment_duration": "तुम्ही या कंपनीत किती वर्षांपासून काम करताय?",
+      "salary_details": "हा हातात येणारा पगार आहे की ग्रॉस?",
+      "employer_details": "तुम्ही कोणत्या कंपनीत काम करता?",
+      "household_finances": "घरात आणखी कोणी कमावतं का?",
+      "existing_loan_term": "तुमचं वाहन कर्ज कधी संपेल?",
+      "credit_score": "तुमचा CIBIL स्कोर किती आहे?",
+      "collateral": "तुमचं स्वतःचं घर आहे का?",
+      "college_details": "कॉलेजचं नाव काय आहे?",
       "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?",
       "course_start": "वर्ग कधी सुरू होणार आहेत?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",
@@ -2356,10 +2647,8 @@
     "student_details": [
      "Priya",
      "B.Com",
-     "Pune",
-     "प्रिया",
-     "पुणे",
-     "पुण्या"
+     "Sahyadri",
+     "प्रिया"
     ],
     "cost_breakup": [
      "hostel",

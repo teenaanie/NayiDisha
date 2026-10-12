@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.1.4: provenance
+# EDU_DISCOVERY_001 v4.2.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -84,5 +84,17 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   are not risk flags. A money answer the customer gives unasked (the loan amount while answering
   about savings) makes that question not applicable, neither credit nor a miss. "One question at
   a time" counts a confirmation ("Is that right?") or the same question rephrased as one.
+- **4.2.0 (11 Oct 2026), questions the customer could not answer or answered by inventing:**
+  new facts and topics, answered in his own words from the facts only (no fixed line), in all
+  three languages. Owner decisions: the ₹55,000 is take-home after tax and PF; gross about
+  ₹65,000 a month, about ₹7.8 lakh a year; fixed salary with a small yearly bonus [O]; senior
+  accounts executive at a private manufacturing company in Pune [O]. Recommendations to review:
+  wife a homemaker, he is the only earner, no other income, household expenses about ₹25,000 a
+  month; vehicle loan taken about 3 years ago, about 24 EMIs left; CIBIL around 750 a year ago,
+  never missed an EMI; owns the flat they live in, in Pune, would rather not pledge it; Sahyadri
+  College of Commerce (fictional name), Kothrud, Pune, affiliated to Savitribai Phule Pune
+  University, a 3-year B.Com [R]. Detail questions count for the area they belong to (salary →
+  income, employer → employment, loan term → existing commitments). "Pune" is no longer a hidden
+  word for the daughter's details, and a word in a fact allowed that turn is never treated as a leak.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

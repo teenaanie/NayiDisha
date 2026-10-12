@@ -85,7 +85,10 @@ export function validateRoleplayOutput(bundle: ScenarioBundle, raw: string, allo
   const learnerSaid = [learnerText, ...history.filter((t) => t.speaker === 'learner').map((t) => t.text)].join(' ');
   for (const [factId, terms] of Object.entries(rt.hidden_fact_terms)) {
     if (allowed.has(factId)) continue;
-    const t = terms.find((w) => hasTerm(c.text, w) && !hasTerm(learnerSaid, w));
+    // A word the facts allowed this turn contain is theirs to say: "Pune" in "a company in Pune"
+    // is not the daughter's college (the new employer, home and family facts were all blocked as
+    // hidden_fact:student_details; 11 Oct 2026).
+    const t = terms.find((w) => hasTerm(c.text, w) && !hasTerm(learnerSaid, w) && !hasTerm(allowedText, w));
     if (t) return { ok: false, reason: `hidden_fact:${factId}` };
   }
   if (rt.forbidden_terms.some((w) => hasTerm(c.text, w))) return { ok: false, reason: 'forbidden_term' };

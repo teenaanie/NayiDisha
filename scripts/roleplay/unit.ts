@@ -430,8 +430,8 @@ export async function unitTests(): Promise<Check[]> {
       ['Do you have any other EMIs?', 'Yes, I pay ₹8,000 a month for my vehicle loan.'],
       ["What's a comfortable EMI for you?", 'Around ₹10,000 to ₹12,000 a month more would be comfortable.'],
       ['Have you taken a loan before?', 'Yes, I took a vehicle loan before. Also, my previous loan had extra charges.'],
-      ["What is your daughter's name?", 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
-      ['Which college has she got admission in?', 'Her name is Priya. She has got admission for B.Com at a college in Pune.'],
+      ["What is your daughter's name?", 'Her name is Priya. She has got admission for B.Com at Sahyadri College of Commerce in Pune.'],
+      ['Which college has she got admission in?', 'Her name is Priya. She has got admission for B.Com at Sahyadri College of Commerce in Pune.'],
       ['Can you give me the breakup of the ₹4 lakh?', 'The first year comes to about ₹4.5 lakh: around ₹3 lakh for tuition and admission, about ₹1.2 lakh for hostel and food, and about ₹30,000 for books and other costs.'],
       ['How much can you pay from your side?', 'I can put in about ₹50,000 from my savings. For the rest, about ₹4 lakh, I need the loan.'],
       ['How long have you been working in this company?', 'I have been with the same company for about 8 years.'],
@@ -576,7 +576,7 @@ export async function unitTests(): Promise<Check[]> {
       const r31 = await generateCustomerReply({ bundle: p, plan: plan31, history: [], learnerText: 'What course is your son doing, and which year?', template: tpl, correlation: { tenant_id: 't', session_id: 's', operation_id: 'o' } });
       overrideProvider('roleplay', null);
       ok('PS31', 'If every draft fails, a fixed answer stands alone: no "Could you explain what you mean?" after it',
-        r31.method === 'fallback' && r31.text === 'Actually, it is my daughter, not my son. Her name is Priya. She has got admission for B.Com at a college in Pune.', r31.text);
+        r31.method === 'fallback' && r31.text === 'Actually, it is my daughter, not my son. Her name is Priya. She has got admission for B.Com at Sahyadri College of Commerce in Pune.', r31.text);
     }
     {
       const cand = { dimension_scores: [{ dimension_id: 'active_listening', score: 3, anchor_score: 3, evidence_ids: [], status: 'scored',
@@ -711,6 +711,14 @@ export async function unitTests(): Promise<Check[]> {
       const digits = bk('The total is ₹4,50,000, with ₹3,00,000 for tuition.');
       const made = bk('It comes to about ₹5.5 lakh in all.');
       ok('PS42', '"₹4.5 lakh" matches the total "₹4,50,000" (and back); an invented figure is still rejected', lakh.ok && digits.ok && !made.ok && made.reason === 'unsupported_figure', [lakh, digits, made].map((x) => (x.ok ? 'ok' : x.reason)).join(' / '));
+      // 4.2.0 (11 Oct 2026): salary, employer, household, vehicle loan, CIBIL, home and college facts.
+      const say = (text: string, ids: string[]) => { const r = validateRoleplayOutput(p, JSON.stringify({ text, used_fact_ids: ids, requested_end: false }), ids, 'q?', []); return r.ok ? 'ok' : r.reason; };
+      const newFacts = ['salary_details', 'employer', 'household', 'vehicle_loan_term', 'credit_score', 'property', 'college_details'];
+      ok('PS47', 'The customer has facts for salary details, employer, household, the vehicle loan term, CIBIL, his home and the college',
+        newFacts.every((id) => p.facts.some((f) => f.id === id) && p.conversation.rules.some((r) => r.reveal_fact_ids.includes(id))) && ['salary_details', 'employer_details', 'household_finances', 'existing_loan_term', 'credit_score', 'collateral', 'college_details'].every((id) => p.conversation.intents.some((x) => x.id === id)));
+      ok('PS48', 'A word in a fact allowed this turn ("Pune" in his employer) is not a hidden-fact leak; an unallowed one ("Priya") still is',
+        say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']) === 'ok' && say('My gross salary is about ₹65,000 a month, about ₹7.8 lakh a year.', ['salary_details']) === 'ok' && say('My daughter Priya will join soon.', ['employer']).startsWith('hidden_fact'),
+        [say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']), say('My daughter Priya will join soon.', ['employer'])].join(' / '));
       // Training run 2fd1f462 (second simulated run).
       ok('PS44', 'A summary of the amount needed, "we can definitely help" and "charges will be explained" are not risk flags',
         ["Just to make sure I've got everything right, you need a loan of ₹4 lakh for your daughter's college fees, within 30 days.", 'Yes, absolutely, we can definitely help you with a loan.', 'We will ensure the processing fee and other charges are transparently communicated.']
