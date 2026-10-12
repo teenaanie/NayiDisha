@@ -17,9 +17,12 @@ export async function GET(req:Request){
  const secret=process.env.CRON_SECRET;
  if(!secret)return NextResponse.json({error:'CRON_SECRET is not configured.'},{status:503});
  if(req.headers.get('authorization')!==`Bearer ${secret}`)return NextResponse.json({error:'Unauthorized'},{status:401});
- // Leave room for a review step that starts near the end of the budget (each takes up to ~4 minutes).
- const r=await trainingCronTick(new Date(),20000);
- // Simulated-candidate runs left unfinished (nobody kept the page open) move on here too.
- const simulations=await advanceSimRuns(150000);
+ // Steps may start for 2.5 minutes, so a review and its final merge finish the same day (with 20
+ // seconds, the weekly run of 12 Oct reviewed its sessions and then waited a day to merge).
+ const start=Date.now();
+ const r=await trainingCronTick(new Date(),150000);
+ // Simulated-candidate runs left unfinished (nobody kept the page open) get the time that is left.
+ const left=240000-(Date.now()-start);
+ const simulations=left>60000?await advanceSimRuns(left):0;
  return NextResponse.json({ok:true,...r,simulations});
 }

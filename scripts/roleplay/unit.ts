@@ -18,8 +18,9 @@ import { pickPersonality, SIM_PERSONALITIES, levelBudget, simLevel } from '../..
 import { validateRoleplayOutput, repairText, withoutRepeats, generateCustomerReply, hasTerm } from '../../src/modules/roleplay/runtime/generate';
 import { completeWithRetry, ProviderError, breakerState, resetBreakers, providerSchema, providerFor, overrideProvider, type ModelProvider } from '../../src/modules/roleplay/providers';
 import { roleplayCandidateSchema } from '../../src/modules/roleplay/contracts/schemas';
+import { runtimeOf } from '../../src/modules/roleplay/config/runtime-extension';
 import { extractRuleEvidence } from '../../src/modules/roleplay/evaluation/extract';
-import { assess, stripTurnAliases, settleFocused, firstAttemptSlips, applyRuleViolations } from '../../src/modules/roleplay/evaluation/assess';
+import { assess, stripTurnAliases, stripRuleNotes, settleFocused, firstAttemptSlips, applyRuleViolations } from '../../src/modules/roleplay/evaluation/assess';
 import { validateCandidate } from '../../src/modules/roleplay/evaluation/validate';
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
@@ -629,7 +630,7 @@ export async function unitTests(): Promise<Check[]> {
     const capR = sc([5, 5, 5, 5], ['guaranteed_approval']);
     const pitchR = sc([5, 5, 5, 5], ['premature_pitch']);
     ok('PS09', 'A confirmed serious risk caps the score at 54 (Needs Coaching); an early pitch alone does not', capR.base_percent === 100 && capR.final_percent === 54 && capR.band_id === 'needs_coaching' && capR.adjustments.length === 1 && pitchR.final_percent === 100, `${capR.base_percent}→${capR.final_percent} ${capR.band_id}; pitch ${pitchR.final_percent}`);
-    ok('PS10', 'Discovery counts as done only after three discovery questions', !discoveryComplete(p, new Set(['loan_amount'])) && !discoveryComplete(p, new Set(['loan_amount', 'timing'])) && discoveryComplete(p, new Set(['loan_amount', 'timing', 'income'])));
+    ok('PS10', 'Discovery counts as done only after five discovery questions', !discoveryComplete(p, new Set(['loan_amount', 'timing', 'income'])) && !discoveryComplete(p, new Set(['loan_amount', 'timing', 'income', 'loan_purpose'])) && discoveryComplete(p, new Set(['loan_amount', 'timing', 'income', 'loan_purpose', 'existing_commitments'])));
 
     // Cue follow-ups: followed → observed; raised but ignored → not observed; never raised → not applicable.
     const cf = conv3();
@@ -721,6 +722,21 @@ export async function unitTests(): Promise<Check[]> {
         p.conversation.rules.find((r) => r.id === 'respond_documents_personal')?.response_text === 'I can arrange those documents and details as required, within a few days.'
           && ['Do you have your KYC documents?', 'What is your date of birth?', 'What is your PAN number?'].every(docs) && !docs('What is your full name?'));
       ok('PS50', 'A co-applicant question gets "Right now it will just be me applying…"', classify(p, 'Do you have a co-applicant?', { discoveryComplete: false }).hits.some((h) => h.intent_id === 'co_applicant') && p.conversation.rules.find((r) => r.id === 'respond_co_applicant')?.response_text === "Right now it will just be me applying. I haven't thought about a co-applicant." && p.persona.name === 'Rajesh Sharma' && p.conversation.rules.find((r) => r.id === 'respond_customer_name')?.response_text === 'I am Rajesh Sharma.');
+      // Training run 33702ca3 (12 Oct 2026).
+      const docsEarly = extractRuleEvidence(p, t3(['What is the loan for?', 'How much loan do you need?', 'When exactly do you need the money?', 'That is perfectly fine! Please share your documents like income proof and bank statements with us, and we will get the process started.'])).risk_candidates.map((r) => r.rule_id);
+      ok('PS51', 'Asking for documents after only purpose, amount and timing is too early (discovery needs 5 questions)', docsEarly.includes('premature_documents') && runtimeOf(p).discovery_gate?.min_asked_checks === 5, docsEarly.join(','));
+      const leaked = "You asked about the customer's employment status. (Learner asked: asks about the customer's employment or source of income (including how long in the current job).) Keep it up.";
+      ok('PS52', 'The assessor\'s bracketed notes never reach coaching text, nested brackets included', stripRuleNotes(leaked) === "You asked about the customer's employment status. Keep it up." && stripTurnAliases('You did not ask when the funds are required. (No learner turn asked: asks when the funds are required.)') === 'You did not ask when the funds are required.' && stripRuleNotes('Ask about her course (B.Com) next.') === 'Ask about her course (B.Com) next.', stripRuleNotes(leaked));
+      const askedEv = extractRuleEvidence(p, t3(['What is the loan for?', 'How much loan do you need?']));
+      const lost = { evidence: [{ ...askedEv.evidence.find((e) => e.check_id === 'loan_amount')!, id: 'ev_amt', status: 'uncertain' as const, learner_spans: [] }], dimension_scores: [], risk_flags: [] } as never;
+      const kept = applyRuleViolations(p, lost, askedEv) as any;
+      ok('PS53', 'A discovery question the rules saw asked keeps its credit when the model\'s item lost its quote', kept.evidence[0].id === 'ev_amt' && kept.evidence[0].status === 'observed' && kept.evidence[0].learner_spans.length === 1);
+      const pc = conv3();
+      await pc.say('What do you need the loan for?'); await pc.say('How much loan do you need?');
+      const pitch1 = await pc.say('Our loan is the best option for you, you should apply right away.');
+      const pitch2 = await pc.say('You should take this loan now and submit documents.');
+      const pushBack = 'Before that, I want to be sure the EMI will be manageable for me.';
+      ok('PS54', 'Every premature pitch gets the fixed push-back, not just the first', pitch1.reply.text.includes(pushBack) && pitch2.reply.text.includes(pushBack), `${pitch1.reply.text} | ${pitch2.reply.text}`);
       ok('PS48', 'A word in a fact allowed this turn ("Pune" in his employer) is not a hidden-fact leak; an unallowed one ("Priya") still is',
         say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']) === 'ok' && say('My gross salary is about ₹65,000 a month, about ₹7.8 lakh a year.', ['salary_details']) === 'ok' && say('My daughter Priya will join soon.', ['employer']).startsWith('hidden_fact'),
         [say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']), say('My daughter Priya will join soon.', ['employer'])].join(' / '));

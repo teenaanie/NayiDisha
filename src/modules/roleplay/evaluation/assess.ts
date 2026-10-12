@@ -217,6 +217,10 @@ export function applyRuleViolations(bundle: ScenarioBundle, c: EvaluationCandida
   // Unexplained jargon the rules found is a violation, whatever status the model copied it with.
   const jargonIds = new Set(rule.evidence.filter((e) => e.method === 'rule' && e.id.startsWith('jargon_')).map((e) => e.id));
   if (jargonIds.size) c = { ...c, evidence: c.evidence.map((e) => (jargonIds.has(e.id) && e.status === 'observed' ? { ...e, status: 'contradicted' as const } : e)) };
+  // A discovery question the rules saw asked keeps its credit when the model's item lost its quote
+  // ("What is the total amount you need?" ended up uncertain; training run 33702ca3, 12 Oct 2026).
+  const askedByRule = new Map(rule.evidence.filter((e) => e.check_id && e.status === 'observed' && e.learner_spans.length > 0 && bundle.rubric.checks.find((x) => x.id === e.check_id)?.credit_requires === 'learner_question').map((e) => [e.check_id!, e]));
+  if (askedByRule.size) c = { ...c, evidence: c.evidence.map((e) => (e.check_id && askedByRule.has(e.check_id) && e.status !== 'observed' && e.status !== 'contradicted' ? { ...askedByRule.get(e.check_id)!, id: e.id } : e)) };
   // A question the customer answered unasked is never a miss, whatever the model wrote.
   const volunteered = new Map(rule.evidence.filter((e) => e.method === 'rule' && e.check_id && e.explanation.startsWith(VOLUNTEERED)).map((e) => [e.check_id!, e]));
   if (volunteered.size) c = { ...c, evidence: c.evidence.map((e) => (e.check_id && volunteered.has(e.check_id) && e.status === 'not_observed' ? { ...volunteered.get(e.check_id)!, id: e.id } : e)) };
@@ -371,8 +375,30 @@ const capital = (lead: string, next?: string) => lead + (next ? next.toUpperCase
  * 7 Oct 2026). Hindi and Marathi open with "T5 में," / "T5 मध्ये,". Text already broken that way
  * is repaired too, so stored reports read correctly.
  */
+/**
+ * The assessor's own notes, copied into coaching in brackets: "…the amount. (Learner asked: asks why
+ * the customer needs the money.)" (training run 33702ca3, 12 Oct 2026). Brackets nest, as in
+ * "(… (including how long in the current job).)", so they are removed by balance.
+ */
+const RULE_NOTE = /\s*\((?=\s*(?:Learner asked|Learner showed|No learner turn asked|Not asked after the retry point|Asked in the first attempt|The customer gave this before being asked|Affirmative statement matching risk rule|Asked more than one question|The customer raised this cue|Used "))/gi;
+export function stripRuleNotes(text: string): string {
+  let out = text;
+  for (let m = RULE_NOTE.exec(out); m; m = RULE_NOTE.exec(out)) {
+    let depth = 0, end = -1;
+    for (let i = m.index + m[0].length - 1; i < out.length; i++) {
+      if (out[i] === '(') depth++;
+      else if (out[i] === ')' && --depth === 0) { end = i; break; }
+    }
+    if (end < 0) break;
+    out = out.slice(0, m.index) + out.slice(end + 1);
+    RULE_NOTE.lastIndex = m.index;
+  }
+  RULE_NOTE.lastIndex = 0;
+  return out;
+}
+
 export function stripTurnAliases(text: string): string {
-  const t = text
+  const t = stripRuleNotes(text)
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:in|at|during|from)\s+${TURN_WORDS}${ALIAS_LIST}\s*,?\s*([a-z])?`, 'gi'), (_, lead: string, next?: string) => capital(lead, next))
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:टर्न\s*)?${ALIAS_LIST}\s*(?:में|मध्ये|मधे|वर)\s*,?\s*`, 'g'), '$1')
     .replace(/\s*\((?:turns?\s+)?T\d+(?:\s*(?:,|and|&|-|–)\s*T\d+)*\)/gi, '')
