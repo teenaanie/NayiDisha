@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.3.0: provenance
+# EDU_DISCOVERY_001 v4.4.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -100,5 +100,9 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   address, email, salary slips, bank statements, admission letter, fee structure) get one answer,
   "I can arrange those documents and details as required, within a few days." (Hindi and Marathi
   too) instead of "I don't have that detail with me right now" [O]. His name is not a document.
+- **4.4.0 (12 Oct 2026):** co-applicant: "Right now it will just be me applying. I haven't thought
+  about a co-applicant." (Hindi and Marathi too) [O]. Banks usually make the student the borrower
+  and the parent the co-applicant; the customer not knowing this is realistic and leaves room for
+  the learner to explain. His name: "I am Rajesh Sharma." (the persona's name; a name question had got the documents line) [O].
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
