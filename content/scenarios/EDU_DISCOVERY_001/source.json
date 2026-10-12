@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -384,6 +384,18 @@
    "source_ref": "recommendation 11 Oct 2026"
   },
   {
+   "id": "documents",
+   "type": "text",
+   "value": "I can arrange whatever documents and personal details you need, such as KYC, address proof, salary slips and the admission letter, within a few days.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "documents_personal"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 12 Oct 2026"
+  },
+  {
    "id": "property",
    "type": "text",
    "value": "I own the flat we live in, in Pune. I have no other property, and I would rather not pledge my home for this loan.",
@@ -697,6 +709,37 @@
     "negative_examples": [
      "Customer volunteers this information.",
      "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "documents_personal",
+    "description": "Asks for, or whether the customer has, documents or personal details: KYC, Aadhaar, PAN, date of birth, address or address proof, email or phone, salary slips, bank statements, the admission letter or fee structure; or how soon he can arrange them.",
+    "positive_examples": [
+     "Do you have your KYC documents?",
+     "What is your PAN number?",
+     "What is your date of birth?",
+     "What is your current address?",
+     "Can you share your salary slips and bank statements?",
+     "Do you have the admission letter and fee structure?",
+     "What is your email ID?",
+     "How soon can you arrange those documents?",
+     "Do you have address proof?",
+     "How soon can you arrange those?",
+     "आपका पता क्या है?",
+     "आपकी जन्मतिथि क्या है?",
+     "आपका पैन नंबर क्या है?",
+     "क्या आपके पास सैलरी स्लिप और बैंक स्टेटमेंट हैं?",
+     "तुमचा पत्ता काय आहे?",
+     "तुमची जन्मतारीख काय आहे?",
+     "तुमचा पॅन नंबर काय आहे?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking.",
+     "You don't need to submit any documents.",
+     "Don't worry about documents.",
+     "What is your full name?",
+     "May I know your name?"
     ]
    },
    {
@@ -1025,6 +1068,18 @@
     ]
    },
    {
+    "id": "respond_documents_personal",
+    "priority": 100,
+    "intent_ids": [
+     "documents_personal"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "documents"
+    ],
+    "response_text": "I can arrange those documents and details as required, within a few days."
+   },
+   {
     "id": "respond_employer_details",
     "priority": 100,
     "intent_ids": [
@@ -1131,7 +1186,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -2039,6 +2094,7 @@
       "respond_course_start": "क्लासें लगभग एक महीने में शुरू होंगी। इसीलिए फ़ीस 30 दिनों के अंदर भरनी है।",
       "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के सह्याद्री कॉलेज ऑफ़ कॉमर्स में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
+      "respond_documents_personal": "ये डॉक्यूमेंट्स और जानकारी ज़रूरत के हिसाब से मैं कुछ ही दिनों में अरेंज कर दूँगा।",
       "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ। मैं पुणे की एक प्राइवेट मैन्युफैक्चरिंग कंपनी में सीनियर अकाउंट्स एग्ज़ीक्यूटिव हूँ।",
       "respond_employment_duration": "मैं लगभग 8 साल से एक ही कंपनी में काम कर रहा हूँ।",
       "respond_income": "मैं महीने में लगभग ₹55,000 कमाता हूँ।",
@@ -2067,6 +2123,7 @@
       "credit_score": "आपका CIBIL स्कोर कितना है?",
       "collateral": "क्या आपका अपना घर है?",
       "college_details": "कॉलेज का नाम क्या है?",
+      "documents_personal": "क्या आपके पास KYC डॉक्यूमेंट्स हैं?",
       "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?",
       "course_start": "क्लासें कब से शुरू हैं?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
@@ -2100,6 +2157,7 @@
       "respond_course_start": "वर्ग साधारण एका महिन्यात सुरू होतील. म्हणूनच फी 30 दिवसांच्या आत भरायची आहे.",
       "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या सह्याद्री कॉलेज ऑफ कॉमर्समध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
+      "respond_documents_personal": "ही कागदपत्रं आणि माहिती लागेल तशी मी काही दिवसांत आणून देईन.",
       "respond_employment": "मी पगारदार नोकरी करतो. पुण्यातल्या एका खासगी मॅन्युफॅक्चरिंग कंपनीत मी सीनियर अकाउंट्स एक्झिक्युटिव्ह आहे.",
       "respond_employment_duration": "मी साधारण 8 वर्षांपासून एकाच कंपनीत काम करतोय.",
       "respond_income": "मी महिन्याला साधारण ₹55,000 कमावतो.",
@@ -2128,6 +2186,7 @@
       "credit_score": "तुमचा CIBIL स्कोर किती आहे?",
       "collateral": "तुमचं स्वतःचं घर आहे का?",
       "college_details": "कॉलेजचं नाव काय आहे?",
+      "documents_personal": "तुमच्याकडे KYC कागदपत्रं आहेत का?",
       "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?",
       "course_start": "वर्ग कधी सुरू होणार आहेत?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",

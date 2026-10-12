@@ -716,6 +716,10 @@ export async function unitTests(): Promise<Check[]> {
       const newFacts = ['salary_details', 'employer', 'household', 'vehicle_loan_term', 'credit_score', 'property', 'college_details'];
       ok('PS47', 'The customer has facts for salary details, employer, household, the vehicle loan term, CIBIL, his home and the college',
         newFacts.every((id) => p.facts.some((f) => f.id === id) && p.conversation.rules.some((r) => r.reveal_fact_ids.includes(id))) && ['salary_details', 'employer_details', 'household_finances', 'existing_loan_term', 'credit_score', 'collateral', 'college_details'].every((id) => p.conversation.intents.some((x) => x.id === id)));
+      const docs = (x: string) => classify(p, x, { discoveryComplete: false }).hits.some((h) => h.intent_id === 'documents_personal');
+      ok('PS49', 'Documents and personal details get "I can arrange those…" (all three languages); a name question is not a documents request',
+        p.conversation.rules.find((r) => r.id === 'respond_documents_personal')?.response_text === 'I can arrange those documents and details as required, within a few days.'
+          && ['Do you have your KYC documents?', 'What is your date of birth?', 'What is your PAN number?'].every(docs) && !docs('What is your full name?'));
       ok('PS48', 'A word in a fact allowed this turn ("Pune" in his employer) is not a hidden-fact leak; an unallowed one ("Priya") still is',
         say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']) === 'ok' && say('My gross salary is about ₹65,000 a month, about ₹7.8 lakh a year.', ['salary_details']) === 'ok' && say('My daughter Priya will join soon.', ['employer']).startsWith('hidden_fact'),
         [say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']), say('My daughter Priya will join soon.', ['employer'])].join(' / '));
