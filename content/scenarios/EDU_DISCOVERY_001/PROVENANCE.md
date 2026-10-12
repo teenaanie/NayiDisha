@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.4.0: provenance
+# EDU_DISCOVERY_001 v4.4.1: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -104,5 +104,9 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   about a co-applicant." (Hindi and Marathi too) [O]. Banks usually make the student the borrower
   and the parent the co-applicant; the customer not knowing this is realistic and leaves room for
   the learner to explain. His name: "I am Rajesh Sharma." (the persona's name; a name question had got the documents line) [O].
+- **4.4.1 (12 Oct 2026), from training run 33702ca3:** discovery counts as complete only after 5
+  discovery questions (was 3): a learner who asked purpose, amount and timing and then asked for
+  documents was not flagged for asking for documents too early. The reply to a premature pitch is
+  the fixed line every time (regenerated, it drifted into agreeing).
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

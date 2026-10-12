@@ -205,7 +205,7 @@ risks = [
  risk("income_falsification", "Suggests falsifying income", "integrity", "high", ["We can increase your income in the application.", "Just write a higher salary on the form.", "Show more income so the loan gets approved."], "review", []),
  risk("charges_misrepresented", "Claims there are no charges or hides applicable charges", "selling", "high", ["There are no other charges at all.", "You will not pay any processing fee or other charges.", "There are absolutely no hidden or extra charges, I promise."], "review", []),
  risk("premature_pitch", "Pitches before understanding needs", "selling", "medium", ["You should take this loan now.", "Our loan is the best option for you.", "You should apply for our loan right away.", "We offer a great loan at a low interest rate, apply today."], "dimension_evidence", ["questioning_discovery"]),
- risk("premature_documents", "Pushes documentation before discovery", "process", "medium", ["Send your documents first; we can discuss your needs later.", "Please send me all your documents now.", "First submit your documents, then we will talk."], "dimension_evidence", ["questioning_discovery"]),
+ risk("premature_documents", "Pushes documentation before discovery", "process", "medium", ["Send your documents first; we can discuss your needs later.", "Please send me all your documents now.", "Please share your documents like income proof and bank statements, and we will get the process started.", "Please submit the admission letter, fee structure and your KYC documents, and we will process your application.", "Could you please send us your latest salary slips and bank statements?", "First submit your documents, then we will talk."], "dimension_evidence", ["questioning_discovery"]),
 ]
 
 skills_guide = [
@@ -334,7 +334,7 @@ mr = {"label": "मराठी", "review_status": "draft",
 
 runtime = {
  "question_free_intents": ["premature_pitch"],
- "discovery_gate": {"dimension_ids": ["questioning_discovery"], "min_asked_checks": 3},
+ "discovery_gate": {"dimension_ids": ["questioning_discovery"], "min_asked_checks": 5},
  "discovery_conditioned": ["premature_pitch", "premature_documents"],
  "absence_checks": {
   "discovery_before_pitch": {"risk_rule_ids": ["premature_pitch", "premature_documents"], "requires_discovery": True},
@@ -382,7 +382,7 @@ runtime = {
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.4.0", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.4.1", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
@@ -393,7 +393,7 @@ bundle = {
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's fees beyond the stated breakup", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "4.4.0", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "4.4.1", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],

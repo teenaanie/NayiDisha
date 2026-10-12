@@ -15,7 +15,7 @@ import { sentences, isQuestion, isNegatedBefore, isAttributedOrQuoted, isHypothe
  * attributed to someone else, or hypothetical.
  */
 
-export const RULE_VERSION = 'rules-1.8.0';
+export const RULE_VERSION = 'rules-1.9.0';
 /** The explanation of a check the customer answered before being asked (see evidenceOutcomes). */
 export const VOLUNTEERED = 'The customer gave this before being asked, so it is not a missed question';
 /** Checking understanding, not asking for something new: "Is that correct?", "Did I get that right?" */
@@ -85,6 +85,7 @@ function sameTopic(bundle: ScenarioBundle, a: string, b: string): boolean {
 
 export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTurn[], opts: { excludeOrigins?: TranscriptTurn['origin'][]; riskSkipOrigins?: TranscriptTurn['origin'][]; coveredElsewhere?: string[]; recordedIntents?: Map<string, RecordedIntent[]>; language?: Language } = {}): RuleEvidence {
   const rt = runtimeOf(bundle);
+  const discoveryIntents = new Set(bundle.rubric.checks.filter((c) => c.category === 'coverage').flatMap((c) => c.accepted_intents));
   const excluded = new Set(opts.excludeOrigins ?? []);
   const learner = turns.filter((t) => t.speaker === 'learner');
   const assessable = learner.filter((t) => !excluded.has(t.origin));
@@ -128,7 +129,9 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
     // A message that asks a discovery question is discovery, not a pitch: "Now let us go to the
     // rest of your loans. What is your monthly income?" matched "You should take this loan now."
     // on "loan" + "now" and was confirmed as a premature pitch (live run, 6 Oct 2026).
-    const asksDiscovery = intents.some((i) => !rt.question_free_intents.includes(i));
+    // Only a question in a discovery area counts: "Please share your documents" matches the documents
+    // topic but is the very thing premature_documents is about (12 Oct 2026).
+    const asksDiscovery = intents.some((i) => discoveryIntents.has(i));
     for (const s of sentences(t.text)) {
       for (const rule of bundle.risk_policy.rules) {
         if (rule.detector === 'semantic') continue;          // needs the model; no rule candidate
@@ -140,7 +143,10 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
         // Guards: "I cannot guarantee approval", "Did someone promise you approval?",
         // "He said it would be approved", "If I said it was guaranteed..." are not promises.
         const firstMatch = firstMatchedWord(rule, s.text, example);
-        if (isQuestion(s.text) || isAttributedOrQuoted(s.text) || isHypothetical(s.text) || negatesMatch(s.text, firstMatch, example)) continue;
+        // For the "too early" rules a request is the very act ("Could you please send us your salary
+        // slips?" before discovery), so the question guard applies only to the others (12 Oct 2026).
+        const early = rt.discovery_conditioned.includes(rule.id);
+        if ((!early && isQuestion(s.text)) || isAttributedOrQuoted(s.text) || isHypothetical(s.text) || negatesMatch(s.text, firstMatch, example)) continue;
         const id = safeId(`risk_${rule.id}_${risk.length + 1}`);
         risk.push({ rule_id: rule.id, evidence_id: id, turn_id: t.id, sentence: s.text, similarity: Math.round(sim * 100) / 100 });
         evidence.push({
