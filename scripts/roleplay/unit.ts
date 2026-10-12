@@ -25,7 +25,7 @@ import { validateCandidate } from '../../src/modules/roleplay/evaluation/validat
 import { buildCoachInput, validateCoaching, evidenceOutcomes, personalRetryTargets, retryInstruction, coverageEvidenceIds, orderMissedQuestions, MAX_MISSED_QUESTIONS } from '../../src/modules/roleplay/coaching';
 import { mockCoach } from '../../src/modules/roleplay/coaching/mock-coach';
 import { isQuestion } from '../../src/modules/roleplay/runtime/text';
-import { cpLength, cpSlice, sentences } from '../../src/modules/roleplay/runtime/text';
+import { cpLength, cpSlice, sentences, completeSentences } from '../../src/modules/roleplay/runtime/text';
 import type { ScenarioBundle, TranscriptTurn } from '../../src/modules/roleplay/contracts/types';
 import { check, type Check } from './harness';
 
@@ -737,6 +737,17 @@ export async function unitTests(): Promise<Check[]> {
       const pitch2 = await pc.say('You should take this loan now and submit documents.');
       const pushBack = 'Before that, I want to be sure the EMI will be manageable for me.';
       ok('PS54', 'Every premature pitch gets the fixed push-back, not just the first', pitch1.reply.text.includes(pushBack) && pitch2.reply.text.includes(pushBack), `${pitch1.reply.text} | ${pitch2.reply.text}`);
+      // Session e67905d2 (12 Oct 2026): turn numbers, cut-off text, labels, own contribution.
+      const tidy = (x: string) => completeSentences(stripTurnAliases(x));
+      ok('PS55', 'Turn numbers never reach learners, and text cut off mid-sentence keeps only its complete sentences',
+        tidy('For example, in turn 5, after the customer provided the total cost, you could have asked.') === 'For example, after the customer provided the total cost, you could have asked.'
+          && tidy('In turns 3 and 11, you asked two questions. Ask one at a time.') === 'You asked two questions. Ask one at a time.'
+          && tidy('While your summary in turn 23 was good, add the course.') === 'While your summary was good, add the course.'
+          && tidy('In turn 14, the customer mentioned') === '' && tidy('You followed up well. However, you missed the cue about') === 'You followed up well.'
+          && tidy('He said ‘no charges’.') === 'He said ‘no charges’.', tidy('In turns 3 and 11, you asked two questions. Ask one at a time.'));
+      const g55 = runtimeOf(p).evaluation_guide!;
+      ok('PS56', 'Level 4 is "Proficient"; own contribution is described as upfront savings, not the monthly EMI; the assessor and coach use evaluator_v5 and coach_v3',
+        g55.level_labels?.['4'] === 'Proficient' && /upfront from own savings/.test(p.rubric.checks.find((c) => c.id === 'own_contribution')!.description) && p.prompts.evaluator === 'evaluator_v5' && p.prompts.coach === 'coach_v3' && /Never mention turn numbers/.test(loadPrompt('evaluator_v5')) && /Never mention turn numbers/.test(loadPrompt('coach_v3')));
       ok('PS48', 'A word in a fact allowed this turn ("Pune" in his employer) is not a hidden-fact leak; an unallowed one ("Priya") still is',
         say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']) === 'ok' && say('My gross salary is about ₹65,000 a month, about ₹7.8 lakh a year.', ['salary_details']) === 'ok' && say('My daughter Priya will join soon.', ['employer']).startsWith('hidden_fact'),
         [say('I am a senior accounts executive at a private manufacturing company in Pune.', ['employer']), say('My daughter Priya will join soon.', ['employer'])].join(' / '));

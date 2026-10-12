@@ -1,7 +1,7 @@
 import Ajv from 'ajv';
 import type { EvaluationCandidate, ScenarioBundle, TranscriptTurn, Span } from '../contracts/types';
 import { evaluationCandidateSchema } from '../contracts/schemas';
-import { cpLength, cpSlice, codePoints, sentences, isQuestion } from '../runtime/text';
+import { cpLength, cpSlice, codePoints, sentences, isQuestion, completeSentences } from '../runtime/text';
 import { runtimeOf } from '../config/runtime-extension';
 
 /**
@@ -48,6 +48,16 @@ function relocate(text: string, quote: string, start: number): { start: number; 
 
 export function normalizeCandidate(c: EvaluationCandidate, ctx: ValidationContext): string[] {
   const notes: string[] = [];
+  // Text cut off mid-sentence keeps its complete sentences; a coaching tip left empty is then
+  // rejected below, which asks the model for it again (12 Oct 2026).
+  for (const [i, d] of c.dimension_scores.entries()) {
+    for (const k of ['rationale', 'coaching'] as const) {
+      const v = d[k];
+      if (typeof v !== 'string') continue;
+      const kept = completeSentences(v);
+      if (kept !== v.trim()) { notes.push(`dimension_scores[${i}] ${d.dimension_id}: ${k} ended mid-sentence ("…${v.trim().slice(-30)}"); kept its complete sentences.`); (d as unknown as Record<string, unknown>)[k] = kept; }
+    }
+  }
   const turns = new Map(ctx.turns.map((t) => [t.id, t]));
   const fix = (sp: Span, where: string) => {
     const t = turns.get(sp.turn_id);

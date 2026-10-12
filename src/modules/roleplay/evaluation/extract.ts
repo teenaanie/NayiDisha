@@ -215,7 +215,12 @@ export function extractRuleEvidence(bundle: ScenarioBundle, turns: TranscriptTur
       evidence.push({
         id: safeId(`ev_${cf.check_id}`), category: bundle.rubric.checks.find((c) => c.id === cf.check_id)?.category ?? 'conversation', check_id: cf.check_id, status: 'not_observed',
         learner_spans: [], context_spans: [{ turn_id: surfaced.id, start: 0, end: cpLength(surfaced.text), quote: surfaced.text }], searched_turn_ids: after.map((t) => t.id),
-        explanation: `The customer raised this cue but no later learner question followed it up.`, method: 'rule', confidence: 0.8, rule_version: RULE_VERSION,
+        // The learner's very next message, when it asks nothing (a check-back such as "So you had to
+        // pay beyond 8000."), is a response worth acknowledging: the feedback said the cue was
+        // ignored, which the learner rightly disputed (12 Oct 2026).
+        explanation: ((next) => next ? `The customer raised this cue; the learner responded with '${next.text.trim().replace(/'/g, '’').slice(0, 160)}' but did not ask about it. Acknowledge that response and suggest a question that explores the cue.` : `The customer raised this cue but no later learner question followed it up.`)(
+          ((n) => (n && !(questionHits.get(n.id) ?? []).length && !sentences(n.text).some((x) => isQuestion(x.text)) ? n : null))(after[0])),
+        method: 'rule', confidence: 0.8, rule_version: RULE_VERSION,
       });
     }
   }

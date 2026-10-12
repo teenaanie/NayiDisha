@@ -397,8 +397,21 @@ export function stripRuleNotes(text: string): string {
   return out;
 }
 
+/**
+ * Plain turn numbers ("in turn 5", "In turns 3 and 11,", "(turn 14)") count both speakers from zero
+ * and are not shown anywhere, so they confused learners (12 Oct 2026). Removed like the T-labels.
+ */
+const TURN_NUMS = String.raw`turns?\s+\d+(?:\s*(?:,|and|&|or|-|–)\s*\d+)*`;
+function stripTurnNumbers(text: string): string {
+  return text
+    .replace(new RegExp(String.raw`\s*\((?:in\s+|see\s+)?${TURN_NUMS}\)`, 'gi'), '')
+    .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:in|at|during|from|by)\s+(?:the\s+)?${TURN_NUMS}\s*,?\s*([a-z])?`, 'gi'), (_, lead: string, next?: string) => capital(lead, next))
+    .replace(new RegExp(String.raw`,?\s+(?:in|at|during|from|after|before|by|on)\s+(?:the\s+)?${TURN_NUMS}(?=[\s,.;:!?)])`, 'gi'), '')
+    .replace(/टर्न\s*\d+(?:\s*(?:,|और|आणि|व)\s*\d+)*\s*(?:में|मध्ये|मधे|वर)\s*,?\s*/g, '');
+}
+
 export function stripTurnAliases(text: string): string {
-  const t = stripRuleNotes(text)
+  const t = stripTurnNumbers(stripRuleNotes(text))
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:in|at|during|from)\s+${TURN_WORDS}${ALIAS_LIST}\s*,?\s*([a-z])?`, 'gi'), (_, lead: string, next?: string) => capital(lead, next))
     .replace(new RegExp(String.raw`(^|[.!?।]\s+)(?:टर्न\s*)?${ALIAS_LIST}\s*(?:में|मध्ये|मधे|वर)\s*,?\s*`, 'g'), '$1')
     .replace(/\s*\((?:turns?\s+)?T\d+(?:\s*(?:,|and|&|-|–)\s*T\d+)*\)/gi, '')

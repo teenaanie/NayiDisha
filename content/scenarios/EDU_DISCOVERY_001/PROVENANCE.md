@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.4.1: provenance
+# EDU_DISCOVERY_001 v4.5.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -108,5 +108,11 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   discovery questions (was 3): a learner who asked purpose, amount and timing and then asked for
   documents was not flagged for asking for documents too early. The reply to a premature pitch is
   the fixed line every time (regenerated, it drifted into agreeing).
+- **4.5.0 (12 Oct 2026), from the owner's review of session e67905d2:** `evaluator_v5` and
+  `coach_v3`: no turn numbers (quote words in single quotes instead), finish every sentence,
+  acknowledge an attempt before calling something missed, and own contribution means upfront
+  savings, not the monthly EMI (check description and suggested questions reworded). Level 4 is
+  "Proficient" (was "Good") [O]. A cue the learner answered with a check-back is noted with the
+  learner's words, so feedback acknowledges it.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.

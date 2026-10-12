@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.4.1",
+  "version": "4.5.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -1263,7 +1263,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.4.1",
+  "version": "4.5.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -1493,7 +1493,7 @@
    },
    {
     "id": "own_contribution",
-    "description": "Asks how much the customer will contribute from own funds",
+    "description": "Asks how much the customer will pay upfront from own savings towards the cost (not the monthly EMI)",
     "category": "coverage",
     "method": "semantic",
     "accepted_intents": [
@@ -1983,8 +1983,8 @@
  },
  "prompts": {
   "roleplay": "roleplay_v4",
-  "evaluator": "evaluator_v4",
-  "coach": "coach_v2"
+  "evaluator": "evaluator_v5",
+  "coach": "coach_v3"
  },
  "retry": {
   "full_enabled": true,
@@ -2523,7 +2523,7 @@
      "1": "Needs Improvement",
      "2": "Developing",
      "3": "Competent",
-     "4": "Good",
+     "4": "Proficient",
      "5": "Excellent"
     },
     "framework_note": "This is a framework, not a mandatory checklist. The learner should not automatically lose points for failing to ask every question.",
@@ -2559,7 +2559,7 @@
      },
      {
       "area": "Own contribution",
-      "information": "How much the customer will pay from own funds",
+      "information": "How much the customer will pay upfront from own savings towards the cost (not the monthly EMI)",
       "check_id": "own_contribution",
       "phrases": [
        "own contribution",
@@ -2734,9 +2734,9 @@
      {
       "check_id": "own_contribution",
       "examples": [
-       "How much can you pay from your side?",
-       "Will you put in some of your own savings?",
-       "How much are you contributing yourself?"
+       "The fees are about ₹4.5 lakh and you need a ₹4 lakh loan. How will you pay the rest?",
+       "How much will you pay upfront from your own savings?",
+       "Will you put in some of your own savings towards the fees?"
       ]
      },
      {
