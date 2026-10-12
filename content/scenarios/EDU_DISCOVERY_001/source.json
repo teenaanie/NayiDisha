@@ -2,7 +2,7 @@
  "schema_version": "1.0",
  "scenario": {
   "id": "EDU_DISCOVERY_001",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "title": "Education Loan Discovery: Understanding the Student’s Funding Need",
   "product": "Education Loan",
   "skill": "Discovery Questions",
@@ -396,6 +396,30 @@
    "source_ref": "owner decision 12 Oct 2026"
   },
   {
+   "id": "customer_name",
+   "type": "text",
+   "value": "Rajesh Sharma",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "customer_name"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 12 Oct 2026"
+  },
+  {
+   "id": "co_applicant",
+   "type": "text",
+   "value": "Right now it will just be me applying; I have not thought about a co-applicant.",
+   "knowledge": "known",
+   "visibility": "on_intent",
+   "release_intents": [
+    "co_applicant"
+   ],
+   "prerequisite_fact_ids": [],
+   "source_ref": "owner decision 12 Oct 2026"
+  },
+  {
    "id": "property",
    "type": "text",
    "value": "I own the flat we live in, in Pune. I have no other property, and I would rather not pledge my home for this loan.",
@@ -743,6 +767,35 @@
     ]
    },
    {
+    "id": "customer_name",
+    "description": "Asks the customer's name.",
+    "positive_examples": [
+     "May I know your full name?",
+     "What is your name?",
+     "Can you tell me your full name?",
+     "What is your first name?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
+    "id": "co_applicant",
+    "description": "Asks whether there will be a co-applicant, co-borrower or guarantor, or who will apply for the loan.",
+    "positive_examples": [
+     "Do you have a co-applicant?",
+     "Will anyone apply along with you?",
+     "Who will be the applicant for this loan?",
+     "Is there a guarantor?",
+     "Will your daughter be the co-borrower?"
+    ],
+    "negative_examples": [
+     "Customer volunteers this information.",
+     "Learner merely mentions the topic without asking or checking."
+    ]
+   },
+   {
     "id": "college_details",
     "description": "Asks about the college or course details: the college's name or location, the university, or how long the course is.",
     "positive_examples": [
@@ -1068,6 +1121,30 @@
     ]
    },
    {
+    "id": "respond_customer_name",
+    "priority": 100,
+    "intent_ids": [
+     "customer_name"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "customer_name"
+    ],
+    "response_text": "I am Rajesh Sharma."
+   },
+   {
+    "id": "respond_co_applicant",
+    "priority": 100,
+    "intent_ids": [
+     "co_applicant"
+    ],
+    "match": "any",
+    "reveal_fact_ids": [
+     "co_applicant"
+    ],
+    "response_text": "Right now it will just be me applying. I haven't thought about a co-applicant."
+   },
+   {
     "id": "respond_documents_personal",
     "priority": 100,
     "intent_ids": [
@@ -1186,7 +1263,7 @@
  },
  "rubric": {
   "id": "education_discovery",
-  "version": "4.3.0",
+  "version": "4.4.0",
   "title": "Loan Discovery Skills Rubric",
   "evidence_categories": [
    "coverage",
@@ -2094,6 +2171,8 @@
       "respond_course_start": "क्लासें लगभग एक महीने में शुरू होंगी। इसीलिए फ़ीस 30 दिनों के अंदर भरनी है।",
       "respond_student_details": "उसका नाम प्रिया है। उसे पुणे के सह्याद्री कॉलेज ऑफ़ कॉमर्स में B.Com में एडमिशन मिला है।",
       "respond_timing": "30 दिनों के अंदर। तब तक फ़ीस भरनी है।",
+      "respond_customer_name": "मैं राजेश शर्मा हूँ।",
+      "respond_co_applicant": "अभी तो सिर्फ़ मैं ही आवेदन करूँगा। को-एप्लिकेंट के बारे में मैंने अभी सोचा नहीं है।",
       "respond_documents_personal": "ये डॉक्यूमेंट्स और जानकारी ज़रूरत के हिसाब से मैं कुछ ही दिनों में अरेंज कर दूँगा।",
       "respond_employment": "मैं नौकरी करता हूँ, सैलरी पाता हूँ। मैं पुणे की एक प्राइवेट मैन्युफैक्चरिंग कंपनी में सीनियर अकाउंट्स एग्ज़ीक्यूटिव हूँ।",
       "respond_employment_duration": "मैं लगभग 8 साल से एक ही कंपनी में काम कर रहा हूँ।",
@@ -2124,6 +2203,8 @@
       "collateral": "क्या आपका अपना घर है?",
       "college_details": "कॉलेज का नाम क्या है?",
       "documents_personal": "क्या आपके पास KYC डॉक्यूमेंट्स हैं?",
+      "co_applicant": "क्या कोई को-एप्लिकेंट होगा?",
+      "customer_name": "आपका पूरा नाम क्या है?",
       "own_contribution": "आप अपनी तरफ़ से कितना दे सकते हैं?",
       "course_start": "क्लासें कब से शुरू हैं?",
       "loan_amount": "आपको कितने लोन की ज़रूरत है?",
@@ -2157,6 +2238,8 @@
       "respond_course_start": "वर्ग साधारण एका महिन्यात सुरू होतील. म्हणूनच फी 30 दिवसांच्या आत भरायची आहे.",
       "respond_student_details": "तिचं नाव प्रिया. तिला पुण्यातल्या सह्याद्री कॉलेज ऑफ कॉमर्समध्ये B.Com ला प्रवेश मिळाला आहे.",
       "respond_timing": "30 दिवसांच्या आत. तोपर्यंत फी भरायची आहे.",
+      "respond_customer_name": "मी राजेश शर्मा.",
+      "respond_co_applicant": "आत्ता तरी मीच अर्ज करणार आहे. को-ॲप्लिकंटबद्दल मी अजून विचार केलेला नाही.",
       "respond_documents_personal": "ही कागदपत्रं आणि माहिती लागेल तशी मी काही दिवसांत आणून देईन.",
       "respond_employment": "मी पगारदार नोकरी करतो. पुण्यातल्या एका खासगी मॅन्युफॅक्चरिंग कंपनीत मी सीनियर अकाउंट्स एक्झिक्युटिव्ह आहे.",
       "respond_employment_duration": "मी साधारण 8 वर्षांपासून एकाच कंपनीत काम करतोय.",
@@ -2187,6 +2270,8 @@
       "collateral": "तुमचं स्वतःचं घर आहे का?",
       "college_details": "कॉलेजचं नाव काय आहे?",
       "documents_personal": "तुमच्याकडे KYC कागदपत्रं आहेत का?",
+      "co_applicant": "कोणी को-ॲप्लिकंट असेल का?",
+      "customer_name": "तुमचं पूर्ण नाव काय?",
       "own_contribution": "तुम्ही स्वतःकडून किती रक्कम देऊ शकाल?",
       "course_start": "वर्ग कधी सुरू होणार आहेत?",
       "loan_amount": "तुम्हाला किती कर्ज लागेल?",
