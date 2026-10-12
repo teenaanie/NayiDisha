@@ -236,9 +236,9 @@ export function useVoice(sessionId: string, caps: VoiceCaps, onDraft: (text: str
     return { stop: () => { stopped = true; try { r.stop(); } catch { /* already stopped */ } setPreviewing(false); return `${committed} ${finals}`.trim(); } };
   }
 
-  /** Read a committed customer turn aloud. */
-  const say = async (turnId: string, text: string) => {
-    if (!readAloud) return;
+  /** Read a committed customer turn aloud: new replies when "read aloud" is on, or any line on request. */
+  const say = async (turnId: string, text: string, onRequest = false) => {
+    if (!readAloud && !onRequest) return;
     if (caps.speech === 'server') {
       try {
         const r = await api('POST', `sessions/${sessionId}/speech`, { turn_id: turnId });
