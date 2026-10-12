@@ -1,4 +1,4 @@
-# EDU_DISCOVERY_001 v4.2.0: provenance
+# EDU_DISCOVERY_001 v4.3.0: provenance
 
 `source.json` is the v3 scenario, authored on 1 Oct 2026 from the owner's
 **"Simulation Prototype"** document (text copy: `simulation-prototype.txt` in
@@ -96,5 +96,9 @@ package, which is archived unchanged in `content/archive/EDU_DISCOVERY_001/2.1.0
   University, a 3-year B.Com [R]. Detail questions count for the area they belong to (salary →
   income, employer → employment, loan term → existing commitments). "Pune" is no longer a hidden
   word for the daughter's details, and a word in a fact allowed that turn is never treated as a leak.
+- **4.3.0 (12 Oct 2026):** documents and personal details (KYC, Aadhaar, PAN, date of birth,
+  address, email, salary slips, bank statements, admission letter, fee structure) get one answer,
+  "I can arrange those documents and details as required, within a few days." (Hindi and Marathi
+  too) instead of "I don't have that detail with me right now" [O]. His name is not a document.
 - **Hindi and Marathi are draft translations** (`review_status: "draft"`);
   they need a fluent reviewer.
