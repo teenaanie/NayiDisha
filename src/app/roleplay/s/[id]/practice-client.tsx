@@ -111,7 +111,8 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
     <section className="card"><div className="card-head"><h2>{brief.customer.name}</h2><span className="small muted">AI customer · {brief.customer.role}</span></div><div className="card-body">
       <div className="wa-body practice-chat" aria-live="polite" aria-label="Conversation">
         {s.transcript.map((t) => <div key={t.turn_id} className={'wa-msg ' + (t.speaker === 'customer' ? 'wa-in' : 'wa-out')} style={t.origin === 'retry_prefix' ? { opacity: 0.6 } : undefined}>
-          {t.text}<div className="wa-meta">{t.speaker === 'customer' ? brief.customer.name : 'You'}{t.input_mode === 'voice' ? ' · 🎤 spoken' : ''}{t.origin === 'retry_prefix' ? ' · earlier (context)' : ''}</div></div>)}
+          {t.text}<div className="wa-meta">{t.speaker === 'customer' ? brief.customer.name : 'You'}{t.input_mode === 'voice' ? ' · 🎤 spoken' : ''}{t.origin === 'retry_prefix' ? ' · earlier (context)' : ''}
+            {t.speaker === 'customer' && <> · <button type="button" className="wa-listen" aria-label={`Read ${brief.customer.name}'s message aloud`} onClick={() => voice.say(t.turn_id, t.text, true)}>🔊 Listen</button></>}</div></div>)}
         {status && <div className="wa-msg wa-in small muted" role="status">{status}</div>}
         <div ref={end} />
       </div>
@@ -131,7 +132,12 @@ export function PracticeClient({ initial, brief }: { initial: Session; brief: Br
       </form>
       <p className="small muted">{draft.length}/{s.limits.max_message_chars} characters · Enter to send, Shift+Enter for a new line
         {!voice.supported && ' · Voice input needs Chrome, Edge or Safari'}</p>
-      <label className="small"><input type="checkbox" checked={voice.readAloud} onChange={(e) => voice.setReadAloud(e.target.checked)} /> Read {brief.customer.name}&apos;s replies aloud{initial.voice?.speech === 'server' ? '' : ' (browser voice)'}</label>
+      <label className="small"><input type="checkbox" checked={voice.readAloud} onChange={(e) => {
+        voice.setReadAloud(e.target.checked);
+        // Turning it on reads the latest line now, so the opening ("Hello. I need a loan…") is heard too.
+        const last = [...s.transcript].reverse().find((t) => t.speaker === 'customer');
+        if (e.target.checked && last) voice.say(last.turn_id, last.text, true);
+      }} /> Read {brief.customer.name}&apos;s replies aloud{initial.voice?.speech === 'server' ? '' : ' (browser voice)'}</label>
     </div></section>
   </div>;
 }

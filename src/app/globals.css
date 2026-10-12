@@ -213,6 +213,9 @@ fieldset.field-group input[type="checkbox"] { width:auto; }
 :root[data-theme="dark"] .wa-out, :root:not([data-theme="light"]) .wa-out { background:#155138; color:#DFF5E6; }
 @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .wa-out { background:#DCF8C6; color:#0B2E13; } }
 .wa-meta { font-size:.63rem; opacity:.6; margin-top:3px; font-family: var(--mono); }
+/* "🔊 Listen" on the practice customer's messages: reads that line aloud. */
+.wa-listen { background:none; border:0; padding:2px 4px; margin:-2px 0; font:inherit; color:inherit; text-decoration:underline; cursor:pointer; min-height:24px; }
+.wa-listen:focus-visible { outline:2px solid currentColor; outline-offset:1px; border-radius:3px; }
 .wa-actions { padding: 11px 14px; border-top: 1px solid var(--line); background: var(--surface); }
 .wa-actions .btnrow { gap:6px; }
 
