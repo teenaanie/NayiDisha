@@ -4,6 +4,7 @@ import type { Language } from '../runtime/language';
 import { runtimeOf } from '../config/runtime-extension';
 import type { ScenarioBundle, TranscriptTurn, EvaluationCandidate, ScoreResult, CoachingReport, CoachingCandidate } from '../contracts/types';
 import { assess, EVALUATOR_VERSION, rubricVersionOf, stripTurnAliases, type AssessResult } from '../evaluation/assess';
+import { completeSentences } from '../runtime/text';
 import { scoreAssessment } from '../scoring';
 import { buildCoachInput, validateCoaching, focusedCheckpoint, evidenceOutcomes, coverageEvidenceIds, orderMissedQuestions, personalRetryTargets, retryInstruction, MAX_MISSED_QUESTIONS, COACH_SCHEMA_VERSION, NO_RISK_TEXT } from '../coaching';
 import { completeWithRetry } from '../providers';
@@ -291,11 +292,11 @@ export async function getReport(actor: Actor, sessionId: string) {
         const def = bundle.rubric.dimensions.find((x) => x.id === d.dimension_id)!;
         const skill = runtimeOf(bundle).evaluation_guide?.skills.find((k) => k.dimension_id === d.dimension_id);
         return {
-          ...d, rationale: stripTurnAliases(String(d.rationale ?? '')), name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score), anchors: def.anchors,
+          ...d, rationale: completeSentences(stripTurnAliases(String(d.rationale ?? ''))), name: def.name, max_score: def.max_score, anchor: def.anchors.find((a) => a.score === d.score), anchors: def.anchors,
           // Report columns from the owner's format; absent for older scenarios.
           measures: skill?.measures ?? null,
           weight: bundle.scoring.mode === 'weighted_percent' ? bundle.scoring.weights[d.dimension_id] ?? null : null,
-          coaching: graded ? null : ((c) => (c ? stripTurnAliases(c) : null))(run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching),
+          coaching: graded ? null : ((c) => (c ? completeSentences(stripTurnAliases(c)) || null : null))(run.candidate?.dimension_scores.find((x) => x.dimension_id === d.dimension_id)?.coaching),
         };
       }),
       scoring: { mode: bundle.scoring.mode, bands: bundle.scoring.bands },
@@ -416,7 +417,7 @@ export { idempotent };
 
 /** Coach text can echo the evaluator's turn aliases ("(T6)"); learners never see those. */
 function cleanFindings<C extends CoachingCandidate>(c: C): C {
-  const clean = <F extends { text: string } | null>(f: F): F => (f ? { ...f, text: stripTurnAliases(f.text) } : f);
+  const clean = <F extends { text: string } | null>(f: F): F => (f ? { ...f, text: completeSentences(stripTurnAliases(f.text)) } : f);
   return {
     ...c,
     strengths: c.strengths.map(clean), improvement_areas: c.improvement_areas.map(clean),

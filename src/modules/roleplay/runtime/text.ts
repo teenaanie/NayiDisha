@@ -121,3 +121,15 @@ export function bestSentence(example: string, text: string): { sentence: Sentenc
   }
   return best;
 }
+
+/**
+ * A text the model stopped writing mid-sentence, right where a double-quoted quote would begin
+ * ("…missed following up on the customer's cue about"; 12 Oct 2026), keeps only its complete
+ * sentences. A text with no complete sentence becomes empty.
+ */
+export function completeSentences(text: string): string {
+  const t = text.trim();
+  if (!t || /[.!?।…][)"'’”\]]*$/.test(t)) return t;
+  const cut = t.match(/^[\s\S]*[.!?।…][)"'’”\]]*(?=\s)/);
+  return cut ? cut[0].trim() : '';
+}

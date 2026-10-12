@@ -132,7 +132,7 @@ cov = [
  chk("loan_purpose", "Asks why the customer needs the money", exp=["purpose"]),
  chk("loan_amount", "Asks the approximate amount required", exp=["loan_amount"]),
  chk("cost_breakup", "Explores what the amount covers: total cost and its breakup (tuition, hostel, other expenses)", exp=["total_cost", "cost_breakup"]),
- chk("own_contribution", "Asks how much the customer will contribute from own funds", exp=["own_contribution"]),
+ chk("own_contribution", "Asks how much the customer will pay upfront from own savings towards the cost (not the monthly EMI)", exp=["own_contribution"]),
  chk("timing", "Asks when the funds are required", exp=["needed_by"]),
  chk("income", "Asks the customer's approximate income or cash flow", intents_=["income", "salary_details"], exp=["monthly_income"]),
  chk("existing_commitments", "Asks about existing EMIs or important financial obligations", intents_=["existing_commitments", "existing_loan_term"], exp=["existing_emi"]),
@@ -224,13 +224,13 @@ skills_guide = [
 ]
 guide = {
  "skills": skills_guide,
- "level_labels": {"1": "Needs Improvement", "2": "Developing", "3": "Competent", "4": "Good", "5": "Excellent"},
+ "level_labels": {"1": "Needs Improvement", "2": "Developing", "3": "Competent", "4": "Proficient", "5": "Excellent"},
  "framework_note": "This is a framework, not a mandatory checklist. The learner should not automatically lose points for failing to ask every question.",
  "framework": [
   {"area": "Loan purpose", "information": "Why the customer needs the money", "check_id": "loan_purpose", "phrases": ["loan purpose", "purpose of the loan"]},
   {"area": "Loan amount", "information": "Approximate amount required", "check_id": "loan_amount", "phrases": ["loan amount", "amount required", "amount needed"]},
   {"area": "Cost breakup", "information": "What the amount covers: total cost, tuition, hostel, other expenses", "check_id": "cost_breakup", "phrases": ["breakup", "break-up", "cost break"]},
-  {"area": "Own contribution", "information": "How much the customer will pay from own funds", "check_id": "own_contribution", "phrases": ["own contribution", "from his side", "from their side"]},
+  {"area": "Own contribution", "information": "How much the customer will pay upfront from own savings towards the cost (not the monthly EMI)", "check_id": "own_contribution", "phrases": ["own contribution", "from his side", "from their side"]},
   {"area": "Timing", "information": "When the funds are required", "check_id": "timing", "phrases": ["timing", "when the funds", "when exactly"]},
   {"area": "Income", "information": "Approximate income or cash flow", "check_id": "income", "phrases": ["income", "salary"]},
   {"area": "Existing commitments", "information": "Existing EMIs or important financial obligations", "check_id": "existing_commitments", "phrases": ["existing commitments", "existing EMI", "other EMI", "another EMI", "current EMI"]},
@@ -250,7 +250,7 @@ guide = {
   {"check_id": "existing_commitments", "examples": ["Do you have any other EMIs?", "How much do you currently pay each month for other loans?", "You mentioned another EMI. How much is it?"]},
   {"check_id": "employment", "examples": ["What do you do for a living?", "Are you salaried or self-employed?", "How long have you been working in this company?"]},
   {"check_id": "cost_breakup", "examples": ["Can you give me the breakup of the ₹4 lakh?", "Is it only tuition, or hostel and food too?", "What is the total cost for the year?"]},
-  {"check_id": "own_contribution", "examples": ["How much can you pay from your side?", "Will you put in some of your own savings?", "How much are you contributing yourself?"]},
+  {"check_id": "own_contribution", "examples": ["The fees are about ₹4.5 lakh and you need a ₹4 lakh loan. How will you pay the rest?", "How much will you pay upfront from your own savings?", "Will you put in some of your own savings towards the fees?"]},
   {"check_id": "timing", "examples": ["When exactly do you need the money?", "By what date do the fees have to be paid?", "How soon do you need the funds?"]}],
  "exclusions": [
   "Product knowledge should not affect Questioning & Discovery unless the learner asks an irrelevant or misleading question.",
@@ -382,7 +382,7 @@ runtime = {
 all_checks = cov + [pitch] + listening + needs + clarity
 bundle = {
  "schema_version": "1.0",
- "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.4.1", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
+ "scenario": {"id": "EDU_DISCOVERY_001", "version": "4.5.0", "title": "Education Loan Discovery: Understanding the Student’s Funding Need", "product": "Education Loan", "skill": "Discovery Questions", "difficulty": "Intermediate", "locale": "en-IN",
   "learner_role": "Loan Sales Officer",
   "learner_brief": "Mr. Sharma has come in about a loan. In about 15 minutes, understand his need, priorities and concerns. Do not sell yet. Summarise what you have understood and confirm it with him before suggesting any next step.",
   "target_minutes": {"min": 12, "max": 15}, "objective_ids": [c["id"] for c in all_checks],
@@ -393,13 +393,13 @@ bundle = {
   "forbidden_inventions": ["Interest rate", "Processing fee or other charge amounts", "Employer name", "The college's fees beyond the stated breakup", "A loan tenure", "Approval or guaranteed loan amount"]},
  "facts": facts,
  "conversation": {"opening_text": "Hello. I need a loan, and I need the money quite soon. Can you help me?", "intents": intents, "rules": rules, "unknown_response": "I don’t have that detail with me right now.", "clarification_response": "Could you explain what you mean?", "multi_intent_mode": "answer_asked_only", "off_topic_mode": "brief_redirect", "injection_mode": "stay_in_character", "max_new_facts_per_turn": 4},
- "rubric": {"id": "education_discovery", "version": "4.4.1", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
+ "rubric": {"id": "education_discovery", "version": "4.5.0", "title": "Loan Discovery Skills Rubric", "evidence_categories": ["coverage", "quality", "compliance", "conversation"], "dimensions": dims, "checks": all_checks},
  "risk_policy": {"id": "education_discovery_risks", "version": "2.0.0", "rules": risks},
  "scoring": {"id": "discovery_weighted", "version": "1.0.0", "mode": "weighted_percent", "weights": {"questioning_discovery": 30, "active_listening": 30, "needs_conversation": 25, "clarity": 15},
   "bands": [{"id": "needs_coaching", "label": "Needs Coaching", "lower": 0, "upper": 55, "upper_inclusive": False}, {"id": "developing", "label": "Developing", "lower": 55, "upper": 70, "upper_inclusive": False}, {"id": "effective", "label": "Effective", "lower": 70, "upper": 85, "upper_inclusive": False}, {"id": "strong", "label": "Strong", "lower": 85, "upper": 100, "upper_inclusive": True}],
   "band_scale": "percent", "display_decimals": 0, "risk_effect": "cap",
   "risk_effect_parameters": {"rule_ids": ["guaranteed_approval", "documents_dismissed", "optional_as_compulsory", "income_falsification", "charges_misrepresented"], "max_percent": 54}},
- "prompts": {"roleplay": "roleplay_v4", "evaluator": "evaluator_v4", "coach": "coach_v2"},
+ "prompts": {"roleplay": "roleplay_v4", "evaluator": "evaluator_v5", "coach": "coach_v3"},
  "retry": {"full_enabled": True, "focused_enabled": True, "focused_target_check_ids": ["existing_commitments", "repayment_comfort", "concerns"], "focused_scoring": "checks_only",
   "instruction": "Repeat the middle part of the conversation. Ask about existing EMIs, a comfortable monthly repayment and the customer's concerns before explaining any loan option.", "version_policy": "pin_parent"},
  "provenance": [
