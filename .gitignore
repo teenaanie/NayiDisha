@@ -13,3 +13,8 @@ tsconfig.tsbuildinfo
 .claude/skills/
 .vercel
 .env*
+
+# Playwright
+/playwright-report/
+/test-results/
+/.e2e/
